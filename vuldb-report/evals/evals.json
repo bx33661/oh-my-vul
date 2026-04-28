@@ -5,19 +5,179 @@
       "id": 1,
       "prompt": "我在 npm 包 marked 4.3.0 里发现了一个 XSS 漏洞。`marked.parse()` 处理 Markdown 时，如果输入里有 `[text](javascript:alert(1))` 这样的链接，会直接输出 `<a href=\"javascript:alert(1)\">text</a>` 到 DOM，没有过滤 javascript: 协议。我写了个最小 PoC：在浏览器里 `document.body.innerHTML = marked.parse('[click](javascript:alert(document.domain))')` 然后点链接就触发了。这个包没打 patch。帮我写一个提交给 VulDB 的报告。",
       "expected_output": "A complete VulDB submission report in markdown with all sections filled: title in correct format, summary, affected component (with file/function if known), root cause, impact, attack requirements (noting user interaction required), PoC using alert(document.domain) not cookie theft, reproduction steps, suggested fix (scheme validation), and pre-submission checklist.",
-      "files": []
+      "files": [],
+      "assertions": [
+        {
+          "text": "包含 VulDB 表单字段",
+          "type": "vuldb_fields_present"
+        },
+        {
+          "text": "vendor 不能写 npm 等 registry",
+          "type": "vendor_not_registry"
+        },
+        {
+          "text": "点击触发 XSS 应评为 Medium 并说明用户交互",
+          "type": "click_xss_medium"
+        },
+        {
+          "text": "PoC 不应使用 cookie 窃取或外连 payload",
+          "type": "safe_local_poc"
+        }
+      ]
     },
     {
       "id": 2,
       "prompt": "I found a path traversal in the `serve-static` npm package version 1.15.0. The `root` option is supposed to restrict file serving to a directory, but when you send a request like `GET /../../etc/passwd` the middleware doesn't fully normalize the path before checking it against the root, so it serves files outside the intended directory. No auth needed, works with default config. I want to submit this to VulDB and request a CVE.",
       "expected_output": "A complete VulDB report with CWE-22 (not CWE-79), severity assessed as High (unauthenticated, remote, no user interaction), correct vendor/product fields (not 'npm' as vendor), version format 'up to and including 1.15.0', and a PoC using a curl command rather than a weaponised payload.",
-      "files": []
+      "files": [],
+      "assertions": [
+        {
+          "text": "包含 VulDB 表单字段",
+          "type": "vuldb_fields_present"
+        },
+        {
+          "text": "vendor 不能写 npm 等 registry",
+          "type": "vendor_not_registry"
+        },
+        {
+          "text": "版本使用 VulDB 可接受措辞",
+          "type": "version_vuldb_wording"
+        },
+        {
+          "text": "无认证远程路径穿越应评为 High",
+          "type": "path_traversal_high"
+        }
+      ]
     },
     {
       "id": 3,
       "prompt": "我发现了一个 Python 包 PyYAML 6.0 的漏洞。用 `yaml.load(user_input)` 不加 Loader 参数的话可以 RCE。但我查了一下，这个其实早就有 CVE-2017-18342 了。我还是想提交 VulDB，帮我写报告吧。",
       "expected_output": "The skill should FIRST flag that a duplicate CVE (CVE-2017-18342) likely already exists and warn the user not to submit without verifying. It should explain this would be rejected. If the user still wants to proceed, it should note the duplicate in the report's references section and advise the user to check whether the issue is genuinely new or a variant.",
-      "files": []
+      "files": [],
+      "assertions": [
+        {
+          "text": "先提示重复 CVE 风险",
+          "type": "duplicate_cve_warning"
+        },
+        {
+          "text": "不应直接产出 submission-ready 报告",
+          "type": "no_submission_ready_report"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "下面是 vuln-finder handoff：\n```yaml\nhandoff_version: \"0.3\"\nstatus: blocked\nresearcher_goal: VulDB\npackage:\n  ecosystem: npm\n  registry_name: demo-merge\n  repository_url: https://github.com/example/demo-merge\n  vendor: example\n  product: demo-merge\nversions:\n  tested: \"\"\n  affected_range: \"unknown\"\nvulnerability:\n  class: Prototype Pollution\n  cwe: CWE-1321\n  affected_component: src/merge.js\n  affected_function: mergeDeep()\nevidence:\n  source: JSON body\n  sink: recursive assignment\n  guard: not verified\nimpact:\n  attack_vector: Network\n  authentication_required: unknown\n  user_interaction_required: No\nblockers:\n  - no tested version\n  - source to sink not proven\nprovenance:\n  verification_date: \"2026-04-28\"\n```\n帮我直接生成 VulDB 报告。",
+      "expected_output": "The skill should not generate a submission-ready VulDB report. It should preserve the handoff facts, lead with the blockers (missing tested version and unproven source-to-sink flow), explain the minimum evidence needed, and may provide only a draft outline clearly marked as not ready for submission.",
+      "files": [
+        "evals/golden/blocked-handoff.md"
+      ],
+      "assertions": [
+        {
+          "text": "blocked handoff 不应产出 submission-ready 报告",
+          "type": "no_submission_ready_report"
+        },
+        {
+          "text": "明确列出 tested version 和 source-to-sink blocker",
+          "type": "blockers_present"
+        },
+        {
+          "text": "保留 source/sink/guard 事实",
+          "type": "source_sink_guard_present"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Generate an OSV JSON advisory for a confirmed npm prototype pollution in `demo-merge` 2.4.1, fixed in 2.4.2. Source is `JSON.parse(req.body)` into `mergeDeep()`, sink is assignment of `target[key] = value`, guard is missing blocklist for `__proto__`, `constructor`, and `prototype`. CWE-1321, CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N. Repo https://github.com/example/demo-merge, vulnerable file https://github.com/example/demo-merge/blob/v2.4.1/src/merge.js.",
+      "expected_output": "Valid OSV-style JSON, not Markdown, with schema_version, id set to TBD or omitted rather than invented, affected package ecosystem npm and name demo-merge, SEMVER range introduced/fixed, tested version 2.4.1, fixed 2.4.2, details containing source -> sink -> guard, CWE-1321 reference or database_specific entry, and the supplied CVSS vector.",
+      "files": [
+        "evals/golden/osv-prototype-pollution.json"
+      ],
+      "assertions": [
+        {
+          "text": "输出是合法 OSV JSON",
+          "type": "osv_json_valid"
+        },
+        {
+          "text": "不能编造 OSV/CVE/GHSA ID",
+          "type": "osv_id_not_invented"
+        },
+        {
+          "text": "包含 SEMVER introduced/fixed 范围",
+          "type": "osv_range_present"
+        },
+        {
+          "text": "包含 source -> sink -> guard 证据",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "包含 CVSS v3.1 vector",
+          "type": "cvss_vector_present"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Write a Markdown advisory for a Python ReDoS in `example-validator` 1.8.1, fixed in 1.8.2. The vulnerable function is `validate_email()` in `example_validator/email.py`; user input reaches a nested-quantifier regex with no length guard. The local PoC is `payload = ('a.' * 5000) + '!'` passed to `validate_email(payload)`, causing high CPU. No user interaction. Auth depends on host app.",
+      "expected_output": "A standalone Markdown advisory with title, summary, affected versions, technical details, impact, PoC, remediation, disclosure timeline, and references. It should classify as Denial of Service/CWE-1333, not overstate to RCE, and should include a safe local PoC.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "包含 Markdown advisory 标准章节",
+          "type": "markdown_advisory_sections"
+        },
+        {
+          "text": "ReDoS 不应夸大为 RCE",
+          "type": "redos_not_rce"
+        },
+        {
+          "text": "包含安全的本地 PoC",
+          "type": "safe_local_poc"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I already opened a draft GitHub Security Advisory for this npm XSS and requested a CVE through GHSA. Can you also prepare the same issue for VulDB CVE submission?",
+      "expected_output": "The skill should warn about duplicate CNA/CVE risk because GHSA CVE processing is already in progress. It should not encourage simultaneous VulDB CVE submission unless GHSA rejects the CVE request. It can offer a non-CVE VulDB-style draft or advise waiting.",
+      "files": [
+        "evals/golden/duplicate-cna-warning.md"
+      ],
+      "assertions": [
+        {
+          "text": "提示 GHSA/VulDB 重复 CNA/CVE 风险",
+          "type": "duplicate_cna_warning"
+        },
+        {
+          "text": "不应直接产出 submission-ready VulDB CVE 报告",
+          "type": "no_submission_ready_report"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Create both GHSA fields and a VulDB form for a Go path traversal in `github.com/example/staticserve` v0.9.0. Fixed version v0.9.1. `ServePath()` in `static/file.go` joins URL path to root without checking it stays under root. PoC is local curl against localhost. No auth, no user interaction.",
+      "expected_output": "The skill should generate both requested formats with platform-specific syntax: GHSA ecosystem Go, package github.com/example/staticserve, affected range < v0.9.1 or equivalent, patched v0.9.1, CWE-22; VulDB vendor/product fields should not use pkg.go.dev as vendor and version should be before v0.9.1 or up to and including v0.9.0. It should include duplicate-CVE and vendor-contact checklist language.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "同时包含 GHSA 和 VulDB 平台字段",
+          "type": "platform_fields_present"
+        },
+        {
+          "text": "vendor 不能写 pkg.go.dev",
+          "type": "vendor_not_registry"
+        },
+        {
+          "text": "包含正确 CWE",
+          "type": "cwe_correct"
+        },
+        {
+          "text": "路径穿越严重性和认证条件合理",
+          "type": "path_traversal_high"
+        }
+      ]
     }
   ]
 }

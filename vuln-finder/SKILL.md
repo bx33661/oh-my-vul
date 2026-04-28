@@ -35,6 +35,7 @@ Load only the files needed for the request:
 - Vulnerability source/sink/guard patterns: `references/vuln-patterns.md`
 - Scoring, filtering, confidence rules: `references/scoring.md`
 - Required final table, audit tips, freshness notes, invalid-request template: `references/output-contract.md`
+- Confirmed finding handoff fields for `vuldb-report`: `references/handoff-contract.md`
 
 For narrow requests, use `rg` inside `references/` to read only the relevant ecosystem or vulnerability section. For `--vuln all`, inspect the project type first, then load the most likely vulnerability sections.
 
@@ -79,6 +80,7 @@ For narrow requests, use `rg` inside `references/` to read only the relevant eco
    - Use the table and follow-up sections in `references/output-contract.md`.
    - Sort by score descending.
    - Include data freshness, sources used, and uncertainty.
+   - If the user asks to pass a confirmed finding to `vuldb-report`, add a handoff packet using `references/handoff-contract.md`. Do not emit a handoff packet for unconfirmed target lists.
 
 ## Deterministic Helpers
 

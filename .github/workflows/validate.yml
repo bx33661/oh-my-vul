@@ -11,9 +11,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate skill structures
         run: python3 scripts/validate_skill.py
+      - name: Run release packaging check
+        run: python3 scripts/release_check.py
       - name: Build and validate vuln-finder package
         run: bash scripts/package_skill.sh vuln-finder "$RUNNER_TEMP/vuln-finder.skill"
       - name: Build and validate vuldb-report package
         run: bash scripts/package_skill.sh vuldb-report "$RUNNER_TEMP/vuldb-report.skill"
       - name: Check golden invalid-flags eval
         run: python3 vuln-finder/scripts/check_output.py --eval-id 26 --output vuln-finder/evals/golden/invalid-flags.md
+      - name: Check vuldb-report blocked handoff golden eval
+        run: python3 vuldb-report/scripts/check_output.py --eval-id 4 --output vuldb-report/evals/golden/blocked-handoff.md
+      - name: Check vuldb-report OSV golden eval
+        run: python3 vuldb-report/scripts/check_output.py --eval-id 5 --output vuldb-report/evals/golden/osv-prototype-pollution.json
+      - name: Check vuldb-report duplicate CNA golden eval
+        run: python3 vuldb-report/scripts/check_output.py --eval-id 7 --output vuldb-report/evals/golden/duplicate-cna-warning.md

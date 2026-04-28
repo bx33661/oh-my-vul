@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.6.0",
+  "id": "TBD",
+  "modified": "2026-04-28T00:00:00Z",
+  "published": "2026-04-28T00:00:00Z",
+  "summary": "demo-merge prototype pollution in mergeDeep",
+  "details": "demo-merge version 2.4.1 is affected by prototype pollution in mergeDeep(). Source -> sink -> guard: attacker-controlled JSON from JSON.parse(req.body) reaches mergeDeep(); the sink is assignment of target[key] = value; the guard is missing blocklist handling for __proto__, constructor, and prototype. This allows attacker-controlled object keys to modify object prototypes in applications that pass untrusted JSON to the merge helper.",
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "npm",
+        "name": "demo-merge"
+      },
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "2.4.2"
+            }
+          ]
+        }
+      ],
+      "versions": [
+        "2.4.1"
+      ],
+      "database_specific": {
+        "cwe": "CWE-1321",
+        "source": "JSON.parse(req.body) -> mergeDeep() -> target[key] = value; missing __proto__/constructor/prototype blocklist"
+      }
+    }
+  ],
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://github.com/example/demo-merge"
+    },
+    {
+      "type": "WEB",
+      "url": "https://github.com/example/demo-merge/blob/v2.4.1/src/merge.js"
+    }
+  ],
+  "severity": [
+    {
+      "type": "CVSS_V3",
+      "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N"
+    }
+  ]
+}

@@ -11,8 +11,12 @@ Load these when needed — do not load all at once:
 
 - **`references/ecosystems.md`** — vendor naming rules, version verification commands, duplicate CVE search databases, CWE→Class mapping. Read when ecosystem-specific details are needed.
 - **`references/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
+- **`references/handoff-contract.md`** — structured input contract from `vuln-finder`; read when the user provides a handoff packet or asks to continue from finder results.
+- **`references/report-templates.md`** — reusable VulDB, GHSA, OSV, and standalone Markdown advisory templates. Read when the user requests a specific report format.
 - **`references/examples/xss-npm.md`** — complete filled report for a click-triggered XSS in an npm package.
 - **`references/examples/path-traversal-go.md`** — complete filled report for an unauthenticated path traversal in a Go module.
+- **`references/examples/prototype-pollution-npm.md`** — filled report for prototype pollution in an npm package.
+- **`references/examples/redos-python.md`** — filled report for ReDoS in a Python package.
 
 ---
 
@@ -29,6 +33,13 @@ Flag these patterns before writing — each one is a common rejection reason:
 | Likely duplicate CVE exists | Search NVD, GHSA, and the ecosystem DB first |
 
 If a flag appears, tell the user what is missing and how to address it before continuing.
+
+If the input is a `vuln-finder` handoff packet, apply `references/handoff-contract.md` before drafting:
+
+- `status: blocked` means explain blockers instead of writing a submission-ready report.
+- `status: candidate` means produce a triage draft only.
+- `status: confirmed` can become a submission-ready report if required fields are present.
+- Preserve unverified fields as unverified; do not silently upgrade them to confirmed facts.
 
 ---
 
@@ -268,6 +279,22 @@ Example: `canvg: Cross-Site Scripting in AElement.ts onClick via javascript: URI
 Add URLs to: source permalink, existing issue, PoC. GHSA will display these publicly once the advisory is published.
 
 > Once you publish a GHSA (or request a CVE through it), do not also submit the same issue to VulDB unless the GHSA CVE request is explicitly rejected — filing both creates a duplicate CVE risk.
+
+---
+
+## Part D — OSV and Markdown Advisory Outputs
+
+Generate OSV JSON when the user asks for OSV, OpenSSF, `osv.dev`, or machine-readable advisory output. Generate a standalone Markdown advisory when the user asks for a blog post, maintainer report, email advisory, or generic disclosure note.
+
+Read `references/report-templates.md` for exact field layout. OSV output must be valid JSON and must not invent an advisory ID. If no fixed version is known, omit the fixed event and state that no patch is available in `details`.
+
+---
+
+## Deterministic Helpers
+
+Use bundled scripts when they fit the task:
+
+- `scripts/check_output.py`: runs heuristic eval assertions against a saved `vuldb-report` output. It checks platform fields, blocked handoff behavior, OSV JSON structure, duplicate CNA warnings, severity sanity, and safe PoC wording.
 
 ---
 

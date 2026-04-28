@@ -29,9 +29,12 @@ The two skills are designed to work as a research pipeline:
 │   └── evals/
 ├── scripts/
 │   ├── validate_skill.py
-│   └── package_skill.sh
+│   ├── package_skill.sh
+│   └── release_check.py
 ├── vuln-finder.skill
-└── vuldb-report.skill
+├── vuldb-report.skill
+├── CHANGELOG.md
+└── RELEASE.md
 ```
 
 ## Install
@@ -92,6 +95,39 @@ Run the stable `vuln-finder` golden check:
 ```bash
 python3 vuln-finder/scripts/check_output.py --eval-id 26 --output vuln-finder/evals/golden/invalid-flags.md
 ```
+
+Run stable `vuldb-report` golden checks:
+
+```bash
+python3 vuldb-report/scripts/check_output.py --eval-id 4 --output vuldb-report/evals/golden/blocked-handoff.md
+python3 vuldb-report/scripts/check_output.py --eval-id 5 --output vuldb-report/evals/golden/osv-prototype-pollution.json
+python3 vuldb-report/scripts/check_output.py --eval-id 7 --output vuldb-report/evals/golden/duplicate-cna-warning.md
+```
+
+Run release checks and rebuild tracked packages:
+
+```bash
+python3 scripts/release_check.py
+python3 scripts/release_check.py --write-artifacts
+```
+
+## Skill Handoff
+
+When a `vuln-finder` result becomes a confirmed vulnerability, it can emit a structured `vuldb-report handoff` packet. The shared contract lives in:
+
+- `vuln-finder/references/handoff-contract.md`
+- `vuldb-report/references/handoff-contract.md`
+
+The packet carries package identity, affected versions, source -> sink -> guard evidence, PoC status, impact requirements, disclosure status, blockers, and provenance. `vuldb-report` should refuse submission-ready output when the handoff is blocked or missing required evidence.
+
+## Report Formats
+
+`vuldb-report` supports:
+
+- VulDB form fields
+- Full Markdown advisory
+- GitHub Security Advisory fields
+- OSV JSON advisory draft
 
 ## Design Notes
 

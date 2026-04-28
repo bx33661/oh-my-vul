@@ -24,6 +24,17 @@ After the table, add:
 1. **审计建议**: one short paragraph per project. Start from the evidence path, then suggest two passive/local next steps such as writing unit tests, building a local harness, checking sanitizer behavior, tracing path normalization, or fuzzing a parser locally.
 2. **数据新鲜度与限制**: state verification date, primary sources used, scripts used if any, rate-limit/network limitations, and any `未确认` fields.
 
+## Confirmed Finding Handoff
+
+When the user asks to turn a confirmed finding into a report, append a `vuldb-report handoff` block after the normal analysis. Use `references/handoff-contract.md`.
+
+Rules:
+
+- Use `status: confirmed` only when a tested version, source -> sink -> guard evidence, local reproducer, and impact requirements are known.
+- Use `status: candidate` for promising but unproven findings.
+- Use `status: blocked` when a duplicate CVE is likely, a tested version is missing, the source path is not attacker controlled, or the only trigger is developer-owned code/config.
+- Mark unknown fields as `unknown` or list them under `provenance.unverified_fields`; do not fill them from memory.
+
 ## Invalid Request Template
 
 For invalid flags, do not output a project table. Use a concise message:
