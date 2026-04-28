@@ -34,6 +34,7 @@ The two skills are designed to work as a research pipeline:
 ├── vuln-finder.skill
 ├── vuldb-report.skill
 ├── CHANGELOG.md
+├── DEVELOPMENT.md
 └── RELEASE.md
 ```
 
@@ -110,6 +111,8 @@ Run release checks and rebuild tracked packages:
 python3 scripts/release_check.py
 python3 scripts/release_check.py --write-artifacts
 ```
+
+Development rationale and iteration notes live in `DEVELOPMENT.md`.
 
 ## Skill Handoff
 
