@@ -1,0 +1,19 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  skill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate skill structures
+        run: python3 scripts/validate_skill.py
+      - name: Build and validate vuln-finder package
+        run: bash scripts/package_skill.sh vuln-finder "$RUNNER_TEMP/vuln-finder.skill"
+      - name: Build and validate vuldb-report package
+        run: bash scripts/package_skill.sh vuldb-report "$RUNNER_TEMP/vuldb-report.skill"
+      - name: Check golden invalid-flags eval
+        run: python3 vuln-finder/scripts/check_output.py --eval-id 26 --output vuln-finder/evals/golden/invalid-flags.md

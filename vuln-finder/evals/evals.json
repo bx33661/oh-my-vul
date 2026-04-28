@@ -1,0 +1,1096 @@
+{
+  "skill_name": "vuln-finder",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "帮我找一批 npm 生态里适合挖 CVE 的项目，我最近想研究 Path Traversal 和 Zip Slip 类型的漏洞。",
+      "expected_output": "输出 10-15 个 npm/Node.js 项目的排名表格，聚焦 Path Traversal / Zip Slip。每个项目应有真实 GitHub 仓库、npm 或明确未确认的 registry 信息、stars、最近维护时间、规模估计方法、source -> sink -> guard 风险证据、具体可疑文件/函数和综合评分。表格后附每个项目的本地审计建议与数据新鲜度说明。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出包含 markdown 表格，有 10 个或以上的项目行",
+          "type": "table_row_count"
+        },
+        {
+          "text": "所有项目都是 npm/Node.js 生态，不包含 Python/Go/Rust 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向包含 Path Traversal 或 Zip Slip",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "每个高排名项目都有 source -> sink -> guard 风险证据，而不只是危险 API 关键词",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "每个高排名项目都有具体文件或函数位置，不能全部是 '未确认'",
+          "type": "suspicious_code_present"
+        },
+        {
+          "text": "仓库链接是真实 GitHub 项目链接，npm registry 链接存在或明确标为未确认",
+          "type": "verified_links_present"
+        },
+        {
+          "text": "包含 stars、最近维护时间、规模估计方法和综合评分字段",
+          "type": "metadata_and_score_present"
+        },
+        {
+          "text": "没有明显的大厂核心库或旗舰框架，如 Express、React、webpack 等",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "审计建议是本地/被动研究步骤，没有要求攻击真实线上服务",
+          "type": "non_exploitative_guidance"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "/vuln-finder --lang python --vuln yaml --count 10",
+      "expected_output": "输出约 10 个 Python 生态项目，聚焦 YAML/XML/JSON 解析类漏洞。每行需要 PyPI 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据和文件/函数。表格后说明验证日期、未确认字段和每个项目的审计切入点。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Python 生态，来自 PyPI 包或 Python GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 YAML/XML/JSON 解析问题",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 yaml.load、pickle、XML entity、custom object hook、safe loader 等具体解析风险或防护点",
+          "type": "parser_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Django、Flask、requests 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 PyPI/registry 链接列，链接格式正确",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明，不把未确认字段伪装成确定事实",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我想在 Rust 和 Go 里找一些处理文件上传或压缩包解压的中小型库，看看有没有路径穿越或者 unsafe 内存问题可以挖。给我一个候选列表。",
+      "expected_output": "输出涵盖 Rust 和 Go 两个生态的项目列表，聚焦文件上传/压缩包处理，可能方向包括 Path Traversal、Zip Slip、Rust Unsafe 或 Panic DoS。每个项目应有 GitHub/registry 链接、维护时间、规模估计、具体代码位置、source/sink/guard 证据和本地审计建议。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "结果同时包含 Rust 和 Go 两个生态，且各至少 3 个项目",
+          "type": "both_ecosystems_present"
+        },
+        {
+          "text": "漏洞方向包含 Path Traversal、Zip Slip、Rust Unsafe 或 Panic DoS 相关词",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "对 Rust 项目提到了 unsafe、from_utf8_unchecked、unwrap/expect on external data 或 checked length 等具体风险/防护点",
+          "type": "rust_unsafe_signals"
+        },
+        {
+          "text": "对 Go 项目提到了 filepath.Join、path.Clean、archive extraction、os.Open/write 或 base-dir guard 等具体风险/防护点",
+          "type": "go_path_risk_named"
+        },
+        {
+          "text": "输出包含 crates.io、pkg.go.dev 或 GitHub 的真实链接",
+          "type": "registry_links_present"
+        },
+        {
+          "text": "每个高排名项目有可疑代码位置和 source -> sink -> guard 证据",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "有本地审计建议或代码审计切入点，不包含线上攻击步骤",
+          "type": "audit_tips_present"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/vuln-finder --count 12 markdown parser",
+      "expected_output": "输出 12 个左右的多生态 markdown/parser 相关项目，生态分布尽量多样。每个候选都应有 verified repo、metadata source、LOC/规模估计方法、风险证据、置信度或限制说明。若某些字段无法确认，应明确写未确认，并在最后的数据新鲜度与限制中汇总。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 10-14 个项目之间，尊重 --count 12",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "结果覆盖至少两个生态，不能全部来自单一语言",
+          "type": "ecosystem_diversity_present"
+        },
+        {
+          "text": "项目类型围绕 markdown/parser/render/sanitize 等关键词，但漏洞方向不机械重复",
+          "type": "topic_relevance_and_diversity"
+        },
+        {
+          "text": "每行包含 metadata source 或数据来源说明，不能只给记忆中的数字",
+          "type": "metadata_source_present"
+        },
+        {
+          "text": "规模估计包含方法，如 cloc、tokei、GitHub estimate 或 未确认",
+          "type": "size_estimate_method_present"
+        },
+        {
+          "text": "最后包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        },
+        {
+          "text": "高分项目的评分理由能对应输入面、证据质量、维护活跃度和影响力，而不是只按 stars 排序",
+          "type": "score_explainability_present"
+        }
+      ]
+    }
+    ,
+    {
+      "id": 4,
+      "prompt": "/vuln-finder --lang java --vuln deser --count 10",
+      "expected_output": "输出约 10 个 Java 生态项目，聚焦反序列化漏洞。每行需要 Maven Central 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 ObjectInputStream.readObject、resolveClass 覆盖情况）和文件/函数位置。表格后说明验证日期、未确认字段和每个项目的审计切入点。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Java 生态，来自 Maven Central 或 Java GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及反序列化问题",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 ObjectInputStream、readObject、resolveClass、gadget chain、ysoserial 或 safe deserialization 等具体风险/防护点",
+          "type": "deser_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Spring Framework、Spring Boot 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Maven Central registry 链接列（groupId:artifactId 格式或链接），链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明，不把未确认字段伪装成确定事实",
+          "type": "freshness_and_uncertainty_present"
+        },
+        {
+          "text": "审计建议是本地/被动研究步骤，没有要求攻击真实线上服务",
+          "type": "non_exploitative_guidance"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/vuln-finder --lang ruby --vuln injection --count 10",
+      "expected_output": "输出约 10 个 Ruby 生态项目，聚焦命令注入或模板注入漏洞。每行需要 RubyGems 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 system/exec/backtick、ERB/Liquid 模板渲染）和文件/函数位置。表格后说明验证日期、未确认字段和每个项目的审计切入点。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Ruby 生态，来自 RubyGems 或 Ruby GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及命令注入或模板注入",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 system、exec、backtick、Open3、ERB、Liquid、Tilt 或 shell escape 等具体风险/防护点",
+          "type": "injection_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Rails、Devise、Nokogiri 核心库等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 RubyGems registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/vuln-finder --vuln race --count 10 file upload",
+      "expected_output": "输出约 10 个多生态项目，聚焦文件上传场景下的竞态条件/TOCTOU 漏洞。结果应覆盖至少两个生态。每行需要 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 check-then-act 文件操作、共享状态无锁）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "结果覆盖至少两个生态，不能全部来自单一语言",
+          "type": "ecosystem_diversity_present"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及竞态条件或 TOCTOU",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 TOCTOU、check-then-act、mutex、lock、atomic、concurrent 或 race 等具体风险/防护点",
+          "type": "race_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        },
+        {
+          "text": "审计建议是本地/被动研究步骤，没有要求攻击真实线上服务",
+          "type": "non_exploitative_guidance"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/vuln-finder --lang rust --vuln overflow --count 8",
+      "expected_output": "输出约 8 个 Rust 生态项目，聚焦整数溢出或越界访问漏洞，尤其是处理外部数据（网络、文件、C FFI）的库。每行需要 crates.io 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 as 强转、unchecked 算术、JNI/FFI 边界）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Rust 生态，来自 crates.io 或 Rust GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及整数溢出或越界访问",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 as 强转、checked_add/checked_mul、wrapping_*、saturating_*、unchecked 算术、FFI 边界或 from_raw_parts 等具体风险/防护点",
+          "type": "overflow_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "包含 crates.io registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        },
+        {
+          "text": "审计建议是本地/被动研究步骤，没有要求攻击真实线上服务",
+          "type": "non_exploitative_guidance"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "/vuln-finder --lang php --vuln traversal --count 10",
+      "expected_output": "输出约 10 个 PHP 生态项目，聚焦路径穿越漏洞。每行需要 Packagist 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 file_get_contents、move_uploaded_file、realpath 缺失）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 PHP 生态，来自 Packagist 或 PHP GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及路径穿越或 Zip Slip",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 file_get_contents、move_uploaded_file、realpath、dirname、basename 或 path traversal guard 等具体风险/防护点",
+          "type": "traversal_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Laravel、Symfony、WordPress core 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Packagist registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "/vuln-finder --lang csharp --vuln xxe --count 10",
+      "expected_output": "输出约 10 个 C# / .NET 生态项目，聚焦 XXE 漏洞。每行需要 NuGet 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 XmlReader、XmlDocument、DTD 处理配置）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 C# / .NET 生态，来自 NuGet 或 C# GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 XXE",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 XmlReader、XmlDocument、XmlTextReader、DTD、ENTITY、FEATURE_SECURE_PROCESSING 或 DtdProcessing.Prohibit 等具体风险/防护点",
+          "type": "xxe_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 .NET Core、ASP.NET Core、Entity Framework 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 NuGet registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "/vuln-finder --lang swift --vuln upload --count 8",
+      "expected_output": "输出约 8 个 Swift 生态项目，聚焦文件上传校验绕过漏洞。每行需要 Swift Package Index 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 URLSession upload、MIME 校验、扩展名检查）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Swift 生态，来自 Swift Package Index 或 Swift GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及文件上传校验绕过",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 URLSession、UTType、MIME type、extension check、content validation 或 upload guard 等具体风险/防护点",
+          "type": "upload_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Alamofire、Kingfisher、SnapKit、Lottie-iOS 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Swift Package Index registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "/vuln-finder --lang dart --vuln yaml --count 10",
+      "expected_output": "输出约 10 个 Dart 生态项目，聚焦 YAML/XML/JSON 解析类漏洞。每行需要 pub.dev 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 yaml 解析器配置、自定义对象反序列化）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Dart 生态，来自 pub.dev 或 Dart GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 YAML/XML/JSON 解析问题",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 yaml 解析、jsonDecode、xml、custom object hook、safe loader 或 schema restriction 等具体解析风险或防护点",
+          "type": "parser_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 flutter/engine、provider、dio、getx 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 pub.dev registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "/vuln-finder --lang elixir --vuln race --count 8",
+      "expected_output": "输出约 8 个 Elixir 生态项目，聚焦竞态条件/TOCTOU 漏洞。每行需要 Hex.pm 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 Agent 状态竞争、ETS 表无锁读写、文件 check-then-act）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Elixir 生态，来自 Hex.pm 或 Elixir GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及竞态条件或 TOCTOU",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 Agent、GenServer、ETS、Task、Mutex、atomic、concurrent 或 race 等具体风险/防护点",
+          "type": "race_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Phoenix Framework、Ecto 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Hex.pm registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "/vuln-finder --lang perl --vuln injection --count 8",
+      "expected_output": "输出约 8 个 Perl 生态项目，聚焦命令注入或模板注入漏洞。每行需要 CPAN 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 system/exec/open、TT/Template Toolkit 渲染）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Perl 生态，来自 CPAN 或 Perl GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及命令注入或模板注入",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 system、exec、qx、open、Template Toolkit、TT、Mason 或 shell escape 等具体风险/防护点",
+          "type": "injection_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Moose、DBI 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 CPAN registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "/vuln-finder --lang r --vuln deser --count 8",
+      "expected_output": "输出约 8 个 R 生态项目，聚焦反序列化或 unsafe 解析漏洞。每行需要 CRAN 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 unserialize、RDS 解析、.RData 加载）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 R 生态，来自 CRAN 或 R GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及反序列化或 unsafe 解析问题",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 unserialize、RDS、.RData、readRDS、saveRDS 或 safe deserialization 等具体风险/防护点",
+          "type": "deser_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 ggplot2、dplyr、tidyverse 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 CRAN registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "/vuln-finder --lang lua --vuln infoleak --count 8",
+      "expected_output": "输出约 8 个 Lua 生态项目，聚焦信息泄露漏洞。每行需要 LuaRocks 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 debug.getinfo、verbose error handling、敏感配置暴露）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Lua 生态，来自 LuaRocks 或 Lua GitHub 项目",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及信息泄露",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 debug.getinfo、pcall、xpcall、verbose error、stack trace、_G 全局表暴露或 sensitive config leak 等具体风险/防护点",
+          "type": "infoleak_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Penlight、LuaJIT 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 LuaRocks registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "/vuln-finder --lang npm --vuln auth --count 10",
+      "expected_output": "输出约 10 个 npm/Node.js 生态项目，聚焦认证/鉴权绕过漏洞。每行需要 npm 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 JWT 验证、session 处理、角色检查缺失）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 npm/Node.js 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及认证或鉴权绕过",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 JWT、verify、none algorithm、session fixation、role check、auth middleware 或 access control 等具体风险/防护点",
+          "type": "auth_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Express、Fastify、Passport 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 npm registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "/vuln-finder --lang php --vuln csrf --count 8",
+      "expected_output": "输出约 8 个 PHP 生态项目，聚焦 CSRF 漏洞。每行需要 Packagist 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如表单提交无 token、SameSite 配置缺失、状态变更 GET 请求）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 PHP 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 CSRF",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 CSRF token、SameSite、double-submit cookie、Origin header、state-changing GET 或 form submission 等具体风险/防护点",
+          "type": "csrf_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Laravel、Symfony 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Packagist registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "/vuln-finder --lang java --vuln xxe --count 10",
+      "expected_output": "输出约 10 个 Java 生态项目，聚焦 XXE 漏洞。每行需要 Maven Central 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 XMLReader、DocumentBuilder、DTD 处理配置）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Java 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 XXE",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 XmlReader、DocumentBuilder、SAXParser、DTD、ENTITY、external entity、FEATURE_SECURE_PROCESSING 或 DtdProcessing 等具体风险/防护点",
+          "type": "xxe_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Spring Framework、Spring Boot 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Maven Central registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "/vuln-finder --lang python --vuln sql --count 10",
+      "expected_output": "输出约 10 个 Python 生态项目，聚焦 SQL/NoSQL 注入漏洞。每行需要 PyPI 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如字符串拼接 SQL、未参数化的 ORM 查询、MongoDB $where）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Python 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 SQL 或 NoSQL 注入",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 raw SQL string、string concatenation、parameterized query、ORM safe API、MongoDB $where、PyMongo 或 SQLAlchemy 等具体风险/防护点",
+          "type": "sql_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Django、Flask、SQLAlchemy core 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 PyPI registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "/vuln-finder --lang ruby --vuln ssti --count 8",
+      "expected_output": "输出约 8 个 Ruby 生态项目，聚焦服务端模板注入漏洞。每行需要 RubyGems 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 ERB.render、Liquid 模板从用户输入渲染、模板沙箱配置）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Ruby 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及服务端模板注入",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 ERB、Liquid、Tilt、Slim、Haml、template render from user input、sandbox config 或 template allowlist 等具体风险/防护点",
+          "type": "ssti_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Rails、Devise 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 RubyGems registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "/vuln-finder --lang npm --vuln sandbox --count 8",
+      "expected_output": "输出约 8 个 npm/Node.js 生态项目，聚焦沙箱逃逸/插件逃逸漏洞。每行需要 npm 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 vm.runInContext、iframe 同源策略、postMessage 无 origin 校验）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 npm/Node.js 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及沙箱逃逸或插件逃逸",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 vm.runInContext、eval、iframe、postMessage、same origin、Worker、sandbox escape 或 capability-based sandbox 等具体风险/防护点",
+          "type": "sandbox_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 React、Vue、webpack 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 npm registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "/vuln-finder --lang go --vuln redirect --count 10",
+      "expected_output": "输出约 10 个 Go 生态项目，聚焦 Open Redirect 漏洞。每行需要 pkg.go.dev 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 http.Redirect 用户控制 URL、Location header 注入）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Go 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 Open Redirect",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 http.Redirect、Location header、url.Parse、protocol-relative URL、javascript:、allowlist domain 或 callback validation 等具体风险/防护点",
+          "type": "redirect_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 gin、echo、Fiber 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 pkg.go.dev registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "/vuln-finder --lang csharp --vuln upload --count 8",
+      "expected_output": "输出约 8 个 C# / .NET 生态项目，聚焦文件上传校验绕过漏洞。每行需要 NuGet 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 IFormFile、MIME 校验、扩展名黑名单、路径穿越在文件名中）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 C# / .NET 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及文件上传校验绕过",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 IFormFile、MIME type、extension blacklist、content-type sniffing、file magic、quarantine scan 或 upload guard 等具体风险/防护点",
+          "type": "upload_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 ASP.NET Core、Entity Framework 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 NuGet registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "/vuln-finder --lang java --vuln crypto --count 8",
+      "expected_output": "输出约 8 个 Java 生态项目，聚焦弱加密/密钥处理漏洞。每行需要 Maven Central 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 ECB 模式、硬编码密钥、弱 RNG、静态 IV）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Java 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及弱加密或密钥处理错误",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 ECB mode、hardcoded key、Math.random、SecureRandom、static IV、AES-GCM、ChaCha20-Poly1305、Argon2、scrypt 或 padding oracle 等具体风险/防护点",
+          "type": "crypto_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 Spring Framework、Spring Security 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 Maven Central registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "/vuln-finder --lang rust --vuln infoleak --count 8",
+      "expected_output": "输出约 8 个 Rust 生态项目，聚焦信息泄露漏洞。每行需要 crates.io 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 panic 信息暴露、debug 模式输出、敏感日志）和文件/函数位置。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出数量在 6-10 个项目之间，尊重 --count 8",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 Rust 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及信息泄露",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "提到了 panic、unwrap、expect、debug info、error message、stack trace、verbose logging、PII exposure 或 path disclosure 等具体风险/防护点",
+          "type": "infoleak_risk_and_guard_named"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有出现 tokio、actix 等顶级框架",
+          "type": "no_flagship_projects"
+        },
+        {
+          "text": "包含仓库链接列和 crates.io registry 链接列，链接格式正确或明确标为未确认",
+          "type": "repo_and_registry_links_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "prompt": "/vuln-finder --lang unknown --vuln unknown --count 999",
+      "expected_output": "由于 --lang unknown 和 --vuln unknown 均为无效值，应优雅拒绝请求并提示用户有效的取值范围。不应输出项目列表，也不应硬凑结果。",
+      "files": [
+        "evals/golden/invalid-flags.md"
+      ],
+      "assertions": [
+        {
+          "text": "输出中没有 markdown 项目表格，或表格行数为零",
+          "type": "no_table_or_empty"
+        },
+        {
+          "text": "明确提示 --lang 的有效取值范围",
+          "type": "lang_help_shown"
+        },
+        {
+          "text": "明确提示 --vuln 的有效取值范围",
+          "type": "vuln_help_shown"
+        },
+        {
+          "text": "明确提示 --count 的有效范围（最大 20）",
+          "type": "count_help_shown"
+        },
+        {
+          "text": "没有编造任何项目、仓库链接或 stars 数据",
+          "type": "no_fabricated_data"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "/vuln-finder --lang dart --vuln deser --count 10",
+      "expected_output": "Dart 生态中聚焦反序列化漏洞的候选项目极少。应说明该组合下高质量候选不足，返回少量高置信结果（可能 0-3 个），或明确说明无合适候选，而不应硬凑 10 个低质量项目。",
+      "files": [],
+      "assertions": [
+        {
+          "text": "输出项目数量明显少于 --count 10，或明确说明无合适候选",
+          "type": "few_or_zero_results"
+        },
+        {
+          "text": "没有硬凑低质量项目来填满数量",
+          "type": "no_padded_results"
+        },
+        {
+          "text": "若返回了项目，每个都有明确的 source/sink/guard 证据",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有编造任何项目、仓库链接或 stars 数据",
+          "type": "no_fabricated_data"
+        }
+      ]
+    }
+  ]
+}

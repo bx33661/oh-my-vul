@@ -1,0 +1,23 @@
+{
+  "skill_name": "vuldb-report",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我在 npm 包 marked 4.3.0 里发现了一个 XSS 漏洞。`marked.parse()` 处理 Markdown 时，如果输入里有 `[text](javascript:alert(1))` 这样的链接，会直接输出 `<a href=\"javascript:alert(1)\">text</a>` 到 DOM，没有过滤 javascript: 协议。我写了个最小 PoC：在浏览器里 `document.body.innerHTML = marked.parse('[click](javascript:alert(document.domain))')` 然后点链接就触发了。这个包没打 patch。帮我写一个提交给 VulDB 的报告。",
+      "expected_output": "A complete VulDB submission report in markdown with all sections filled: title in correct format, summary, affected component (with file/function if known), root cause, impact, attack requirements (noting user interaction required), PoC using alert(document.domain) not cookie theft, reproduction steps, suggested fix (scheme validation), and pre-submission checklist.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I found a path traversal in the `serve-static` npm package version 1.15.0. The `root` option is supposed to restrict file serving to a directory, but when you send a request like `GET /../../etc/passwd` the middleware doesn't fully normalize the path before checking it against the root, so it serves files outside the intended directory. No auth needed, works with default config. I want to submit this to VulDB and request a CVE.",
+      "expected_output": "A complete VulDB report with CWE-22 (not CWE-79), severity assessed as High (unauthenticated, remote, no user interaction), correct vendor/product fields (not 'npm' as vendor), version format 'up to and including 1.15.0', and a PoC using a curl command rather than a weaponised payload.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我发现了一个 Python 包 PyYAML 6.0 的漏洞。用 `yaml.load(user_input)` 不加 Loader 参数的话可以 RCE。但我查了一下，这个其实早就有 CVE-2017-18342 了。我还是想提交 VulDB，帮我写报告吧。",
+      "expected_output": "The skill should FIRST flag that a duplicate CVE (CVE-2017-18342) likely already exists and warn the user not to submit without verifying. It should explain this would be rejected. If the user still wants to proceed, it should note the duplicate in the report's references section and advise the user to check whether the issue is genuinely new or a variant.",
+      "files": []
+    }
+  ]
+}
