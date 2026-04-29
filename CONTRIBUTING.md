@@ -6,6 +6,7 @@ Thanks for helping improve `oh-my-vul`. This project is a Codex skill collection
 
 ```sh
 npm install
+npm run sync-metadata
 npm run sync-assets
 npm run validate
 ```
@@ -26,6 +27,15 @@ python3 scripts/release_check.py
 - Treat root `shared/`, root `contracts/`, and `registry.yaml` as canonical sources.
 - Run `npm run sync-assets` after changing canonical shared assets.
 - Add or update evals when behavior changes.
+- Update `registry.yaml` when adding, removing, renaming, or changing the installability of a skill.
+
+## Evidence Ledger
+
+- Project evidence lives in `.omv/findings/*.yaml` and follows `contracts/evidence.v1.yaml`.
+- `.omv/` is local state and should not be committed by default.
+- Use `omv findings init <id>` when creating a new handoff file manually.
+- Use `omv findings validate` before handing a finding from `/omv-find` to `/omv-report`.
+- Use only `candidate`, `confirmed`, or `blocked` as finding status values.
 
 ## Safety Rules
 
@@ -44,4 +54,3 @@ Before opening a PR:
 2. Update docs when commands, outputs, contracts, or release behavior changes.
 3. Update `CHANGELOG.md` for release-facing changes.
 4. Explain whether skill output behavior changed.
-

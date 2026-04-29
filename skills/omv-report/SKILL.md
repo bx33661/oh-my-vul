@@ -41,6 +41,22 @@ If the input is an `omv-find` handoff packet (Evidence.v1), apply `contracts/evi
 - `status: confirmed` can become a submission-ready report if required fields are present.
 - Preserve unverified fields as unverified; do not silently upgrade them to confirmed facts.
 
+## Evidence Preflight
+
+Before writing any submission-ready report from finder output, consume the local validation result:
+
+1. If the user gives a finding id such as `demo`, read `.omv/findings/demo.yaml`.
+2. If the user gives a path, read that Evidence.v1 file.
+3. Run or ask for `omv findings validate <id|path> --json` when CLI tools are available.
+4. If CLI tools are unavailable, validate manually against `contracts/evidence.v1.yaml` and say that deterministic validation was not run.
+
+Use the validation result to choose output mode:
+
+- Validation errors: lead with the errors and blockers; do not produce a submission-ready VulDB/CVE/GHSA/OSV report.
+- `status: blocked`: explain blockers and minimum evidence needed.
+- `status: candidate`: produce only triage notes or a draft outline clearly marked not ready for submission.
+- `status: confirmed`: proceed only if required evidence is present and readiness is at least 75/100; include validation warnings in the pre-submission checklist.
+
 ---
 
 ## Severity

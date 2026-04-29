@@ -1,83 +1,127 @@
 import { existsSync } from "fs";
 import { readFile, readdir, stat } from "fs/promises";
 import { join } from "path";
-import { codexSkillsDir, codexHome, packageSkillsDir } from "./paths.js";
+import { getInstallableSkills, readCatalog } from "./catalog.js";
+import {
+  codexHome,
+  codexSkillsDir,
+  packageRoot,
+  projectCodexHome,
+  projectSkillsDir,
+  setupScopePath,
+} from "./paths.js";
+import type { SetupScope } from "./setup.js";
 
 export interface DoctorResult {
   ok: boolean;
+  warnings: boolean;
+  scope: SetupScope;
+  skillsDir: string;
   checks: Check[];
 }
 
-interface Check {
+export interface Check {
   name: string;
+  status: "pass" | "warn" | "fail";
   passed: boolean;
   message: string;
 }
 
-export async function doctor(): Promise<DoctorResult> {
+export interface DoctorOptions {
+  scope?: SetupScope;
+  projectRoot?: string;
+}
+
+export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult> {
   const checks: Check[] = [];
+  const projectRoot = options.projectRoot ?? process.cwd();
+  const scope = options.scope ?? (await resolveDoctorScope(projectRoot));
+  const home = scope === "project" ? projectCodexHome(projectRoot) : codexHome();
+  const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : codexSkillsDir();
 
-  // Codex home exists
-  const home = codexHome();
-  checks.push({
-    name: "codex home",
-    passed: existsSync(home),
-    message: existsSync(home) ? home : `not found: ${home}`,
-  });
+  checks.push(check("codex home", existsSync(home) ? "pass" : "fail", existsSync(home) ? home : `not found: ${home}`));
 
-  // Skills directory exists
-  const skillsDir = codexSkillsDir();
   const skillsDirExists = existsSync(skillsDir);
-  checks.push({
-    name: "skills directory",
-    passed: skillsDirExists,
-    message: skillsDirExists ? skillsDir : `not found: ${skillsDir} (run: omv setup)`,
-  });
+  checks.push(check(
+    "skills directory",
+    skillsDirExists ? "pass" : "fail",
+    skillsDirExists ? skillsDir : `not found: ${skillsDir} (run: omv setup --scope ${scope})`,
+  ));
 
-  // Package skills are present
-  const pkgSkills = packageSkillsDir();
-  const pkgExists = existsSync(pkgSkills);
-  checks.push({
-    name: "package skills",
-    passed: pkgExists,
-    message: pkgExists ? pkgSkills : `not found: ${pkgSkills}`,
-  });
+  if (scope === "user" && existsSync(projectSkillsDir(projectRoot))) {
+    checks.push(check("project skills", "warn", `project skills also exist: ${projectSkillsDir(projectRoot)}`));
+  }
 
-  // Each package skill is installed with all bundled runtime assets.
-  if (pkgExists && skillsDirExists) {
-    let entries: { name: string; files: string[] }[] = [];
-    try {
-      const dirents = await readdir(pkgSkills, { withFileTypes: true });
-      entries = dirents
-        .filter((e) => e.isDirectory() && existsSync(join(pkgSkills, e.name, "SKILL.md")))
-        .map((e) => e.name)
-        .map((name) => ({ name, files: [] }));
-    } catch {
-      // ignore
+  const catalog = await readCatalog();
+  const installableSkills = getInstallableSkills(catalog);
+  checks.push(check("registry", installableSkills.length > 0 ? "pass" : "fail", `${catalog.version} (${installableSkills.length} installable skills)`));
+
+  if (skillsDirExists) {
+    for (const skill of installableSkills) {
+      const sourceSkillDir = join(packageRoot(), skill.path);
+      const installedSkillDir = join(skillsDir, skill.name);
+      const files = await listRuntimeFiles(sourceSkillDir);
+      const missing = files.filter((file) => !existsSync(join(installedSkillDir, file)));
+      const referenceErrors = missing.length === 0 ? await validateInstalledReferences(installedSkillDir) : [];
+      const scriptErrors = missing.length === 0 ? await validateExecutableScripts(installedSkillDir, files) : [];
+      const problems = [...missing.map((file) => `missing ${file}`), ...referenceErrors, ...scriptErrors];
+      checks.push(check(
+        `skill: ${skill.name}`,
+        problems.length === 0 ? "pass" : "fail",
+        problems.length === 0
+          ? `installed (${skill.invocation})`
+          : `${problems.slice(0, 3).join(", ")}${problems.length > 3 ? ", ..." : ""} (run: omv setup --scope ${scope} --force)`,
+      ));
     }
 
-    for (const entry of entries) {
-      const installedSkillDir = join(skillsDir, entry.name);
-      entry.files = await listRuntimeFiles(join(pkgSkills, entry.name));
-      const missing = entry.files.filter((file) => !existsSync(join(installedSkillDir, file)));
-      const referenceErrors = missing.length === 0 ? await validateInstalledReferences(installedSkillDir) : [];
-      const scriptErrors = missing.length === 0 ? await validateExecutableScripts(installedSkillDir, entry.files) : [];
-      const problems = [...missing.map((file) => `missing ${file}`), ...referenceErrors, ...scriptErrors];
-      checks.push({
-        name: `skill: ${entry.name}`,
-        passed: problems.length === 0,
-        message:
-          problems.length === 0
-            ? "installed"
-            : `${problems.slice(0, 3).join(", ")}${problems.length > 3 ? ", ..." : ""} (run: omv setup --force)`,
-      });
+    const unexpected = await findUnexpectedInstalledSkills(skillsDir, installableSkills.map((skill) => skill.name));
+    if (unexpected.length > 0) {
+      checks.push(check("unexpected skills", "warn", unexpected.join(", ")));
     }
   }
 
+  const failCount = checks.filter((item) => item.status === "fail").length;
+  const warnCount = checks.filter((item) => item.status === "warn").length;
+
   return {
-    ok: checks.every((c) => c.passed),
+    ok: failCount === 0,
+    warnings: warnCount > 0,
+    scope,
+    skillsDir,
     checks,
   };
+}
+
+function check(name: string, status: Check["status"], message: string): Check {
+  return {
+    name,
+    status,
+    passed: status !== "fail",
+    message,
+  };
+}
+
+async function resolveDoctorScope(projectRoot: string): Promise<SetupScope> {
+  const path = setupScopePath(projectRoot);
+  if (!existsSync(path)) {
+    return "user";
+  }
+  try {
+    const parsed = JSON.parse(await readFile(path, "utf-8")) as { scope?: string };
+    return parsed.scope === "project" ? "project" : "user";
+  } catch {
+    return "user";
+  }
+}
+
+async function findUnexpectedInstalledSkills(skillsDir: string, expected: string[]): Promise<string[]> {
+  const expectedSet = new Set(expected);
+  const dirents = await readdir(skillsDir, { withFileTypes: true }).catch(() => []);
+  return dirents
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name)
+    .filter((name) => !expectedSet.has(name) && existsSync(join(skillsDir, name, "SKILL.md")))
+    .sort();
 }
 
 async function validateInstalledReferences(skillDir: string): Promise<string[]> {

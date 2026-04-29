@@ -26,7 +26,25 @@ After the table, add:
 
 ## Confirmed Finding Handoff
 
-When the user asks to turn a confirmed finding into a report, append an `omv-report handoff` block after the normal analysis. Structure it per `contracts/evidence.v1.yaml`.
+When the user asks to turn a confirmed finding into a report, write or output an Evidence.v1 file instead of a loose prose handoff.
+
+Preferred local workflow:
+
+```sh
+omv findings init <id> --status confirmed
+omv findings validate <id>
+```
+
+Then fill `.omv/findings/<id>.yaml` using `contracts/evidence.v1.yaml`.
+
+If file writing is unavailable, append this structure after the normal analysis:
+
+```text
+Evidence file: .omv/findings/<id>.yaml
+Validation command: omv findings validate <id>
+```
+
+Follow it with a fenced YAML block that matches `contracts/evidence.v1.yaml`.
 
 Rules:
 

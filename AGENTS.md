@@ -9,10 +9,11 @@ The project ships a TypeScript CLI (`omv`) for installing skills, plus Markdown 
 ```
 src/
   cli/
-    omv.ts                        — CLI entry point (setup / doctor / help)
-    setup.ts                      — copies skills/ to ~/.codex/skills/
+    omv.ts                        — CLI entry point (setup / doctor / findings / help)
+    setup.ts                      — copies installable skills to ~/.codex/skills/ or ./.codex/skills/
     doctor.ts                     — checks installation health
-    paths.ts                      — path utilities (codexSkillsDir, packageRoot, …)
+    findings.ts                   — creates, lists, validates, and promotes Evidence.v1 handoffs
+    paths.ts                      — path utilities (codexSkillsDir, projectSkillsDir, findingsDir, packageRoot, …)
   index.ts                        — package exports
 
 skills/
@@ -55,6 +56,7 @@ agents/
   report-writer.md              — platform-specific advisory rendering
 
 scripts/
+  sync_metadata.py              — sync package, registry, and README metadata
   sync_skill_assets.py           — sync canonical shared/contract assets into self-contained skill dirs
   validate_skill.py             — validates all skill directories and optional .skill packages
   package_skill.sh              — builds a .skill archive from a skill directory
@@ -69,11 +71,21 @@ registry.yaml                   — collection metadata: versions, produces/cons
 ```sh
 # Install skills to ~/.codex/skills/
 npx oh-my-vul setup
+npx oh-my-vul setup --scope project
 npx oh-my-vul setup --force      # overwrite existing
 npx oh-my-vul setup --dry-run    # preview only
 
 # Check installation health
 omv doctor
+omv doctor --json
+
+# Manage project-local Evidence.v1 findings
+omv findings list
+omv findings init <id>
+omv findings init <id> --status candidate|confirmed|blocked --force
+omv findings validate
+omv findings validate <id|path>
+omv findings promote <id|path> --status candidate|confirmed|blocked
 ```
 
 Build the CLI:
@@ -100,6 +112,7 @@ Validate all skills:
 
 ```sh
 npm run sync-assets
+npm run sync-metadata
 npm run validate
 python3 scripts/validate_skill.py
 ```
@@ -144,6 +157,8 @@ Packages contain root-level `SKILL.md` plus the skill's `references/`, `scripts/
 ## Contracts
 
 Skills must be self-contained after installation and packaging. When adding a new skill that consumes Evidence.v1, include `contracts/evidence.v1.yaml` inside that skill directory and reference it from the SKILL.md body. Shared guidance that a skill needs at runtime belongs under the skill's own `references/` tree.
+
+Project-local research state lives under `.omv/`. Evidence handoff files belong in `.omv/findings/*.yaml`, follow `contracts/evidence.v1.yaml`, and are validated with `omv findings validate`. Use `omv findings init <id>` to create a canonical template before filling evidence. Treat `.omv/` as private local state unless a user explicitly asks to publish sanitized examples.
 
 ## Design Notes
 

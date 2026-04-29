@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/**/__tests__/*.test.js",
     "sync-assets": "python3 scripts/sync_skill_assets.py",
+    "sync-metadata": "python3 scripts/sync_metadata.py",
     "validate": "npm run build && npm test && python3 scripts/release_check.py",
     "setup": "node dist/cli/omv.js setup",
     "doctor": "node dist/cli/omv.js doctor"
@@ -21,7 +22,14 @@
     "node": ">=20"
   },
   "files": [
-    "dist/",
+    "dist/cli/*.d.ts",
+    "dist/cli/*.d.ts.map",
+    "dist/cli/*.js",
+    "dist/cli/*.js.map",
+    "dist/index.d.ts",
+    "dist/index.d.ts.map",
+    "dist/index.js",
+    "dist/index.js.map",
     "skills/",
     "shared/",
     "contracts/",

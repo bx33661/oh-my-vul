@@ -8,6 +8,7 @@ updated: "2026-04-29"
 
 skills:
   - name: omv
+    category: manager
     path: skills/omv
     invocation: /omv
     status: stable
@@ -16,6 +17,7 @@ skills:
     consumes: []
 
   - name: omv-find
+    category: research
     path: skills/omv-find
     invocation: /omv-find
     status: stable
@@ -26,6 +28,7 @@ skills:
     consumes: []
 
   - name: omv-report
+    category: reporting
     path: skills/omv-report
     invocation: /omv-report
     status: stable

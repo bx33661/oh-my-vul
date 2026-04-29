@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Standardized the README as a user-facing guide for installation, target discovery, Evidence.v1 handoffs, validation, reporting, and safety boundaries.
+- Added project-scope setup, catalog-driven installs, stronger doctor checks, and metadata synchronization guards.
+- Added the `.omv/findings` Evidence.v1 ledger with CLI commands for `list`, `init`, `validate`, and `promote`.
+- Updated `omv-find` and `omv-report` docs so finder output flows through validated Evidence.v1 files before report generation.
+
 ## v0.6 - vuldb-report eval harness
 
 - Added a deterministic `vuldb-report` eval checker for saved report outputs.

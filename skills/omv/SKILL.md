@@ -12,6 +12,7 @@ oh-my-vul collection manager for Codex.
 ```text
 /omv list          — list all installed omv-* skills with one-line descriptions
 /omv status        — show registry version, last updated, skill count
+/omv findings      — summarize local .omv/findings Evidence.v1 handoffs
 /omv help          — show this help text
 ```
 
@@ -32,6 +33,15 @@ Collection metadata lives in `references/registry.yaml`. Read it to show current
 
 `.omv/` at the repository root stores findings and context snapshots. It is gitignored. Use `/omv-find` and `/omv-report` to create and read finding files under `.omv/findings/`.
 
+For CLI validation, use:
+
+```text
+omv findings list
+omv findings init <id> [--status candidate|confirmed|blocked]
+omv findings validate [id|path]
+omv findings promote <id|path> --status candidate|confirmed|blocked
+```
+
 ## Workflow Overview
 
 ```
@@ -40,4 +50,4 @@ Collection metadata lives in `references/registry.yaml`. Read it to show current
 /omv-report → reads finding, checks CVE readiness, generates reports
 ```
 
-Each finding progresses through stages: `candidate` → `confirmed` → `reported`.
+Each finding uses one of three Evidence.v1 statuses: `candidate`, `confirmed`, or `blocked`.

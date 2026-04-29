@@ -14,6 +14,31 @@ export function codexSkillsDir(): string {
   return join(codexHome(), "skills");
 }
 
+/** .codex/ — project-scoped Codex config home. */
+export function projectCodexHome(projectRoot = process.cwd()): string {
+  return join(projectRoot, ".codex");
+}
+
+/** .codex/skills/ — project-scoped skills directory. */
+export function projectSkillsDir(projectRoot = process.cwd()): string {
+  return join(projectCodexHome(projectRoot), "skills");
+}
+
+/** .omv/ — project-scoped oh-my-vul state directory. */
+export function omvStateDir(projectRoot = process.cwd()): string {
+  return join(projectRoot, ".omv");
+}
+
+/** .omv/findings/ — project-scoped Evidence.v1 finding ledger. */
+export function findingsDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "findings");
+}
+
+/** .omv/setup-scope.json — persisted setup scope for doctor. */
+export function setupScopePath(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "setup-scope.json");
+}
+
 /** @deprecated Use codexSkillsDir(). */
 export const claudeSkillsDir = codexSkillsDir;
 

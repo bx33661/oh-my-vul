@@ -1,6 +1,19 @@
 # oh-my-vul state directory — findings, context snapshots, logs
 .omv/
 
+# Project-scoped Codex installs created by `omv setup --scope project`
+.codex/
+
+# Local assistant/OpenSpec scaffolding and nested worktrees
+.agents/
+.claude/
+.github/prompts/
+.github/skills/
+openspec/
+SPEC.md
+oh-my-codex/
+oh-my-claudecode/
+
 # TypeScript build output
 dist/
 node_modules/

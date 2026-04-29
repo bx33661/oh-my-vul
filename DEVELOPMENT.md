@@ -1,15 +1,16 @@
 # Development Notes
 
-This document records why each VulnFlow iteration exists, what changed, and which design ideas should guide future work.
+This document records why each `oh-my-vul` iteration exists, what changed, and which design ideas should guide future work.
 
 It is different from `CHANGELOG.md`: the changelog records release-facing deltas; this file records engineering intent, tradeoffs, and next-step context for maintainers.
 
 ## Project Direction
 
-VulnFlow is a two-skill workflow for passive vulnerability research and disclosure preparation:
+`oh-my-vul` is a Codex skill collection for passive vulnerability research and disclosure preparation:
 
 - `omv-find` finds and ranks promising open-source audit targets.
-- `omv-report` turns confirmed evidence into submission-ready VulDB, CVE, GHSA, OSV, or Markdown advisory material.
+- `.omv/findings/*.yaml` stores Evidence.v1 handoffs and CVE readiness state.
+- `omv-report` turns validated evidence into VulDB, CVE, GHSA, OSV, or Markdown advisory material.
 
 The core product idea is evidence-driven reporting. The system should not merely generate polished prose; it should preserve evidence provenance, block premature submissions, and make missing proof explicit.
 
@@ -21,6 +22,18 @@ The core product idea is evidence-driven reporting. The system should not merely
 - **Passive research boundary**: keep target discovery and audit guidance local, passive, and non-destructive. Do not ask users to attack live third-party systems.
 - **Reviewer realism**: treat VulDB/GHSA/OSV reviewers as the quality bar. Reject or downgrade outputs that lack tested versions, prove only sink presence, overstate severity, or create duplicate CNA/CVE risk.
 - **Format-specific output**: VulDB, GHSA, OSV, and Markdown advisories have different field syntax and expectations. Do not flatten them into one generic advisory shape.
+
+## Current Architecture
+
+The project has three layers:
+
+| Layer | Files | Purpose |
+|---|---|---|
+| User workflow | `skills/omv-*`, `.omv/findings/*.yaml` | Codex-facing research and reporting flow |
+| Deterministic CLI | `src/cli/*` | setup, doctor, catalog, and Evidence.v1 ledger checks |
+| Release guardrails | `scripts/*`, `contracts/*`, evals | packaging, metadata sync, asset sync, and behavior checks |
+
+Keep the boundary between these layers clean. Skills can guide model behavior, but anything fragile or repeatable should move into CLI checks or release scripts.
 
 ## Iteration Log
 
@@ -158,49 +171,49 @@ Tradeoff:
 
 Canonical files now have skill-local copies, which creates duplication. The mitigation is to treat root `shared/`, root `contracts/`, and `registry.yaml` as the source of truth and make `npm run validate` fail when copies drift.
 
+### v0.8 - Evidence Ledger and User Workflow
+
+What changed:
+
+- Added project-scoped setup and persisted doctor scope.
+- Added the `.omv/findings/*.yaml` Evidence.v1 ledger.
+- Added `omv findings list`, `init`, `validate`, and `promote`.
+- Updated `omv-find` to hand off findings through Evidence.v1 files.
+- Updated `omv-report` to run evidence preflight before submission-ready output.
+- Reworked the README around the user workflow rather than repository internals.
+
+Core idea:
+
+The product should feel like a small research workbench, not just a bundle of prompts. Evidence files are the durable object between discovery and reporting. They let the system say "not ready yet" in a structured way, which is as important as writing a polished report.
+
+Tradeoff:
+
+The ledger is intentionally lightweight YAML, not a database or platform. That keeps the project easy to install and review, but it means deeper validation and rendering still need future deterministic helpers.
+
 ## Current Weaknesses
 
-- The handoff contract is copied into two skills; drift is checked by `scripts/sync_skill_assets.py --check`, but the duplication still adds release-surface noise.
-- `omv-report` has a checker, but `omv-find` and `omv-report` do not yet share a structured evidence object.
+- The Evidence.v1 contract is copied into runtime skill directories; drift is checked by `scripts/sync_skill_assets.py --check`, but the duplication still adds release-surface noise.
+- `omv-find` can guide Evidence.v1 handoff creation, but candidate discovery quality still depends on model discipline, source inspection, and available metadata.
+- `omv-report` consumes validation guidance, but advisory rendering is still primarily model-written rather than deterministic.
 - Examples are partly synthetic.
-- There is no CVE readiness score or evidence ledger.
 - Package archives are tracked but not independently diffable.
-- `omv-report` templates are still written by the model rather than rendered from structured input.
+- The README is user-facing; keep maintainer workflow details in `CONTRIBUTING.md`, `RELEASE.md`, and this file.
 
 ## Proposed Next Iterations
 
-### v0.7 - Evidence Ledger and CVE Readiness
+### v0.8 - Real Workflow Walkthrough
 
 Goal:
 
-Introduce a structured `evidence.yaml` or `finding.yaml` object that represents the vulnerability evidence independently of any final report format.
+Add a sanitized end-to-end example that demonstrates the intended user path:
 
-Candidate fields:
+- run `/omv-find` for a realistic candidate;
+- confirm evidence locally;
+- create `.omv/findings/<id>.yaml`;
+- pass `omv findings validate`;
+- generate a non-submitting advisory draft with `/omv-report`.
 
-- package identity
-- repository and registry source
-- tested version and affected range
-- source -> sink -> guard
-- local reproducer and observed result
-- duplicate advisory search
-- disclosure status
-- impact requirements
-- unverified fields
-- blockers
-
-Add `CVE readiness: 0-100` based on evidence completeness. Submission-ready reports should require a threshold, for example 70 or 80.
-
-### v0.8 - Handoff Schema Single Source
-
-Goal:
-
-Keep the handoff schema in a root-level canonical file and validate or generate skill-local runtime copies.
-
-Expected files:
-
-- `contracts/handoff-v0.3.yaml`
-- `scripts/validate_contracts.py`
-- updated skill-local references that state producer/consumer rules only
+The example should be safe, local, and clearly marked as a fixture.
 
 ### v0.9 - Advisory Renderer
 
@@ -208,11 +221,11 @@ Goal:
 
 Render VulDB, GHSA, OSV, and Markdown advisory drafts from the structured evidence ledger.
 
-Expected scripts:
+Expected files:
 
-- `omv-report/scripts/validate_handoff.py`
-- `omv-report/scripts/render_template.py`
-- `omv-report/scripts/check_osv.py`
+- `skills/omv-report/scripts/render_template.py`
+- `skills/omv-report/scripts/check_osv.py`
+- deterministic tests for blocked, candidate, confirmed, and duplicate-CNA paths
 
 ### v1.0 - Real Corpus and Reviewer Mode
 
@@ -229,6 +242,12 @@ Reviewer checks:
 - exaggerated severity
 - unsafe PoC
 - platform-specific field mistakes
+
+### Later - Contract Packaging Cleanup
+
+Goal:
+
+Reduce skill-local contract duplication without breaking self-contained installs and `.skill` archives. Do this only after the package format and installation assumptions are stable.
 
 ## Maintenance Checklist
 

@@ -52,3 +52,32 @@ test("setup installs self-contained Codex skills and doctor checks runtime asset
     await rm(codexHome, { recursive: true, force: true });
   }
 });
+
+test("project setup installs into .codex and persists doctor scope", async () => {
+  const previousCodexHome = process.env.CODEX_HOME;
+  const codexHome = await mkdtemp(join(tmpdir(), "omv-user-codex-home-"));
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-project-"));
+  process.env.CODEX_HOME = codexHome;
+
+  try {
+    const result = await setup({ scope: "project", projectRoot });
+    assert.equal(result.scope, "project");
+    assert.equal(result.destination, join(projectRoot, ".codex", "skills"));
+    assert.deepEqual(result.errors, []);
+    assert.equal(existsSync(join(projectRoot, ".omv", "setup-scope.json")), true);
+    assert.equal(existsSync(join(projectRoot, ".codex", "skills", "omv-report", "contracts", "evidence.v1.yaml")), true);
+
+    const check = await doctor({ projectRoot });
+    assert.equal(check.scope, "project");
+    assert.equal(check.ok, true);
+    assert.equal(check.skillsDir, join(projectRoot, ".codex", "skills"));
+  } finally {
+    if (previousCodexHome === undefined) {
+      delete process.env.CODEX_HOME;
+    } else {
+      process.env.CODEX_HOME = previousCodexHome;
+    }
+    await rm(codexHome, { recursive: true, force: true });
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});

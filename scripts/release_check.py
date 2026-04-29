@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.sh"
 VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
+SYNC_METADATA_SCRIPT = REPO_ROOT / "scripts" / "sync_metadata.py"
 
 
 def run(args: list[str]) -> None:
@@ -108,6 +109,7 @@ def main() -> None:
     if not skills:
         raise SystemExit("no skill directories found")
 
+    run([sys.executable, str(SYNC_METADATA_SCRIPT), "--check"])
     run([sys.executable, str(SYNC_SCRIPT), "--check"])
     validate_versions()
     run([sys.executable, str(VALIDATE_SCRIPT)])

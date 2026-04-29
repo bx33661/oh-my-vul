@@ -1,63 +1,74 @@
-import { mkdir, cp, readdir } from "fs/promises";
+import { mkdir, cp, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { codexSkillsDir, packageSkillsDir } from "./paths.js";
+import { codexSkillsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
+import { getInstallableSkills, readCatalog } from "./catalog.js";
+
+export type SetupScope = "user" | "project";
 
 export interface SetupOptions {
   force?: boolean;
   dryRun?: boolean;
+  scope?: SetupScope;
+  projectRoot?: string;
 }
 
 export interface SetupResult {
+  scope: SetupScope;
+  destination: string;
   installed: string[];
   skipped: string[];
   errors: string[];
 }
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
-  const { force = false, dryRun = false } = options;
-  const result: SetupResult = { installed: [], skipped: [], errors: [] };
+  const { force = false, dryRun = false, scope = "user", projectRoot = process.cwd() } = options;
+  const destDir = scope === "project" ? projectSkillsDir(projectRoot) : codexSkillsDir();
+  const result: SetupResult = { scope, destination: destDir, installed: [], skipped: [], errors: [] };
 
-  const srcDir = packageSkillsDir();
-  const destDir = codexSkillsDir();
-
-  if (!existsSync(srcDir)) {
-    result.errors.push(`skills directory not found: ${srcDir}`);
-    return result;
-  }
-
-  const entries = await readdir(srcDir, { withFileTypes: true });
-  const skillDirs = entries
-    .filter((e) => e.isDirectory() && existsSync(join(srcDir, e.name, "SKILL.md")))
-    .map((e) => e.name);
+  const catalog = await readCatalog();
+  const skillDirs = getInstallableSkills(catalog);
 
   if (skillDirs.length === 0) {
-    result.errors.push("no skills found in package");
+    result.errors.push("no installable skills found in registry");
     return result;
   }
 
   if (!dryRun) {
     await mkdir(destDir, { recursive: true });
+    if (scope === "project") {
+      await mkdir(omvStateDir(projectRoot), { recursive: true });
+      await writeFile(
+        setupScopePath(projectRoot),
+        JSON.stringify({ scope, installed_at: new Date().toISOString() }, null, 2) + "\n",
+        "utf-8",
+      );
+    }
   }
 
-  for (const name of skillDirs) {
-    const src = join(srcDir, name);
-    const dest = join(destDir, name);
+  for (const skill of skillDirs) {
+    const src = join(packageRoot(), skill.path);
+    const dest = join(destDir, skill.name);
+
+    if (!existsSync(join(src, "SKILL.md"))) {
+      result.errors.push(`${skill.name}: skill directory not found: ${src}`);
+      continue;
+    }
 
     if (existsSync(dest) && !force) {
-      result.skipped.push(name);
+      result.skipped.push(skill.name);
       continue;
     }
 
     if (!dryRun) {
       try {
         await cp(src, dest, { recursive: true, force: true });
-        result.installed.push(name);
+        result.installed.push(skill.name);
       } catch (err) {
-        result.errors.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+        result.errors.push(`${skill.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
-      result.installed.push(name);
+      result.installed.push(skill.name);
     }
   }
 
