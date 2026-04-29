@@ -1,6 +1,6 @@
 # Release Process
 
-This repository ships standalone `.skill` archives for `vuln-finder` and `vuldb-report`.
+This repository ships standalone `.skill` archives for `omv`, `omv-find`, and `omv-report`.
 
 ## Version policy
 
@@ -13,8 +13,10 @@ This repository ships standalone `.skill` archives for `vuln-finder` and `vuldb-
 Run the full release check without changing root artifacts:
 
 ```bash
-python3 scripts/release_check.py
+npm run validate
 ```
+
+`scripts/release_check.py` verifies version consistency, checks that skill-local runtime assets are synchronized from canonical `shared/` and `contracts/` sources, validates skill structure, and builds self-contained packages.
 
 Rebuild tracked package artifacts:
 
@@ -27,16 +29,17 @@ The release check validates every skill directory, builds each `.skill` archive,
 ## Tagging checklist
 
 1. Update `CHANGELOG.md`.
-2. Run `python3 scripts/release_check.py --write-artifacts`.
-3. Review `git diff --stat` and package digest output.
-4. Commit source changes and rebuilt `.skill` artifacts together.
-5. Tag the release, for example `git tag v0.5`.
+2. Run `npm run sync-assets`.
+3. Run `python3 scripts/release_check.py --write-artifacts`.
+4. Review `git diff --stat` and package digest output.
+5. Commit source changes and rebuilt `.skill` artifacts together.
+6. Tag the release, for example `git tag v0.7.0`.
 
 ## Compatibility checklist
 
 Before tagging, verify:
 
-- `vuln-finder` still rejects invalid flags without fabricating projects.
-- `vuln-finder` can emit the handoff fields listed in `references/handoff-contract.md`.
-- `vuldb-report` can consume that handoff without asking for already-provided metadata.
-- `vuldb-report` can produce VulDB, GHSA, OSV, and standalone Markdown advisory formats.
+- `omv-find` still rejects invalid flags without fabricating projects.
+- `omv-find` can emit the handoff fields listed in `contracts/evidence.v1.yaml`.
+- `omv-report` can consume that handoff without asking for already-provided metadata.
+- `omv-report` can produce VulDB, GHSA, OSV, and standalone Markdown advisory formats.

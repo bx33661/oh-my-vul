@@ -1,36 +1,25 @@
-name: validate
+name: Validate
 
 on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  cli:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
       - name: Install dependencies
         run: npm ci
-      - name: Build CLI
-        run: npm run build
-      - name: Typecheck
-        run: npm run typecheck
-
-  skill:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate skill structures
-        run: python3 scripts/validate_skill.py
-      - name: Run release packaging check
-        run: python3 scripts/release_check.py
-      - name: Build and validate omv-find package
-        run: bash scripts/package_skill.sh skills/omv-find "$RUNNER_TEMP/omv-find.skill"
-      - name: Build and validate omv-report package
-        run: bash scripts/package_skill.sh skills/omv-report "$RUNNER_TEMP/omv-report.skill"
+      - name: Validate project
+        run: npm run validate
       - name: Check golden invalid-flags eval
         run: python3 skills/omv-find/scripts/check_output.py --eval-id 26 --output skills/omv-find/evals/golden/invalid-flags.md
       - name: Check omv-report blocked handoff golden eval

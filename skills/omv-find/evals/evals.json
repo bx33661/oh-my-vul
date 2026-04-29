@@ -47,7 +47,7 @@
     },
     {
       "id": 1,
-      "prompt": "/vuln-finder --lang python --vuln yaml --count 10",
+      "prompt": "/omv-find --lang python --vuln yaml --count 10",
       "expected_output": "输出约 10 个 Python 生态项目，聚焦 YAML/XML/JSON 解析类漏洞。每行需要 PyPI 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据和文件/函数。表格后说明验证日期、未确认字段和每个项目的审计切入点。",
       "files": [],
       "assertions": [
@@ -123,7 +123,7 @@
     },
     {
       "id": 3,
-      "prompt": "/vuln-finder --count 12 markdown parser",
+      "prompt": "/omv-find --count 12 markdown parser",
       "expected_output": "输出 12 个左右的多生态 markdown/parser 相关项目，生态分布尽量多样。每个候选都应有 verified repo、metadata source、LOC/规模估计方法、风险证据、置信度或限制说明。若某些字段无法确认，应明确写未确认，并在最后的数据新鲜度与限制中汇总。",
       "files": [],
       "assertions": [
@@ -159,7 +159,7 @@
     },
     {
       "id": 4,
-      "prompt": "/vuln-finder --lang java --vuln deser --count 10",
+      "prompt": "/omv-find --lang java --vuln deser --count 10",
       "expected_output": "输出约 10 个 Java 生态项目，聚焦反序列化漏洞。每行需要 Maven Central 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 ObjectInputStream.readObject、resolveClass 覆盖情况）和文件/函数位置。表格后说明验证日期、未确认字段和每个项目的审计切入点。",
       "files": [],
       "assertions": [
@@ -203,7 +203,7 @@
     },
     {
       "id": 5,
-      "prompt": "/vuln-finder --lang ruby --vuln injection --count 10",
+      "prompt": "/omv-find --lang ruby --vuln injection --count 10",
       "expected_output": "输出约 10 个 Ruby 生态项目，聚焦命令注入或模板注入漏洞。每行需要 RubyGems 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 system/exec/backtick、ERB/Liquid 模板渲染）和文件/函数位置。表格后说明验证日期、未确认字段和每个项目的审计切入点。",
       "files": [],
       "assertions": [
@@ -243,7 +243,7 @@
     },
     {
       "id": 6,
-      "prompt": "/vuln-finder --vuln race --count 10 file upload",
+      "prompt": "/omv-find --vuln race --count 10 file upload",
       "expected_output": "输出约 10 个多生态项目，聚焦文件上传场景下的竞态条件/TOCTOU 漏洞。结果应覆盖至少两个生态。每行需要 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 check-then-act 文件操作、共享状态无锁）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -279,7 +279,7 @@
     },
     {
       "id": 7,
-      "prompt": "/vuln-finder --lang rust --vuln overflow --count 8",
+      "prompt": "/omv-find --lang rust --vuln overflow --count 8",
       "expected_output": "输出约 8 个 Rust 生态项目，聚焦整数溢出或越界访问漏洞，尤其是处理外部数据（网络、文件、C FFI）的库。每行需要 crates.io 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 as 强转、unchecked 算术、JNI/FFI 边界）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -319,7 +319,7 @@
     },
     {
       "id": 8,
-      "prompt": "/vuln-finder --lang php --vuln traversal --count 10",
+      "prompt": "/omv-find --lang php --vuln traversal --count 10",
       "expected_output": "输出约 10 个 PHP 生态项目，聚焦路径穿越漏洞。每行需要 Packagist 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 file_get_contents、move_uploaded_file、realpath 缺失）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -359,7 +359,7 @@
     },
     {
       "id": 9,
-      "prompt": "/vuln-finder --lang csharp --vuln xxe --count 10",
+      "prompt": "/omv-find --lang csharp --vuln xxe --count 10",
       "expected_output": "输出约 10 个 C# / .NET 生态项目，聚焦 XXE 漏洞。每行需要 NuGet 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 XmlReader、XmlDocument、DTD 处理配置）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -399,7 +399,7 @@
     },
     {
       "id": 10,
-      "prompt": "/vuln-finder --lang swift --vuln upload --count 8",
+      "prompt": "/omv-find --lang swift --vuln upload --count 8",
       "expected_output": "输出约 8 个 Swift 生态项目，聚焦文件上传校验绕过漏洞。每行需要 Swift Package Index 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 URLSession upload、MIME 校验、扩展名检查）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -439,7 +439,7 @@
     },
     {
       "id": 11,
-      "prompt": "/vuln-finder --lang dart --vuln yaml --count 10",
+      "prompt": "/omv-find --lang dart --vuln yaml --count 10",
       "expected_output": "输出约 10 个 Dart 生态项目，聚焦 YAML/XML/JSON 解析类漏洞。每行需要 pub.dev 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 yaml 解析器配置、自定义对象反序列化）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -479,7 +479,7 @@
     },
     {
       "id": 12,
-      "prompt": "/vuln-finder --lang elixir --vuln race --count 8",
+      "prompt": "/omv-find --lang elixir --vuln race --count 8",
       "expected_output": "输出约 8 个 Elixir 生态项目，聚焦竞态条件/TOCTOU 漏洞。每行需要 Hex.pm 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 Agent 状态竞争、ETS 表无锁读写、文件 check-then-act）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -519,7 +519,7 @@
     },
     {
       "id": 13,
-      "prompt": "/vuln-finder --lang perl --vuln injection --count 8",
+      "prompt": "/omv-find --lang perl --vuln injection --count 8",
       "expected_output": "输出约 8 个 Perl 生态项目，聚焦命令注入或模板注入漏洞。每行需要 CPAN 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 system/exec/open、TT/Template Toolkit 渲染）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -559,7 +559,7 @@
     },
     {
       "id": 14,
-      "prompt": "/vuln-finder --lang r --vuln deser --count 8",
+      "prompt": "/omv-find --lang r --vuln deser --count 8",
       "expected_output": "输出约 8 个 R 生态项目，聚焦反序列化或 unsafe 解析漏洞。每行需要 CRAN 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 unserialize、RDS 解析、.RData 加载）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -599,7 +599,7 @@
     },
     {
       "id": 15,
-      "prompt": "/vuln-finder --lang lua --vuln infoleak --count 8",
+      "prompt": "/omv-find --lang lua --vuln infoleak --count 8",
       "expected_output": "输出约 8 个 Lua 生态项目，聚焦信息泄露漏洞。每行需要 LuaRocks 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 debug.getinfo、verbose error handling、敏感配置暴露）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -639,7 +639,7 @@
     },
     {
       "id": 16,
-      "prompt": "/vuln-finder --lang npm --vuln auth --count 10",
+      "prompt": "/omv-find --lang npm --vuln auth --count 10",
       "expected_output": "输出约 10 个 npm/Node.js 生态项目，聚焦认证/鉴权绕过漏洞。每行需要 npm 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 JWT 验证、session 处理、角色检查缺失）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -679,7 +679,7 @@
     },
     {
       "id": 17,
-      "prompt": "/vuln-finder --lang php --vuln csrf --count 8",
+      "prompt": "/omv-find --lang php --vuln csrf --count 8",
       "expected_output": "输出约 8 个 PHP 生态项目，聚焦 CSRF 漏洞。每行需要 Packagist 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如表单提交无 token、SameSite 配置缺失、状态变更 GET 请求）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -719,7 +719,7 @@
     },
     {
       "id": 18,
-      "prompt": "/vuln-finder --lang java --vuln xxe --count 10",
+      "prompt": "/omv-find --lang java --vuln xxe --count 10",
       "expected_output": "输出约 10 个 Java 生态项目，聚焦 XXE 漏洞。每行需要 Maven Central 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 XMLReader、DocumentBuilder、DTD 处理配置）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -759,7 +759,7 @@
     },
     {
       "id": 19,
-      "prompt": "/vuln-finder --lang python --vuln sql --count 10",
+      "prompt": "/omv-find --lang python --vuln sql --count 10",
       "expected_output": "输出约 10 个 Python 生态项目，聚焦 SQL/NoSQL 注入漏洞。每行需要 PyPI 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如字符串拼接 SQL、未参数化的 ORM 查询、MongoDB $where）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -799,7 +799,7 @@
     },
     {
       "id": 20,
-      "prompt": "/vuln-finder --lang ruby --vuln ssti --count 8",
+      "prompt": "/omv-find --lang ruby --vuln ssti --count 8",
       "expected_output": "输出约 8 个 Ruby 生态项目，聚焦服务端模板注入漏洞。每行需要 RubyGems 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 ERB.render、Liquid 模板从用户输入渲染、模板沙箱配置）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -839,7 +839,7 @@
     },
     {
       "id": 21,
-      "prompt": "/vuln-finder --lang npm --vuln sandbox --count 8",
+      "prompt": "/omv-find --lang npm --vuln sandbox --count 8",
       "expected_output": "输出约 8 个 npm/Node.js 生态项目，聚焦沙箱逃逸/插件逃逸漏洞。每行需要 npm 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 vm.runInContext、iframe 同源策略、postMessage 无 origin 校验）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -879,7 +879,7 @@
     },
     {
       "id": 22,
-      "prompt": "/vuln-finder --lang go --vuln redirect --count 10",
+      "prompt": "/omv-find --lang go --vuln redirect --count 10",
       "expected_output": "输出约 10 个 Go 生态项目，聚焦 Open Redirect 漏洞。每行需要 pkg.go.dev 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 http.Redirect 用户控制 URL、Location header 注入）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -919,7 +919,7 @@
     },
     {
       "id": 23,
-      "prompt": "/vuln-finder --lang csharp --vuln upload --count 8",
+      "prompt": "/omv-find --lang csharp --vuln upload --count 8",
       "expected_output": "输出约 8 个 C# / .NET 生态项目，聚焦文件上传校验绕过漏洞。每行需要 NuGet 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 IFormFile、MIME 校验、扩展名黑名单、路径穿越在文件名中）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -959,7 +959,7 @@
     },
     {
       "id": 24,
-      "prompt": "/vuln-finder --lang java --vuln crypto --count 8",
+      "prompt": "/omv-find --lang java --vuln crypto --count 8",
       "expected_output": "输出约 8 个 Java 生态项目，聚焦弱加密/密钥处理漏洞。每行需要 Maven Central 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 ECB 模式、硬编码密钥、弱 RNG、静态 IV）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -999,7 +999,7 @@
     },
     {
       "id": 25,
-      "prompt": "/vuln-finder --lang rust --vuln infoleak --count 8",
+      "prompt": "/omv-find --lang rust --vuln infoleak --count 8",
       "expected_output": "输出约 8 个 Rust 生态项目，聚焦信息泄露漏洞。每行需要 crates.io 或 GitHub 来源、维护时间、代码规模估计、具体 source/sink/guard 证据（如 panic 信息暴露、debug 模式输出、敏感日志）和文件/函数位置。",
       "files": [],
       "assertions": [
@@ -1039,7 +1039,7 @@
     },
     {
       "id": 26,
-      "prompt": "/vuln-finder --lang unknown --vuln unknown --count 999",
+      "prompt": "/omv-find --lang unknown --vuln unknown --count 999",
       "expected_output": "由于 --lang unknown 和 --vuln unknown 均为无效值，应优雅拒绝请求并提示用户有效的取值范围。不应输出项目列表，也不应硬凑结果。",
       "files": [
         "evals/golden/invalid-flags.md"
@@ -1069,7 +1069,7 @@
     },
     {
       "id": 27,
-      "prompt": "/vuln-finder --lang dart --vuln deser --count 10",
+      "prompt": "/omv-find --lang dart --vuln deser --count 10",
       "expected_output": "Dart 生态中聚焦反序列化漏洞的候选项目极少。应说明该组合下高质量候选不足，返回少量高置信结果（可能 0-3 个），或明确说明无合适候选，而不应硬凑 10 个低质量项目。",
       "files": [],
       "assertions": [

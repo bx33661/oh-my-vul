@@ -8,8 +8,8 @@ It is different from `CHANGELOG.md`: the changelog records release-facing deltas
 
 VulnFlow is a two-skill workflow for passive vulnerability research and disclosure preparation:
 
-- `vuln-finder` finds and ranks promising open-source audit targets.
-- `vuldb-report` turns confirmed evidence into submission-ready VulDB, CVE, GHSA, OSV, or Markdown advisory material.
+- `omv-find` finds and ranks promising open-source audit targets.
+- `omv-report` turns confirmed evidence into submission-ready VulDB, CVE, GHSA, OSV, or Markdown advisory material.
 
 The core product idea is evidence-driven reporting. The system should not merely generate polished prose; it should preserve evidence provenance, block premature submissions, and make missing proof explicit.
 
@@ -50,14 +50,14 @@ Next considerations:
 
 What changed:
 
-- Added `vuln-finder/references/handoff-contract.md`.
-- Added `vuldb-report/references/handoff-contract.md`.
-- Updated `vuln-finder` output rules so handoff packets are emitted only for confirmed or explicitly requested findings.
-- Updated `vuldb-report` consumption rules for `candidate`, `confirmed`, and `blocked` handoff states.
+- Added `omv-find/references/handoff-contract.md`.
+- Added `omv-report/references/handoff-contract.md`.
+- Updated `omv-find` output rules so handoff packets are emitted only for confirmed or explicitly requested findings.
+- Updated `omv-report` consumption rules for `candidate`, `confirmed`, and `blocked` handoff states.
 
 Core idea:
 
-The two skills need a typed boundary. Without a contract, `vuln-finder` output becomes loose prose and `vuldb-report` has to infer whether a vulnerability is real, candidate-only, or blocked. The handoff packet preserves evidence, blockers, provenance, and uncertainty.
+The two skills need a typed boundary. Without a contract, `omv-find` output becomes loose prose and `omv-report` has to infer whether a vulnerability is real, candidate-only, or blocked. The handoff packet preserves evidence, blockers, provenance, and uncertainty.
 
 Tradeoff:
 
@@ -69,11 +69,11 @@ Next considerations:
 - Generate or validate the two skill-local copies from that source.
 - Add a `validate_handoff.py` script.
 
-### v0.4 - vuldb-report Examples and Evals
+### v0.4 - omv-report Examples and Evals
 
 What changed:
 
-- Added more `vuldb-report` examples for prototype pollution and ReDoS.
+- Added more `omv-report` examples for prototype pollution and ReDoS.
 - Expanded eval scenarios beyond basic XSS, path traversal, and duplicate CVE cases.
 
 Core idea:
@@ -93,13 +93,13 @@ Next considerations:
 
 What changed:
 
-- Added `vuldb-report/references/report-templates.md`.
+- Added `omv-report/references/report-templates.md`.
 - Added reusable templates for VulDB, GHSA, OSV JSON, and standalone Markdown advisories.
 - Clarified duplicate CNA/CVE risk when GHSA and VulDB paths overlap.
 
 Core idea:
 
-`vuldb-report` should behave like an advisory format compiler. The same evidence can produce several platform-specific outputs, but each platform has different syntax, fields, and rejection risks.
+`omv-report` should behave like an advisory format compiler. The same evidence can produce several platform-specific outputs, but each platform has different syntax, fields, and rejection risks.
 
 Tradeoff:
 
@@ -110,14 +110,14 @@ Next considerations:
 - Add `render_template.py` once handoff packets are stable enough.
 - Add OSV schema validation beyond current heuristic checks.
 
-### v0.6 - vuldb-report Eval Harness
+### v0.6 - omv-report Eval Harness
 
 What changed:
 
-- Added `vuldb-report/scripts/check_output.py`.
-- Added machine-readable assertions to `vuldb-report/evals/evals.json`.
+- Added `omv-report/scripts/check_output.py`.
+- Added machine-readable assertions to `omv-report/evals/evals.json`.
 - Added golden outputs for blocked handoff, OSV prototype pollution, and duplicate CNA warning cases.
-- Connected stable `vuldb-report` golden evals to CI.
+- Connected stable `omv-report` golden evals to CI.
 
 Core idea:
 
@@ -140,14 +140,32 @@ Next considerations:
 - Add per-assertion documentation with examples of pass/fail text.
 - Consider using a structured intermediate report object so checker quality improves.
 
+### v0.7 - Codex Packaging Foundation
+
+What changed:
+
+- Standardized installation on Codex's `~/.codex/skills/` directory.
+- Made each skill directory self-contained by bundling the references, scripts, contracts, and registry metadata it needs at runtime.
+- Added `scripts/sync_skill_assets.py` so canonical root assets can be copied into skill-local runtime paths deterministically.
+- Added release checks for asset synchronization and version consistency across `package.json`, `package-lock.json`, and `registry.yaml`.
+- Strengthened `omv doctor` so it checks bundled runtime files, package-local SKILL.md references, and executable shell helpers.
+
+Core idea:
+
+Skill installation and `.skill` archives should have the same runtime shape. If a user installs from npm, a release package, or a local checkout, the loaded skill must not depend on files outside its own directory.
+
+Tradeoff:
+
+Canonical files now have skill-local copies, which creates duplication. The mitigation is to treat root `shared/`, root `contracts/`, and `registry.yaml` as the source of truth and make `npm run validate` fail when copies drift.
+
 ## Current Weaknesses
 
-- The handoff contract is duplicated in two skills.
-- `vuldb-report` has a checker, but `vuln-finder` and `vuldb-report` do not yet share a structured evidence object.
+- The handoff contract is copied into two skills; drift is checked by `scripts/sync_skill_assets.py --check`, but the duplication still adds release-surface noise.
+- `omv-report` has a checker, but `omv-find` and `omv-report` do not yet share a structured evidence object.
 - Examples are partly synthetic.
 - There is no CVE readiness score or evidence ledger.
 - Package archives are tracked but not independently diffable.
-- `vuldb-report` templates are still written by the model rather than rendered from structured input.
+- `omv-report` templates are still written by the model rather than rendered from structured input.
 
 ## Proposed Next Iterations
 
@@ -176,7 +194,7 @@ Add `CVE readiness: 0-100` based on evidence completeness. Submission-ready repo
 
 Goal:
 
-Move the handoff schema to a root-level canonical file and validate skill-local copies.
+Keep the handoff schema in a root-level canonical file and validate or generate skill-local runtime copies.
 
 Expected files:
 
@@ -192,9 +210,9 @@ Render VulDB, GHSA, OSV, and Markdown advisory drafts from the structured eviden
 
 Expected scripts:
 
-- `vuldb-report/scripts/validate_handoff.py`
-- `vuldb-report/scripts/render_template.py`
-- `vuldb-report/scripts/check_osv.py`
+- `omv-report/scripts/validate_handoff.py`
+- `omv-report/scripts/render_template.py`
+- `omv-report/scripts/check_osv.py`
 
 ### v1.0 - Real Corpus and Reviewer Mode
 

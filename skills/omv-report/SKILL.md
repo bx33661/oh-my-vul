@@ -10,8 +10,8 @@ description: "Generate a complete, ready-to-submit VulDB vulnerability report an
 Load these when needed — do not load all at once:
 
 - **`references/ecosystems.md`** — vendor naming rules, version verification commands, duplicate CVE search databases, CWE→Class mapping. Read when ecosystem-specific details are needed.
-- **`../../shared/references/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
-- **`../../contracts/evidence.v1.yaml`** — structured input contract from `omv-find`; read when the user provides a handoff packet or asks to continue from finder results.
+- **`references/shared/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
+- **`contracts/evidence.v1.yaml`** — structured input contract from `omv-find`; read when the user provides a handoff packet or asks to continue from finder results.
 - **`references/report-templates.md`** — reusable VulDB, GHSA, OSV, and standalone Markdown advisory templates. Read when the user requests a specific report format.
 - **`references/examples/xss-npm.md`** — complete filled report for a click-triggered XSS in an npm package.
 - **`references/examples/path-traversal-go.md`** — complete filled report for an unauthenticated path traversal in a Go module.
@@ -34,7 +34,7 @@ Flag these patterns before writing — each one is a common rejection reason:
 
 If a flag appears, tell the user what is missing and how to address it before continuing.
 
-If the input is an `omv-find` handoff packet (Evidence.v1), apply `../../contracts/evidence.v1.yaml` before drafting:
+If the input is an `omv-find` handoff packet (Evidence.v1), apply `contracts/evidence.v1.yaml` before drafting:
 
 - `status: blocked` means explain blockers instead of writing a submission-ready report.
 - `status: candidate` means produce a triage draft only.
@@ -56,7 +56,7 @@ Pick one level and briefly explain the reasoning — overstating severity causes
 
 > XSS that requires a click = **Medium**, always — even if session tokens are theoretically at risk.
 
-Generate a CVSS v3.1 vector. Read `../../shared/references/cvss-builder.md` for the full metric decision table.
+Generate a CVSS v3.1 vector. Read `references/shared/cvss-builder.md` for the full metric decision table.
 
 ---
 

@@ -26,7 +26,7 @@ After the table, add:
 
 ## Confirmed Finding Handoff
 
-When the user asks to turn a confirmed finding into a report, append an `omv-report handoff` block after the normal analysis. Structure it per `../../contracts/evidence.v1.yaml`.
+When the user asks to turn a confirmed finding into a report, append an `omv-report handoff` block after the normal analysis. Structure it per `contracts/evidence.v1.yaml`.
 
 Rules:
 

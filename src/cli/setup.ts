@@ -1,7 +1,7 @@
 import { mkdir, cp, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { claudeSkillsDir, packageSkillsDir } from "./paths.js";
+import { codexSkillsDir, packageSkillsDir } from "./paths.js";
 
 export interface SetupOptions {
   force?: boolean;
@@ -19,7 +19,7 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
   const result: SetupResult = { installed: [], skipped: [], errors: [] };
 
   const srcDir = packageSkillsDir();
-  const destDir = claudeSkillsDir();
+  const destDir = codexSkillsDir();
 
   if (!existsSync(srcDir)) {
     result.errors.push(`skills directory not found: ${srcDir}`);

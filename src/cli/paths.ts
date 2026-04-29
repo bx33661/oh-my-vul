@@ -4,15 +4,21 @@ import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
-/** ~/.claude/skills/ — where Claude Code loads user-level skills from */
-export function claudeSkillsDir(): string {
-  return join(homedir(), ".claude", "skills");
+/** ~/.codex/ — Codex config home. Override with CODEX_HOME when needed. */
+export function codexHome(): string {
+  return process.env.CODEX_HOME || join(homedir(), ".codex");
 }
 
-/** ~/.claude/ — Claude Code config home */
-export function claudeHome(): string {
-  return join(homedir(), ".claude");
+/** ~/.codex/skills/ — where Codex loads user-level skills from. */
+export function codexSkillsDir(): string {
+  return join(codexHome(), "skills");
 }
+
+/** @deprecated Use codexSkillsDir(). */
+export const claudeSkillsDir = codexSkillsDir;
+
+/** @deprecated Use codexHome(). */
+export const claudeHome = codexHome;
 
 /** Root of the oh-my-vul package (where skills/, agents/, contracts/ live) */
 export function packageRoot(): string {

@@ -15,13 +15,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.sh"
 VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
+SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
 
 
 def run(args: list[str]) -> None:
     subprocess.run(args, cwd=REPO_ROOT, check=True)
 
 
-IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__", "shared", "agents", "contracts"}
+IGNORED_DIRS = {".git", ".github", ".claude", ".codex", "scripts", "__pycache__", "shared", "agents", "contracts"}
 
 
 def skill_dirs() -> list[Path]:
@@ -56,6 +57,39 @@ def package_metadata(path: Path) -> dict[str, object]:
     }
 
 
+def registry_version(path: Path) -> str:
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("version:"):
+            return stripped.split(":", 1)[1].strip().strip('"').strip("'")
+    raise SystemExit(f"missing version in {path}")
+
+
+def validate_versions() -> None:
+    package = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    package_version = str(package.get("version", ""))
+    registry = registry_version(REPO_ROOT / "registry.yaml")
+
+    versions = {
+        "package.json": package_version,
+        "registry.yaml": registry,
+    }
+
+    lock_path = REPO_ROOT / "package-lock.json"
+    if lock_path.exists():
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        versions["package-lock.json"] = str(lock.get("version", ""))
+        root_package = lock.get("packages", {}).get("", {})
+        versions['package-lock.json packages[""]'] = str(root_package.get("version", ""))
+
+    unique_versions = set(versions.values())
+    if len(unique_versions) != 1:
+        details = ", ".join(f"{name}={version}" for name, version in versions.items())
+        raise SystemExit(f"version mismatch: {details}")
+
+    print(f"OK: version {package_version}", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -74,6 +108,8 @@ def main() -> None:
     if not skills:
         raise SystemExit("no skill directories found")
 
+    run([sys.executable, str(SYNC_SCRIPT), "--check"])
+    validate_versions()
     run([sys.executable, str(VALIDATE_SCRIPT)])
 
     artifacts: list[Path] = []

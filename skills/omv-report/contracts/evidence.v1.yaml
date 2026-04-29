@@ -1,0 +1,124 @@
+# Evidence.v1 — Finding object contract
+# Produced by: omv-find (on confirmed/explicit handoff request)
+# Consumed by: omv-report
+#
+# Status values:
+#   candidate  — promising but not yet proven; omv-report produces triage draft only
+#   confirmed  — tested version + source->sink->guard + local reproducer known
+#   blocked    — missing required evidence; omv-report must explain blockers, not write a submission-ready report
+#
+# Rules:
+#   - Use "unknown" for unverified fields; never fill from memory.
+#   - List unverified fields under provenance.unverified_fields.
+#   - omv-report must preserve all unverified markers; never silently upgrade them.
+#   - CVE readiness score 0-100 based on field completeness; threshold >=75 for submission-ready output.
+
+schema_version: "1"
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+handoff_version: "1.0"
+status: candidate          # candidate | confirmed | blocked
+researcher_goal: VulDB     # VulDB | CVE | GHSA | OSV | advisory | triage
+
+package:
+  ecosystem: npm           # npm | python | go | rust | java | ruby | php | csharp | swift | dart | elixir | perl | r | lua
+  registry_name: ""        # exact package name in registry
+  repository_url: ""       # verified GitHub URL
+  vendor: ""               # project name / org — NOT the registry name
+  product: ""              # package or product name
+
+# ── Versions ──────────────────────────────────────────────────────────────────
+versions:
+  tested: ""               # exact version tested (required for confirmed/submission-ready)
+  affected_range: unknown  # e.g. "up to and including 2.4.1" | "before 2.4.2"
+  fixed: unknown           # first safe version, or "none"
+
+# ── Vulnerability ─────────────────────────────────────────────────────────────
+vulnerability:
+  class: ""                # plain English class name (not CWE number)
+  cwe: ""                  # e.g. CWE-22
+  affected_component: ""   # file path
+  affected_function: ""    # function name
+
+# ── Evidence ──────────────────────────────────────────────────────────────────
+evidence:
+  source: unknown          # attacker-controlled input entry point
+  sink: unknown            # dangerous operation reached
+  guard: unknown           # check that is missing or bypassable
+  reproducer: unknown      # local PoC command or description; "none" if not yet written
+  observed_result: unknown # what happens when the PoC runs
+
+# ── CVSS ──────────────────────────────────────────────────────────────────────
+cvss:
+  vector: unknown          # e.g. CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+  score: unknown           # numeric score
+  severity: unknown        # Critical | High | Medium | Low
+
+# ── Impact ────────────────────────────────────────────────────────────────────
+impact:
+  attack_vector: unknown   # Network | Local | Physical | Adjacent
+  authentication_required: unknown   # true | false | unknown
+  user_interaction_required: unknown # true | false | unknown
+  scope_changed: unknown   # true | false | unknown
+  confidentiality: unknown # High | Low | None | unknown
+  integrity: unknown       # High | Low | None | unknown
+  availability: unknown    # High | Low | None | unknown
+
+# ── Dedup ─────────────────────────────────────────────────────────────────────
+dedup:
+  nvd_searched: false
+  ghsa_searched: false
+  ecosystem_db_searched: false
+  existing_cve: unknown    # CVE-YYYY-NNNNN if found, "none" if clean, "unknown" if not searched
+  notes: ""
+
+# ── Disclosure ────────────────────────────────────────────────────────────────
+disclosure:
+  vendor_contacted: false
+  contact_date: unknown
+  vendor_response: unknown
+  planned_disclosure_date: unknown
+
+# ── Blockers ──────────────────────────────────────────────────────────────────
+blockers: []
+# Common values:
+#   - "no tested version"
+#   - "source to sink not proven"
+#   - "likely duplicate CVE"
+#   - "developer-controlled trigger only"
+#   - "no local reproducer"
+
+# ── Provenance ────────────────────────────────────────────────────────────────
+provenance:
+  verification_date: ""
+  researcher: ""
+  unverified_fields: []    # list field paths that carry "unknown" or unconfirmed data
+  tool_versions: {}        # e.g. {omv-find: "1.0"}
+
+# ── CVE Readiness (computed, not stored) ─────────────────────────────────────
+# omv-report computes this from field completeness before deciding output mode.
+#
+# Scoring guide (total 100):
+#   tested version present          +20
+#   source identified               +10
+#   sink identified                 +10
+#   guard missing confirmed         +10
+#   local reproducer written        +15
+#   observed result documented      +10
+#   cvss vector present             +10
+#   dedup search completed          +10
+#   vendor contacted                +5
+#
+# Threshold: score >= 75 required for submission-ready report output.
+cve_readiness_scoring:
+  tested_version: 20
+  source_identified: 10
+  sink_identified: 10
+  guard_missing_confirmed: 10
+  local_reproducer: 15
+  observed_result: 10
+  cvss_vector: 10
+  dedup_searched: 10
+  vendor_contacted: 5
+  total: 100
+  threshold: 75

@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Sync canonical shared assets into self-contained skill directories."""
+
+from __future__ import annotations
+
+import argparse
+import filecmp
+import shutil
+import sys
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+ASSET_MAPPINGS = [
+    ("registry.yaml", "skills/omv/references/registry.yaml"),
+    ("shared/references/ecosystems.md", "skills/omv-find/references/shared/ecosystems.md"),
+    ("shared/references/vuln-patterns.md", "skills/omv-find/references/shared/vuln-patterns.md"),
+    ("shared/scripts/collect_metadata.py", "skills/omv-find/scripts/collect_metadata.py"),
+    ("shared/scripts/estimate_loc.sh", "skills/omv-find/scripts/estimate_loc.sh"),
+    ("contracts/evidence.v1.yaml", "skills/omv-find/contracts/evidence.v1.yaml"),
+    ("shared/references/cvss-builder.md", "skills/omv-report/references/shared/cvss-builder.md"),
+    ("contracts/evidence.v1.yaml", "skills/omv-report/contracts/evidence.v1.yaml"),
+]
+
+
+def fail(message: str) -> None:
+    print(f"FAIL: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def mappings() -> list[tuple[Path, Path]]:
+    return [(REPO_ROOT / src, REPO_ROOT / dest) for src, dest in ASSET_MAPPINGS]
+
+
+def check() -> None:
+    stale: list[str] = []
+    for src, dest in mappings():
+        if not src.exists():
+            fail(f"canonical asset missing: {src.relative_to(REPO_ROOT)}")
+        if not dest.exists():
+            stale.append(f"missing {dest.relative_to(REPO_ROOT)}")
+        elif not filecmp.cmp(src, dest, shallow=False):
+            stale.append(f"stale {dest.relative_to(REPO_ROOT)}")
+
+    if stale:
+        fail("skill assets are out of sync:\n  " + "\n  ".join(stale) + "\nRun: python3 scripts/sync_skill_assets.py")
+
+    print("OK: skill assets are in sync")
+
+
+def sync() -> None:
+    for src, dest in mappings():
+        if not src.exists():
+            fail(f"canonical asset missing: {src.relative_to(REPO_ROOT)}")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        print(f"sync {src.relative_to(REPO_ROOT)} -> {dest.relative_to(REPO_ROOT)}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true", help="fail if skill-local assets differ from canonical files")
+    args = parser.parse_args()
+
+    if args.check:
+        check()
+    else:
+        sync()
+
+
+if __name__ == "__main__":
+    main()

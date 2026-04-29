@@ -1,0 +1,35 @@
+name: Skill quality issue
+description: Report unclear, unsafe, or low-quality skill output
+title: "[Skill]: "
+labels: ["skill-quality"]
+body:
+  - type: dropdown
+    id: skill
+    attributes:
+      label: Skill
+      options:
+        - omv
+        - omv-find
+        - omv-report
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt or task
+      description: Include the smallest prompt that reproduces the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety or disclosure concern
+      description: Note if the output encouraged live exploitation, overclaimed evidence, or produced unsafe PoC wording.

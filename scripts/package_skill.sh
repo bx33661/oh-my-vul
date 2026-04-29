@@ -24,7 +24,7 @@ fi
 rm -f "$out"
 
 entries=(SKILL.md)
-for dirname in references scripts evals; do
+for dirname in references scripts evals contracts; do
   if [[ -d "$skill_dir/$dirname" ]]; then
     entries+=("$dirname")
   fi
@@ -32,7 +32,7 @@ done
 
 (
   cd "$skill_dir"
-  zip -qr "$out" "${entries[@]}" -x '*/__pycache__/*' '*.pyc' '*.pyo' '.git/*' '.claude/*'
+  zip -qr "$out" "${entries[@]}" -x '*/__pycache__/*' '*.pyc' '*.pyo' '.git/*' '.claude/*' '.codex/*'
 )
 
 python3 "$repo_root/scripts/validate_skill.py" "$skill_dir" --package "$out"

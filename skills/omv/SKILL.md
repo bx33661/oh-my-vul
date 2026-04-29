@@ -5,7 +5,7 @@ description: oh-my-vul collection manager. Lists installed omv-* skills, shows r
 
 # omv
 
-oh-my-vul collection manager for Claude Code.
+oh-my-vul collection manager for Codex.
 
 ## Commands
 
@@ -26,7 +26,7 @@ The first word after `/omv` is treated as the subcommand. Unknown subcommands sh
 
 ## Registry
 
-Collection metadata lives in `../../registry.yaml`. Read it to show current version, platform requirements, and per-skill produces/consumes fields.
+Collection metadata lives in `references/registry.yaml`. Read it to show current version, platform requirements, and per-skill produces/consumes fields.
 
 ## State Directory
 

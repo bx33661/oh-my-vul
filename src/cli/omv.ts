@@ -6,10 +6,10 @@ const args = process.argv.slice(2);
 const command = args[0];
 
 function usage(): void {
-  console.log(`oh-my-vul — vulnerability research skills for Claude Code
+  console.log(`oh-my-vul — vulnerability research skills for Codex
 
 Usage:
-  omv setup [--force] [--dry-run]   Install skills to ~/.claude/skills/
+  omv setup [--force] [--dry-run]   Install skills to ~/.codex/skills/
   omv doctor                         Check installation health
   omv help                           Show this message
 

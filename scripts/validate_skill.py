@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALID_NAME = re.compile(r"^[a-z0-9-]{1,64}$")
-IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__", "shared", "agents", "contracts"}
+IGNORED_DIRS = {".git", ".github", ".claude", ".codex", "scripts", "__pycache__", "shared", "agents", "contracts"}
 
 
 def fail(message: str) -> None:
@@ -98,6 +98,7 @@ def is_package_source(path: Path) -> bool:
         "__pycache__" not in path.parts
         and ".git" not in path.parts
         and ".claude" not in path.parts
+        and ".codex" not in path.parts
         and path.suffix not in {".pyc", ".pyo"}
     )
 
@@ -117,8 +118,17 @@ def validate_skill_md(skill_dir: Path) -> str:
     if len(description) > 1024:
         fail(f"{skill_dir.name}: frontmatter description is {len(description)} chars; maximum is 1024")
 
-    # match both local references/foo.md and shared ../../shared/references/foo.md paths
-    referenced = sorted(set(re.findall(r"`((?:\.\./)*(?:shared/)?references/[^`]+\.md)`", body)))
+    referenced = sorted(
+        set(
+            re.findall(
+                r"`((?:references|contracts|scripts)/[^`]+(?:\.md|\.yaml|\.yml|\.py|\.sh))`",
+                body,
+            )
+        )
+    )
+    upward_refs = sorted(set(re.findall(r"`(\.\./[^`]+)`", body)))
+    if upward_refs:
+        fail(f"{skill_dir.name}: SKILL.md must use package-local paths, not upward references: {', '.join(upward_refs)}")
     if not referenced and (skill_dir / "references").exists():
         fail(f"{skill_dir.name}: SKILL.md should reference at least one references/*.md file")
     for rel in referenced:
@@ -171,7 +181,7 @@ def validate_evals(skill_dir: Path, skill_name: str) -> None:
 
 def required_package_files(skill_dir: Path) -> set[str]:
     required = {"SKILL.md"}
-    for dirname in ("references", "scripts", "evals"):
+    for dirname in ("references", "scripts", "evals", "contracts"):
         root = skill_dir / dirname
         if not root.exists():
             continue
@@ -195,7 +205,7 @@ def validate_package(skill_dir: Path, package: Path, skill_name: str) -> None:
         for name in package_files
         if "__pycache__/" in name
         or name.endswith((".pyc", ".pyo"))
-        or name.startswith((".git/", ".claude/"))
+        or name.startswith((".git/", ".claude/", ".codex/"))
     )
     if generated:
         fail(f"{skill_name}: package contains generated or local files: {', '.join(generated)}")
