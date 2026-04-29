@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.7.0 - Evidence ledger workflow
 
 - Standardized the README as a user-facing guide for installation, target discovery, Evidence.v1 handoffs, validation, reporting, and safety boundaries.
 - Added project-scope setup, catalog-driven installs, stronger doctor checks, and metadata synchronization guards.
