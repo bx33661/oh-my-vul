@@ -1,139 +1,73 @@
-# VulnFlow
+# oh-my-vul
 
-Multi-skill project for passive vulnerability research and VulDB/CVE reporting.
+LLM-friendly vulnerability research skills for [Claude Code](https://claude.ai/code).
+
+```sh
+npx oh-my-vul setup
+```
+
+Installs three skills to `~/.claude/skills/` and makes them available as slash commands in Claude Code.
 
 ## Skills
 
-| Skill | Purpose |
-|---|---|
-| `vuln-finder` | Finds and ranks open-source packages worth auditing for passive CVE/VulDB research. |
-| `vuldb-report` | Generates complete VulDB submission reports, CVE request checklists, and GHSA-ready advisory text. |
+| Skill | Command | Purpose |
+|---|---|---|
+| `omv` | `/omv` | Collection manager — help, list, update |
+| `omv-find` | `/omv-find` | Find and rank open-source packages worth auditing |
+| `omv-report` | `/omv-report` | Generate VulDB / CVE / GHSA / OSV advisory drafts |
 
-The two skills are designed to work as a research pipeline:
+The two research skills form a pipeline:
 
-1. Use `vuln-finder` to identify promising packages, source paths, and local audit entry points.
-2. Use `vuldb-report` after you have confirmed a real vulnerability and need a submission-ready report.
-
-## Structure
-
-```text
-.
-├── vuln-finder/
-│   ├── SKILL.md
-│   ├── references/
-│   ├── scripts/
-│   └── evals/
-├── vuldb-report/
-│   ├── SKILL.md
-│   ├── references/
-│   └── evals/
-├── scripts/
-│   ├── validate_skill.py
-│   ├── package_skill.sh
-│   └── release_check.py
-├── vuln-finder.skill
-├── vuldb-report.skill
-├── CHANGELOG.md
-├── DEVELOPMENT.md
-└── RELEASE.md
-```
+1. `/omv-find` — identify promising packages, source paths, and audit entry points
+2. `/omv-report` — after confirming a real vulnerability, produce a submission-ready report
 
 ## Install
 
-Install either packaged skill directly:
-
-```bash
-claude skill install vuln-finder.skill
-claude skill install vuldb-report.skill
+```sh
+npx oh-my-vul setup          # install to ~/.claude/skills/
+npx oh-my-vul setup --force  # overwrite existing
+npx oh-my-vul setup --dry-run  # preview only
 ```
 
-Or install from source directories:
+Check installation health:
 
-```bash
-cp -r vuln-finder ~/.claude/skills/
-cp -r vuldb-report ~/.claude/skills/
+```sh
+omv doctor
 ```
 
 ## Usage
 
-`vuln-finder` supports slash-style requests:
-
 ```text
-/vuln-finder --lang npm --vuln traversal --count 10
+/omv-find --lang npm --vuln traversal --count 10
+/omv-find --lang python --vuln injection keyword
+
+/omv-report  (after omv-find produces a confirmed finding)
 ```
 
-`vuldb-report` triggers when you ask for VulDB, CVE, GHSA, advisory, or disclosure help:
+Supported `--vuln` aliases:
 
 ```text
-帮我把这个漏洞写成 VulDB 报告并申请 CVE
-write a CVE report for this npm package
+proto traversal ssrf injection xss redos yaml unsafe deser race overflow
+auth csrf xxe sql ssti sandbox redirect upload crypto infoleak
 ```
+
+## Requirements
+
+- [Claude Code](https://claude.ai/code)
+- Node.js ≥ 20
 
 ## Development
 
-Validate all skills:
+```sh
+npm install
+npm run build       # compile TypeScript
+npm run typecheck   # type-check without emitting
 
-```bash
-python3 scripts/validate_skill.py
+python3 scripts/validate_skill.py          # validate all skills
+python3 scripts/validate_skill.py skills/omv-find
+python3 scripts/release_check.py           # release-time checks
 ```
 
-Validate one skill:
+## License
 
-```bash
-python3 scripts/validate_skill.py vuln-finder
-python3 scripts/validate_skill.py vuldb-report
-```
-
-Rebuild packages:
-
-```bash
-bash scripts/package_skill.sh vuln-finder
-bash scripts/package_skill.sh vuldb-report
-```
-
-Run the stable `vuln-finder` golden check:
-
-```bash
-python3 vuln-finder/scripts/check_output.py --eval-id 26 --output vuln-finder/evals/golden/invalid-flags.md
-```
-
-Run stable `vuldb-report` golden checks:
-
-```bash
-python3 vuldb-report/scripts/check_output.py --eval-id 4 --output vuldb-report/evals/golden/blocked-handoff.md
-python3 vuldb-report/scripts/check_output.py --eval-id 5 --output vuldb-report/evals/golden/osv-prototype-pollution.json
-python3 vuldb-report/scripts/check_output.py --eval-id 7 --output vuldb-report/evals/golden/duplicate-cna-warning.md
-```
-
-Run release checks and rebuild tracked packages:
-
-```bash
-python3 scripts/release_check.py
-python3 scripts/release_check.py --write-artifacts
-```
-
-Development rationale and iteration notes live in `DEVELOPMENT.md`.
-
-## Skill Handoff
-
-When a `vuln-finder` result becomes a confirmed vulnerability, it can emit a structured `vuldb-report handoff` packet. The shared contract lives in:
-
-- `vuln-finder/references/handoff-contract.md`
-- `vuldb-report/references/handoff-contract.md`
-
-The packet carries package identity, affected versions, source -> sink -> guard evidence, PoC status, impact requirements, disclosure status, blockers, and provenance. `vuldb-report` should refuse submission-ready output when the handoff is blocked or missing required evidence.
-
-## Report Formats
-
-`vuldb-report` supports:
-
-- VulDB form fields
-- Full Markdown advisory
-- GitHub Security Advisory fields
-- OSV JSON advisory draft
-
-## Design Notes
-
-Keep each skill's `SKILL.md` focused on trigger behavior, workflow, and which references to load. Put ecosystem-specific rules, scoring details, examples, and output contracts under each skill's `references/` directory so the agent can load only what the current task needs.
-
-When adding a new skill, place it in a root-level directory with a `SKILL.md`, add focused references/evals, then validate and package it with the project-level scripts.
+MIT

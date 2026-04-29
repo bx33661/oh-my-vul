@@ -1,10 +1,10 @@
 ---
-name: vuln-finder
+name: omv-find
 description: |
-  Finds and ranks open-source packages worth auditing for passive CVE/VulDB research. Use when the user asks for vulnerability research targets, CVE hunting candidates, packages to audit, projects to fuzz, or `/vuln-finder`. Supports npm, Python, Go, Rust, Java, Ruby, PHP, C#, Swift, Dart, Elixir, Perl, R, and Lua, with strongest guidance for npm/Python/Go/Rust/Java/Ruby. Produces evidence-backed source -> sink -> guard notes, metadata, scoring, and local audit next steps without live exploitation.
+  Finds and ranks open-source packages worth auditing for passive CVE/VulDB research. Use when the user asks for vulnerability research targets, CVE hunting candidates, packages to audit, projects to fuzz, or `/omv-find`. Supports npm, Python, Go, Rust, Java, Ruby, PHP, C#, Swift, Dart, Elixir, Perl, R, and Lua, with strongest guidance for npm/Python/Go/Rust/Java/Ruby. Produces evidence-backed source -> sink -> guard notes, metadata, scoring, and local audit next steps without live exploitation.
 ---
 
-# vuln-finder
+# omv-find
 
 Act as a security research assistant that finds promising open-source projects for non-destructive CVE or VulDB research.
 
@@ -13,7 +13,7 @@ Stay in passive research mode: inspect public metadata and public source code on
 ## Invocation
 
 ```text
-/vuln-finder [--lang npm|python|go|rust|java|ruby|php|csharp|swift|dart|elixir|perl|r|lua|all] [--vuln VULN_TYPE] [--count N] [keyword ...]
+/omv-find [--lang npm|python|go|rust|java|ruby|php|csharp|swift|dart|elixir|perl|r|lua|all] [--vuln VULN_TYPE] [--count N] [keyword ...]
 ```
 
 Defaults:
@@ -31,13 +31,13 @@ If a flag is invalid, stop early and show valid values. Do not search or invent 
 
 Load only the files needed for the request:
 
-- Ecosystem discovery, registry URLs, flagship exclusions: `references/ecosystems.md`
-- Vulnerability source/sink/guard patterns: `references/vuln-patterns.md`
+- Ecosystem discovery, registry URLs, flagship exclusions: `../../shared/references/ecosystems.md`
+- Vulnerability source/sink/guard patterns: `../../shared/references/vuln-patterns.md`
 - Scoring, filtering, confidence rules: `references/scoring.md`
 - Required final table, audit tips, freshness notes, invalid-request template: `references/output-contract.md`
-- Confirmed finding handoff fields for `vuldb-report`: `references/handoff-contract.md`
+- Confirmed finding evidence fields for `omv-report`: `../../contracts/evidence.v1.yaml`
 
-For narrow requests, use `rg` inside `references/` to read only the relevant ecosystem or vulnerability section. For `--vuln all`, inspect the project type first, then load the most likely vulnerability sections.
+For narrow requests, use `rg` inside the relevant reference to read only the needed ecosystem or vulnerability section. For `--vuln all`, inspect the project type first, then load the most likely vulnerability sections.
 
 ## Workflow
 
@@ -62,8 +62,8 @@ For narrow requests, use `rg` inside `references/` to read only the relevant eco
    - Collect GitHub URL, default branch, archived/fork status, stars, last commit date, registry identity, downloads/dependents/importers when visible, release recency, and code-size estimate.
    - Use `未确认` for unverified values and lower confidence.
    - Prefer deterministic helpers when available:
-     - `python scripts/collect_metadata.py --repo <github-url> [--registry npm:pkg]`
-     - `scripts/estimate_loc.sh <github-url-or-local-path>`
+     - `python ../../shared/scripts/collect_metadata.py --repo <github-url> [--registry npm:pkg]`
+     - `../../shared/scripts/estimate_loc.sh <github-url-or-local-path>`
 
 5. **Scan source risk**
    - Inspect 2-5 relevant source files per surviving candidate.
@@ -80,16 +80,16 @@ For narrow requests, use `rg` inside `references/` to read only the relevant eco
    - Use the table and follow-up sections in `references/output-contract.md`.
    - Sort by score descending.
    - Include data freshness, sources used, and uncertainty.
-   - If the user asks to pass a confirmed finding to `vuldb-report`, add a handoff packet using `references/handoff-contract.md`. Do not emit a handoff packet for unconfirmed target lists.
+   - If the user asks to pass a confirmed finding to `omv-report`, add a handoff packet structured per `../../contracts/evidence.v1.yaml`. Do not emit a handoff packet for unconfirmed target lists.
 
 ## Deterministic Helpers
 
 Use bundled scripts when they fit the task:
 
-- `scripts/validate_skill.py`: validates skill structure, frontmatter, reference links, eval IDs, and package contents.
-- `scripts/package_skill.sh`: rebuilds `../vuln-finder.skill` from the skill directory without stale archive entries.
-- `scripts/collect_metadata.py`: fetches GitHub and selected registry metadata as JSON using only the Python standard library.
-- `scripts/estimate_loc.sh`: shallow-clones or scans a local checkout and estimates source LOC with `tokei`, `cloc`, or `find`/`wc`.
+- `../../scripts/validate_skill.py`: validates skill structure, frontmatter, reference links, eval IDs, and package contents.
+- `../../scripts/package_skill.sh`: rebuilds the skill package from the skill directory without stale archive entries.
+- `../../shared/scripts/collect_metadata.py`: fetches GitHub and selected registry metadata as JSON using only the Python standard library.
+- `../../shared/scripts/estimate_loc.sh`: shallow-clones or scans a local checkout and estimates source LOC with `tokei`, `cloc`, or `find`/`wc`.
 - `scripts/check_output.py`: runs heuristic eval assertions against a saved model output.
 
 If a script fails because network access, rate limits, or tools are unavailable, state that limitation and continue with primary-source manual verification.

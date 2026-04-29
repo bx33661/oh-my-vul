@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Heuristic checker for vuln-finder eval outputs."""
+"""Heuristic checker for omv-find eval outputs."""
 
 from __future__ import annotations
 

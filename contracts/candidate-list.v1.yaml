@@ -1,0 +1,50 @@
+# CandidateList.v1 — Output schema for omv-find candidate table
+# Produced by: omv-find
+# Consumed by: omv-report (for batch triage), omv-audit (future)
+#
+# This schema describes one entry in the candidate list table.
+# The full output also includes audit tips and freshness notes per output-contract.md.
+
+schema_version: "1"
+
+# ── Request Context ───────────────────────────────────────────────────────────
+request:
+  lang: all              # ecosystem filter used
+  vuln: all              # vulnerability type filter used
+  count: 15              # requested result count
+  keywords: []           # extra keywords passed
+
+# ── Candidate Entry ───────────────────────────────────────────────────────────
+# Each entry in the ranked table has these fields:
+candidate:
+  rank: 0                # 1-based ranking, sorted by score descending
+  project: ""            # package name, linked when useful
+  ecosystem: ""          # npm | python | go | rust | java | ruby | php | ...
+  repository_url: ""     # verified GitHub URL
+  registry_url: ""       # registry link or "未确认"
+  stars: unknown         # integer or "未确认"
+  last_commit: unknown   # ISO date or "未确认"
+  loc_estimate: unknown  # "cloc: 18k LOC" | "tokei: 7k LOC" | "GitHub estimate" | "未确认"
+  input_surface: ""      # concise description of untrusted input types
+  risk_evidence: ""      # source -> sink -> guard note with exact file/function or link
+  vuln_direction: ""     # likely vulnerability class(es)
+  audit_entrypoint: ""   # first file, function, or test area to inspect
+  score: 0               # 0-100 per scoring.md rubric
+
+# ── Radar Context ─────────────────────────────────────────────────────────────
+# Additional signal for each candidate beyond the core table columns.
+radar_context:
+  maintainer_type: unknown     # individual | small-org | large-org | unknown
+  open_issues: unknown         # integer or "未确认"
+  last_release: unknown        # ISO date or "未确认"
+  dependents: unknown          # integer or "未确认" (importers/dependents count)
+  has_security_policy: unknown # true | false | unknown
+  existing_cve_count: unknown  # integer — known CVEs already filed against this package
+
+# ── Provenance ────────────────────────────────────────────────────────────────
+provenance:
+  verification_date: ""
+  sources_used: []       # list of primary sources consulted
+  scripts_used: []       # list of helper scripts run
+  rate_limits_hit: false
+  unverified_fields: []  # list of field paths carrying "未确认" or "unknown"

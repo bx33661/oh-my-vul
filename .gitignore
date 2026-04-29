@@ -1,0 +1,20 @@
+# oh-my-vul state directory — findings, context snapshots, logs
+.omv/
+
+# TypeScript build output
+dist/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

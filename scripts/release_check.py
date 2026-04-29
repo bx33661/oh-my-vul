@@ -21,12 +21,23 @@ def run(args: list[str]) -> None:
     subprocess.run(args, cwd=REPO_ROOT, check=True)
 
 
+IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__", "shared", "agents", "contracts"}
+
+
 def skill_dirs() -> list[Path]:
-    return sorted(
-        child
-        for child in REPO_ROOT.iterdir()
-        if child.is_dir() and (child / "SKILL.md").exists()
-    )
+    dirs = []
+    # root-level skill directories (legacy layout)
+    for child in sorted(REPO_ROOT.iterdir()):
+        if child.is_dir() and child.name not in IGNORED_DIRS and child.name != "skills":
+            if (child / "SKILL.md").exists():
+                dirs.append(child)
+    # skills/ subdirectories (oh-my-vul layout)
+    skills_root = REPO_ROOT / "skills"
+    if skills_root.is_dir():
+        for child in sorted(skills_root.iterdir()):
+            if child.is_dir() and (child / "SKILL.md").exists():
+                dirs.append(child)
+    return dirs
 
 
 def sha256(path: Path) -> str:
@@ -69,14 +80,14 @@ def main() -> None:
     if args.write_artifacts:
         for skill in skills:
             out = REPO_ROOT / f"{skill.name}.skill"
-            run(["bash", str(PACKAGE_SCRIPT), skill.name, str(out)])
+            run(["bash", str(PACKAGE_SCRIPT), str(skill), str(out)])
             artifacts.append(out)
     else:
-        with tempfile.TemporaryDirectory(prefix="vulnflow-release-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="omv-release-") as tmp:
             tmpdir = Path(tmp)
             for skill in skills:
                 out = tmpdir / f"{skill.name}.skill"
-                run(["bash", str(PACKAGE_SCRIPT), skill.name, str(out)])
+                run(["bash", str(PACKAGE_SCRIPT), str(skill), str(out)])
                 artifacts.append(out)
 
             manifest = {

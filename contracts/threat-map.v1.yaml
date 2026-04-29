@@ -1,0 +1,53 @@
+# ThreatMap.v1 — Dataflow threat map schema (future: produced by omv-audit)
+# Produced by: omv-audit (planned, M2+)
+# Consumed by: omv-score, omv-report
+#
+# The full threat map for a single finding lives in a sidecar file:
+#   .omv/findings/<uuid>-threat.yaml
+# A summary digest is also written to the finding's Evidence.v1 object.
+
+schema_version: "1"
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+finding_id: ""           # UUID matching the parent Evidence.v1 file
+package:
+  ecosystem: ""
+  registry_name: ""
+  repository_url: ""
+  version_analyzed: ""
+
+# ── Dataflow Paths ────────────────────────────────────────────────────────────
+# One entry per discovered source-to-sink path.
+paths: []
+# Each path entry:
+#   - id: 1
+#     source:
+#       type: user_input | file | network | env | config
+#       location: "src/routes/upload.js:42"
+#       description: "req.body.filename passed directly"
+#     sink:
+#       type: fs_write | exec | eval | html_render | sql | network_req
+#       location: "src/utils/file.js:88"
+#       description: "path.join(baseDir, filename) without normalization"
+#     guard:
+#       present: false
+#       description: "no path traversal check before join"
+#       bypassable: true
+#     confidence: high   # high | medium | low
+#     notes: ""
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+# Digest fields written into the parent Evidence.v1 object.
+summary:
+  path_count: 0
+  confirmed_paths: 0
+  highest_confidence: unknown    # high | medium | low | unknown
+  vuln_classes: []               # list of vulnerability class names identified
+  notes: ""
+
+# ── Provenance ────────────────────────────────────────────────────────────────
+provenance:
+  analysis_date: ""
+  tool: manual             # manual | semgrep | codeql | other
+  tool_version: unknown
+  analyst: ""

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Heuristic checker for vuldb-report eval outputs."""
+"""Heuristic checker for omv-report eval outputs."""
 
 from __future__ import annotations
 

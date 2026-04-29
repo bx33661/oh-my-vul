@@ -1,0 +1,49 @@
+{
+  "name": "oh-my-vul",
+  "version": "0.1.0",
+  "description": "LLM-friendly vulnerability research skills for Claude Code",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "omv": "dist/cli/omv.js"
+  },
+  "scripts": {
+    "build": "tsc && node -e \"import('fs').then(fs => fs.chmodSync('dist/cli/omv.js', 0o755))\"",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/**/__tests__/*.test.js",
+    "setup": "node dist/cli/omv.js setup",
+    "doctor": "node dist/cli/omv.js doctor"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist/",
+    "skills/",
+    "shared/",
+    "contracts/",
+    "agents/",
+    "registry.yaml"
+  ],
+  "keywords": [
+    "claude-code",
+    "security",
+    "vulnerability",
+    "cve",
+    "vuldb",
+    "skills"
+  ],
+  "author": "bx33661",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bx33661/oh-my-vul.git",
+    "homepage": "https://github.com/bx33661/oh-my-vul#readme",
+    "bugs": "https://github.com/bx33661/oh-my-vul/issues"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "skill_name": "vuln-finder",
+  "skill_name": "omv-find",
   "evals": [
     {
       "id": 0,
@@ -156,8 +156,7 @@
           "type": "score_explainability_present"
         }
       ]
-    }
-    ,
+    },
     {
       "id": 4,
       "prompt": "/vuln-finder --lang java --vuln deser --count 10",

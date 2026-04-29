@@ -1,0 +1,82 @@
+# oh-my-vul skill registry
+# Lists all skills in this collection with their invocation, status, and contract bindings.
+
+name: oh-my-vul
+version: "0.7.0"
+platform: claude-code
+updated: "2026-04-29"
+
+skills:
+  - name: omv
+    path: skills/omv
+    invocation: /omv
+    status: stable
+    description: Collection manager — lists skills, shows registry status
+    produces: []
+    consumes: []
+
+  - name: omv-find
+    path: skills/omv-find
+    invocation: /omv-find
+    status: stable
+    description: Find and rank open-source packages worth auditing for passive CVE research
+    produces:
+      - CandidateList.v1
+      - Evidence.v1    # handoff packet on confirmed/explicit request
+    consumes: []
+
+  - name: omv-report
+    path: skills/omv-report
+    invocation: /omv-report
+    status: stable
+    description: Generate VulDB/CVE/GHSA/OSV advisory reports from confirmed findings
+    produces:
+      - VulDB form output
+      - GHSA advisory
+      - OSV JSON
+      - Markdown advisory
+    consumes:
+      - Evidence.v1    # writes cvss and dedup subfields
+
+agents:
+  - name: vuln-scanner
+    path: agents/vuln-scanner.md
+    used_by: [omv-find]
+
+  - name: dataflow-tracer
+    path: agents/dataflow-tracer.md
+    used_by: [omv-find]
+
+  - name: cvss-analyst
+    path: agents/cvss-analyst.md
+    used_by: [omv-report]
+
+  - name: dedup-analyst
+    path: agents/dedup-analyst.md
+    used_by: [omv-report]
+
+  - name: report-writer
+    path: agents/report-writer.md
+    used_by: [omv-report]
+
+contracts:
+  - name: Evidence.v1
+    path: contracts/evidence.v1.yaml
+    description: Finding object — the typed boundary between omv-find and omv-report
+
+  - name: CandidateList.v1
+    path: contracts/candidate-list.v1.yaml
+    description: Candidate table entry schema produced by omv-find
+
+  - name: ThreatMap.v1
+    path: contracts/threat-map.v1.yaml
+    description: Dataflow threat map sidecar (produced by omv-audit, planned M2+)
+
+shared:
+  references:
+    - shared/references/ecosystems.md
+    - shared/references/vuln-patterns.md
+    - shared/references/cvss-builder.md
+  scripts:
+    - shared/scripts/collect_metadata.py
+    - shared/scripts/estimate_loc.sh

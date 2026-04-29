@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALID_NAME = re.compile(r"^[a-z0-9-]{1,64}$")
-IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__"}
+IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__", "shared", "agents", "contracts"}
 
 
 def fail(message: str) -> None:
@@ -58,13 +58,20 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, str], str]:
 
 def discover_skill_dirs() -> list[Path]:
     dirs = []
+    # scan root-level skill directories (legacy layout)
     for child in sorted(REPO_ROOT.iterdir()):
-        if not child.is_dir() or child.name in IGNORED_DIRS:
+        if not child.is_dir() or child.name in IGNORED_DIRS or child.name == "skills":
             continue
         if (child / "SKILL.md").exists():
             dirs.append(child)
+    # scan skills/ subdirectories (oh-my-vul layout)
+    skills_root = REPO_ROOT / "skills"
+    if skills_root.is_dir():
+        for child in sorted(skills_root.iterdir()):
+            if child.is_dir() and (child / "SKILL.md").exists():
+                dirs.append(child)
     if not dirs:
-        fail("no root-level skill directories found")
+        fail("no skill directories found (checked root level and skills/)")
     return dirs
 
 
@@ -110,11 +117,13 @@ def validate_skill_md(skill_dir: Path) -> str:
     if len(description) > 1024:
         fail(f"{skill_dir.name}: frontmatter description is {len(description)} chars; maximum is 1024")
 
-    referenced = sorted(set(re.findall(r"`(references/[^`]+\.md)`", body)))
+    # match both local references/foo.md and shared ../../shared/references/foo.md paths
+    referenced = sorted(set(re.findall(r"`((?:\.\./)*(?:shared/)?references/[^`]+\.md)`", body)))
     if not referenced and (skill_dir / "references").exists():
         fail(f"{skill_dir.name}: SKILL.md should reference at least one references/*.md file")
     for rel in referenced:
-        if not (skill_dir / rel).exists():
+        resolved = (skill_dir / rel).resolve()
+        if not resolved.exists():
             fail(f"{skill_dir.name}: missing referenced file: {rel}")
 
     return name

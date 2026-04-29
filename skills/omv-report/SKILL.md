@@ -1,5 +1,5 @@
 ---
-name: vuldb-report
+name: omv-report
 description: "Generate a complete, ready-to-submit VulDB vulnerability report and CVE request. Covers all major package ecosystems: npm, pip, Go, Cargo (Rust), RubyGems, Maven, Gradle, NuGet, Composer (PHP), CocoaPods, Swift Package Manager, pub (Dart/Flutter), Hex (Elixir), CPAN (Perl), CRAN (R), LuaRocks. Use this skill whenever the user wants to submit a vulnerability to VulDB, request a CVE, write a security advisory, or document a security bug for disclosure. Trigger on phrases like submit to VulDB, request a CVE, write a CVE report, help me report this vuln, 提交 VulDB, 申请 CVE, 帮我报这个漏洞. Also trigger proactively when the user has just finished analysing a vulnerability in any package ecosystem and asks what to do next."
 ---
 
@@ -10,8 +10,8 @@ description: "Generate a complete, ready-to-submit VulDB vulnerability report an
 Load these when needed — do not load all at once:
 
 - **`references/ecosystems.md`** — vendor naming rules, version verification commands, duplicate CVE search databases, CWE→Class mapping. Read when ecosystem-specific details are needed.
-- **`references/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
-- **`references/handoff-contract.md`** — structured input contract from `vuln-finder`; read when the user provides a handoff packet or asks to continue from finder results.
+- **`../../shared/references/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
+- **`../../contracts/evidence.v1.yaml`** — structured input contract from `omv-find`; read when the user provides a handoff packet or asks to continue from finder results.
 - **`references/report-templates.md`** — reusable VulDB, GHSA, OSV, and standalone Markdown advisory templates. Read when the user requests a specific report format.
 - **`references/examples/xss-npm.md`** — complete filled report for a click-triggered XSS in an npm package.
 - **`references/examples/path-traversal-go.md`** — complete filled report for an unauthenticated path traversal in a Go module.
@@ -34,7 +34,7 @@ Flag these patterns before writing — each one is a common rejection reason:
 
 If a flag appears, tell the user what is missing and how to address it before continuing.
 
-If the input is a `vuln-finder` handoff packet, apply `references/handoff-contract.md` before drafting:
+If the input is an `omv-find` handoff packet (Evidence.v1), apply `../../contracts/evidence.v1.yaml` before drafting:
 
 - `status: blocked` means explain blockers instead of writing a submission-ready report.
 - `status: candidate` means produce a triage draft only.
@@ -56,7 +56,7 @@ Pick one level and briefly explain the reasoning — overstating severity causes
 
 > XSS that requires a click = **Medium**, always — even if session tokens are theoretically at risk.
 
-Generate a CVSS v3.1 vector. Read `references/cvss-builder.md` for the full metric decision table.
+Generate a CVSS v3.1 vector. Read `../../shared/references/cvss-builder.md` for the full metric decision table.
 
 ---
 
@@ -294,7 +294,7 @@ Read `references/report-templates.md` for exact field layout. OSV output must be
 
 Use bundled scripts when they fit the task:
 
-- `scripts/check_output.py`: runs heuristic eval assertions against a saved `vuldb-report` output. It checks platform fields, blocked handoff behavior, OSV JSON structure, duplicate CNA warnings, severity sanity, and safe PoC wording.
+- `scripts/check_output.py`: runs heuristic eval assertions against a saved `omv-report` output. It checks platform fields, blocked handoff behavior, OSV JSON structure, duplicate CNA warnings, severity sanity, and safe PoC wording.
 
 ---
 
