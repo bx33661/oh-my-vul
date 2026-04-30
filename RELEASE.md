@@ -5,6 +5,7 @@ This repository ships standalone `.skill` archives for every installable skill i
 ## Version policy
 
 - Use `v0.x` tags while the skill contracts are still evolving.
+- Treat `package.json` as the version source of truth; sync metadata updates registry and lockfile versions from it.
 - Treat `SKILL.md` behavior, referenced contracts, eval prompts, and packaged file layout as release surface.
 - Bump the changelog whenever a release changes invocation, output format, handoff fields, or report templates.
 
@@ -16,7 +17,7 @@ Run the full release check without changing root artifacts:
 npm run validate
 ```
 
-`scripts/release_check.py` verifies metadata sync, version consistency, skill-local runtime assets synchronized from canonical `shared/` and `contracts/` sources, skill structure, and self-contained packages.
+`scripts/release_check.py` verifies metadata sync, version consistency, skill-local runtime assets synchronized from canonical `shared/` and `contracts/` sources, skill structure, stable eval checkers, and self-contained packages.
 
 Rebuild tracked package artifacts:
 
@@ -45,5 +46,6 @@ Before tagging, verify:
 - `omv-audit` can consume candidate Evidence.v1 files and leave confirmed or blocked evidence.
 - `omv-repro` can guide local confirmation without modifying the reproducer field or inventing observations.
 - `omv findings validate <id>` catches missing confirmed evidence before report generation.
+- `omv doctor` reports stale or modified installed skills through the install manifest.
 - `omv-report` can consume validated handoffs without asking for already-provided metadata.
 - `omv-report` can produce VulDB, GHSA, OSV, and standalone Markdown advisory formats.

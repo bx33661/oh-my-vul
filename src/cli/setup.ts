@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { claudeSkillsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
+import { buildInstallManifest, installManifestPath, writeInstallManifest } from "./install-manifest.js";
 
 export type SetupScope = "user" | "project";
 
@@ -70,6 +71,17 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
     } else {
       result.installed.push(skill.name);
     }
+  }
+
+  if (!dryRun && result.errors.length === 0) {
+    const manifest = await buildInstallManifest({
+      scope,
+      skillsDir: destDir,
+      skills: skillDirs,
+      registryVersion: catalog.version,
+      projectRoot,
+    });
+    await writeInstallManifest(installManifestPath(scope, projectRoot), manifest);
   }
 
   return result;

@@ -1,0 +1,47 @@
+{
+  "skill_name": "omv-repro",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv-repro demo-steps",
+      "expected_output": "Repro output provides local steps for the user without claiming the agent executed commands.",
+      "files": [
+        "evals/golden/no-agent-execution.md"
+      ],
+      "assertions": [
+        {
+          "type": "no_agent_execution",
+          "text": "agent must not claim it executed commands"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "/omv-repro demo-update-observed",
+      "expected_output": "Repro output records user-reported observed_result while keeping evidence.reproducer unchanged.",
+      "files": [
+        "evals/golden/read-only-reproducer.md"
+      ],
+      "assertions": [
+        {
+          "type": "reproducer_read_only",
+          "text": "reproducer must remain unchanged"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/omv-repro demo-blocked",
+      "expected_output": "Repro output marks unreproducible findings blocked with a specific blocker.",
+      "files": [
+        "evals/golden/blocked-repro-failure.md"
+      ],
+      "assertions": [
+        {
+          "type": "blocked_with_reason",
+          "text": "failed reproduction must include blockers"
+        }
+      ]
+    }
+  ]
+}

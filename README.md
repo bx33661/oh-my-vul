@@ -83,10 +83,13 @@ Useful setup flags:
 ```sh
 npx oh-my-vul setup --force
 npx oh-my-vul setup --dry-run
+npx oh-my-vul setup --json
 omv doctor --json
+omv doctor --strict
+omv version --json
 ```
 
-Project-level setup writes `.omv/setup-scope.json` so `omv doctor` can resolve the intended scope automatically.
+Project-level setup writes `.omv/setup-scope.json` so `omv doctor` can resolve the intended scope automatically. Use `--strict` when warnings should fail CI, and `omv version` to compare package and registry metadata.
 
 ## Finding Targets
 
@@ -134,7 +137,10 @@ Validate before reporting:
 ```sh
 omv findings validate demo-traversal
 omv findings validate --json
+omv findings validate --strict
 ```
+
+Validation is the machine gate for status changes and reporting. Confirmed findings must pass field-level checks for tested version, source/sink/guard evidence, local reproducer, user-reported observed result, CVSS vector, dedup status, and unknown-field accounting.
 
 Promote or block a finding as evidence changes:
 
@@ -150,6 +156,8 @@ Status values are deliberately small:
 | `candidate` | Promising, but proof is incomplete. |
 | `confirmed` | Tested version, source, sink, guard, reproducer, and observed result are known. |
 | `blocked` | The report should not move forward until blockers are resolved. |
+
+`omv setup` writes an install manifest with copied skill files and hashes. `omv doctor` uses it to warn about stale or locally modified installed skills while still failing on missing runtime assets.
 
 ## Reporting
 
@@ -193,6 +201,8 @@ npm run sync-metadata
 npm run sync-assets
 npm run validate
 ```
+
+`package.json` is the release version source of truth; metadata sync updates registry and generated docs from it.
 
 Focused checks:
 

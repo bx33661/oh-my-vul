@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { setup } from "./setup.js";
 import { doctor } from "./doctor.js";
+import { validateArgs } from "./args.js";
+import { readCatalog } from "./catalog.js";
+import { packageRoot } from "./paths.js";
+import { readFile } from "fs/promises";
 import {
   listFindings,
   validateFinding,
@@ -22,15 +26,16 @@ function usage(): void {
 Usage:
   omv setup [--scope user|project] [--force] [--dry-run]
                                      Install skills to ~/.claude/skills/ or ./.claude/skills/
-  omv doctor [--scope user|project] [--json]
+  omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
   omv findings list [--json]        List .omv/findings evidence files
   omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
                                      Create an Evidence.v1 finding template
-  omv findings validate [id|path] [--json]
+  omv findings validate [id|path] [--json] [--strict]
                                      Validate one finding or the whole ledger
-  omv findings promote <id|path> --status candidate|confirmed|blocked
+  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]
                                      Update a finding status and revalidate it
+  omv version [--json]               Show package and registry version
   omv help                           Show this message
 
 Examples:
@@ -46,9 +51,67 @@ Examples:
 `);
 }
 
+function commandUsage(topic: string | undefined): void {
+  switch (topic) {
+    case "setup":
+      console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
+
+Install all registry-marked skills and write an install manifest.`);
+      return;
+    case "doctor":
+      console.log(`Usage: omv doctor [--scope user|project] [--json] [--strict]
+
+Check installed skills, runtime assets, references, scripts, and install manifest.
+--strict exits non-zero when warnings are present.`);
+      return;
+    case "version":
+      console.log(`Usage: omv version [--json]
+
+Show package version, registry version, platform, and registry update date.`);
+      return;
+    case "findings":
+      findingsUsage(args[1]);
+      return;
+    default:
+      usage();
+      return;
+  }
+}
+
+function findingsUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "list":
+      console.log("Usage: omv findings list [--json]");
+      return;
+    case "init":
+      console.log("Usage: omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]");
+      return;
+    case "validate":
+      console.log(`Usage: omv findings validate [id|path] [--json] [--strict]
+
+Validate Evidence.v1 files. --strict treats warnings as failures.`);
+      return;
+    case "promote":
+      console.log("Usage: omv findings promote <id|path> --status candidate|confirmed|blocked [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv findings list [--json]
+  omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
+  omv findings validate [id|path] [--json] [--strict]
+  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]`);
+      return;
+  }
+}
+
+function wantsHelp(): boolean {
+  return args.includes("--help") || args.includes("-h") || command === "help";
+}
+
 async function runSetup(): Promise<void> {
   const force = args.includes("--force");
   const dryRun = args.includes("--dry-run");
+  const json = args.includes("--json");
   const scope = parseScope("user");
 
   if (dryRun) {
@@ -56,6 +119,14 @@ async function runSetup(): Promise<void> {
   }
 
   const result = await setup({ force, dryRun, scope });
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    if (result.errors.length > 0) {
+      process.exit(1);
+    }
+    return;
+  }
 
   console.log(`Scope: ${result.scope}`);
   console.log(`Destination: ${result.destination}\n`);
@@ -81,12 +152,14 @@ async function runSetup(): Promise<void> {
 
 async function runDoctor(): Promise<void> {
   const json = args.includes("--json");
+  const strict = args.includes("--strict");
   const scope = parseOptionalScope();
   const result = await doctor({ scope });
+  const ok = result.ok && (!strict || !result.warnings);
 
   if (json) {
     console.log(JSON.stringify(result, null, 2));
-    if (!result.ok) {
+    if (!ok) {
       process.exit(1);
     }
     return;
@@ -100,12 +173,33 @@ async function runDoctor(): Promise<void> {
     console.log(`  ${icon}  ${check.name.padEnd(24)} ${check.message}`);
   }
 
-  if (result.ok) {
+  if (ok) {
     console.log(result.warnings ? "\nChecks passed with warnings." : "\nAll checks passed.");
   } else {
-    console.error("\nSome checks failed.");
+    console.error(result.ok ? "\nChecks passed with warnings; strict mode failed." : "\nSome checks failed.");
     process.exit(1);
   }
+}
+
+async function runVersion(): Promise<void> {
+  const json = args.includes("--json");
+  const pkg = JSON.parse(await readFile(`${packageRoot()}/package.json`, "utf-8")) as { name?: string; version?: string };
+  const catalog = await readCatalog();
+  const result = {
+    package: pkg.name ?? "oh-my-vul",
+    version: pkg.version ?? "",
+    registryVersion: catalog.version,
+    platform: catalog.platform,
+    updated: catalog.updated,
+  };
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  console.log(`${result.package} ${result.version}`);
+  console.log(`Registry: ${result.registryVersion} (${result.platform}, updated ${result.updated})`);
 }
 
 async function runFindings(): Promise<void> {
@@ -172,9 +266,10 @@ async function runFindingsInit(json: boolean): Promise<void> {
 }
 
 async function runFindingsValidate(json: boolean): Promise<void> {
+  const strict = args.includes("--strict");
   const target = firstPositionalAfter("validate");
   const results = target ? [await validateFinding(target)] : await validateFindings();
-  const ok = results.every((result) => result.ok);
+  const ok = results.every((result) => result.ok && (!strict || result.warnings.length === 0));
 
   if (json) {
     console.log(JSON.stringify(target ? results[0] : results, null, 2));
@@ -223,16 +318,38 @@ async function runFindingsPromote(json: boolean): Promise<void> {
 }
 
 function printFindingSummaries(findings: FindingSummary[]): void {
-  console.log("ID".padEnd(24) + "STATUS".padEnd(12) + "READY".padEnd(8) + "PACKAGE".padEnd(28) + "VULNERABILITY");
+  const idWidth = boundedWidth("ID", findings.map((finding) => finding.id), 24, 40);
+  const packageWidth = boundedWidth(
+    "PACKAGE",
+    findings.map((finding) => `${finding.ecosystem}:${finding.package}`),
+    28,
+    44,
+  );
+  console.log(
+    "ID".padEnd(idWidth) +
+      "STATUS".padEnd(12) +
+      "READY".padEnd(8) +
+      "PACKAGE".padEnd(packageWidth) +
+      "VULNERABILITY",
+  );
   for (const finding of findings) {
+    const pkg = `${finding.ecosystem}:${finding.package}`;
     console.log(
-      finding.id.padEnd(24) +
+      truncate(finding.id, idWidth - 1).padEnd(idWidth) +
         finding.status.padEnd(12) +
         `${finding.readiness}/100`.padEnd(8) +
-        `${finding.ecosystem}:${finding.package}`.padEnd(28) +
+        truncate(pkg, packageWidth - 1).padEnd(packageWidth) +
         finding.vulnerability,
     );
   }
+}
+
+function boundedWidth(label: string, values: string[], min: number, max: number): number {
+  return Math.min(max, Math.max(min, label.length + 2, ...values.map((value) => value.length + 2)));
+}
+
+function truncate(value: string, maxLength: number): string {
+  return value.length <= maxLength ? value : `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
 function printFindingValidation(result: FindingValidation): void {
@@ -296,7 +413,25 @@ function parseScope(defaultScope: "user" | "project"): "user" | "project" {
   process.exit(1);
 }
 
+const validation = validateArgs(args);
+if (!validation.ok) {
+  console.error(`${validation.error}\n`);
+  usage();
+  process.exit(1);
+}
+
+if (wantsHelp()) {
+  commandUsage(command === "help" ? args[1] : command);
+  process.exit(0);
+}
+
 switch (command) {
+  case "version":
+    runVersion().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
   case "setup":
     runSetup().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));

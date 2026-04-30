@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { parse as parseYaml } from "yaml";
 import { packageRoot } from "./paths.js";
 
 export interface SkillCatalogEntry {
@@ -33,122 +34,46 @@ export function getInstallableSkills(catalog: OmvCatalog): SkillCatalogEntry[] {
 }
 
 export function parseCatalog(text: string): OmvCatalog {
-  const lines = text.split(/\r?\n/);
-  const catalog: OmvCatalog = {
-    name: "",
-    version: "",
-    platform: "",
-    updated: "",
-    skills: [],
+  const parsed = parseYaml(text);
+  const data = isRecord(parsed) ? parsed : {};
+  return {
+    name: asString(data.name),
+    version: asString(data.version),
+    platform: asString(data.platform),
+    updated: asString(data.updated),
+    skills: asList(data.skills).filter(isRecord).map(skillFromYaml),
   };
-
-  for (const line of lines) {
-    const match = line.match(/^([a-z_]+):\s*(.+)$/);
-    if (!match) {
-      if (line.trim() === "skills:") {
-        break;
-      }
-      continue;
-    }
-    const [, key, value] = match;
-    if (key === "name" || key === "version" || key === "platform" || key === "updated") {
-      catalog[key] = parseScalar(value);
-    }
-  }
-
-  let inSkills = false;
-  let current: SkillCatalogEntry | null = null;
-  let currentListKey: "produces" | "consumes" | null = null;
-
-  for (const line of lines) {
-    if (line.trim() === "skills:") {
-      inSkills = true;
-      continue;
-    }
-    if (inSkills && /^[a-z_]+:/.test(line)) {
-      break;
-    }
-    if (!inSkills || !line.trim()) {
-      continue;
-    }
-
-    const itemMatch = line.match(/^  - name:\s*(.+)$/);
-    if (itemMatch) {
-      if (current) {
-        catalog.skills.push(current);
-      }
-      current = {
-        name: parseScalar(itemMatch[1]),
-        path: "",
-        invocation: "",
-        status: "",
-        description: "",
-        produces: [],
-        consumes: [],
-      };
-      currentListKey = null;
-      continue;
-    }
-
-    if (!current) {
-      continue;
-    }
-
-    const keyMatch = line.match(/^    ([a-z_]+):\s*(.*)$/);
-    if (keyMatch) {
-      const [, rawKey, rawValue] = keyMatch;
-      const key = rawKey as keyof SkillCatalogEntry;
-      if (rawKey === "produces" || rawKey === "consumes") {
-        currentListKey = rawKey;
-        current[rawKey] = parseInlineList(rawValue);
-        continue;
-      }
-      currentListKey = null;
-      if (key === "name" || key === "path" || key === "invocation" || key === "status" || key === "category" || key === "description") {
-        current[key] = parseScalar(rawValue);
-      }
-      continue;
-    }
-
-    const listMatch = line.match(/^      -\s*(.+)$/);
-    if (listMatch && currentListKey) {
-      current[currentListKey].push(parseScalar(listMatch[1]));
-    }
-  }
-
-  if (current) {
-    catalog.skills.push(current);
-  }
-
-  return catalog;
 }
 
-function parseInlineList(value: string): string[] {
-  const trimmed = stripComment(value).trim();
-  if (trimmed === "[]") {
-    return [];
-  }
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-    const body = trimmed.slice(1, -1).trim();
-    if (!body) {
-      return [];
-    }
-    return body.split(",").map(parseScalar);
-  }
-  return [];
+function skillFromYaml(data: Record<string, unknown>): SkillCatalogEntry {
+  return {
+    name: asString(data.name),
+    path: asString(data.path),
+    invocation: asString(data.invocation),
+    status: asString(data.status),
+    category: asOptionalString(data.category),
+    description: asString(data.description),
+    produces: asStringList(data.produces),
+    consumes: asStringList(data.consumes),
+  };
 }
 
-function parseScalar(value: string): string {
-  const trimmed = stripComment(value).trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
+function asString(value: unknown): string {
+  return value === undefined || value === null ? "" : String(value);
 }
 
-function stripComment(value: string): string {
-  return value.replace(/\s+#.*$/, "");
+function asOptionalString(value: unknown): string | undefined {
+  return value === undefined || value === null ? undefined : String(value);
+}
+
+function asStringList(value: unknown): string[] {
+  return asList(value).map((item) => String(item));
+}
+
+function asList(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

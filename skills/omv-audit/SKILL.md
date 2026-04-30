@@ -52,6 +52,7 @@ Stay in passive research mode: read public source code only. Do not send request
 3. **readiness < 75 时不得升为 confirmed** — 低分时保留 `candidate` 状态并列出缺失项
 4. **blocked 必须填写 `blockers` 列表** — 每条 blocker 说明具体原因
 5. **不伪造证据** — 无法验证的字段保留 `unknown`，在 `provenance.unverified_fields` 中列出
+6. **CLI validation 是硬门槛** — 只有 `omv findings validate <id>` 返回 OK 时，才允许把结论作为 confirmed 交给 `/omv-report`
 
 ## 结论规则
 
@@ -62,6 +63,8 @@ Stay in passive research mode: read public source code only. Do not send request
 | `confirmed` | 五项 source/sink/guard/reproducer/result 全部已知，readiness ≥ 75 | 运行 `omv findings validate <id>`，提示用户运行 `/omv-report` |
 | `blocked` | 证据链断裂，或发现疑似重复 CVE，或无法本地复现 | 填写 `blockers`，运行 `omv findings validate <id>`（预期 FAIL） |
 | `candidate`（保留） | 部分字段已填但 readiness 50–74；或 `observed_result` 为 unknown 但其他字段已填 | 展示缺失项清单；若仅缺 `observed_result`，提示运行 `/omv-repro <id>` |
+
+如果尝试 confirmed 但 CLI validation 失败，必须保持或恢复为 `candidate`，逐条展示 validation errors，不得提示用户提交报告。
 
 审计结束时始终运行：
 

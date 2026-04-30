@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setup } from "../setup.js";
 import { doctor } from "../doctor.js";
+import { installManifestPath } from "../install-manifest.js";
 
 test("setup installs self-contained Claude Code skills and doctor checks runtime assets", async () => {
   const previousClaudeHome = process.env.CLAUDE_HOME;
@@ -23,9 +24,23 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     assert.equal(existsSync(join(claudeHome, "skills", "omv-repro", "contracts", "evidence.v1.yaml")), true);
     assert.equal(existsSync(join(claudeHome, "skills", "omv-report", "references", "shared", "cvss-builder.md")), true);
     assert.equal(existsSync(join(claudeHome, "skills", "omv", "references", "registry.yaml")), true);
+    assert.equal(existsSync(installManifestPath("user")), true);
 
     let check = await doctor();
     assert.equal(check.ok, true);
+    assert.equal(check.checks.find((item) => item.name === "install manifest")?.status, "pass");
+
+    await writeFile(
+      join(claudeHome, "skills", "omv-find", "SKILL.md"),
+      `${await readFile(join(claudeHome, "skills", "omv-find", "SKILL.md"), "utf-8")}\n# local edit\n`,
+      "utf-8",
+    );
+    check = await doctor();
+    assert.equal(check.ok, true);
+    assert.match(
+      check.checks.find((item) => item.name === "modified installed files")?.message ?? "",
+      /omv-find[/\\]SKILL\.md/,
+    );
 
     await rm(join(claudeHome, "skills", "omv-find", "contracts", "evidence.v1.yaml"));
     check = await doctor();
@@ -33,6 +48,17 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     assert.match(
       check.checks.find((item) => item.name === "skill: omv-find")?.message ?? "",
       /contracts[/\\]evidence\.v1\.yaml/,
+    );
+
+    await setup({ force: true });
+    const manifestPath = installManifestPath("user");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as { package_version: string };
+    manifest.package_version = "0.0.0";
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf-8");
+    check = await doctor();
+    assert.match(
+      check.checks.find((item) => item.name === "install manifest")?.message ?? "",
+      /stale version/,
     );
 
     await setup({ force: true });
@@ -67,6 +93,7 @@ test("project setup installs into .claude and persists doctor scope", async () =
     assert.equal(result.destination, join(projectRoot, ".claude", "skills"));
     assert.deepEqual(result.errors, []);
     assert.equal(existsSync(join(projectRoot, ".omv", "setup-scope.json")), true);
+    assert.equal(existsSync(installManifestPath("project", projectRoot)), true);
     assert.equal(existsSync(join(projectRoot, ".claude", "skills", "omv-report", "contracts", "evidence.v1.yaml")), true);
 
     const check = await doctor({ projectRoot });

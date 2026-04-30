@@ -1,0 +1,47 @@
+{
+  "skill_name": "omv-audit",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv-audit demo-incomplete-observed-result",
+      "expected_output": "Audit fills source/sink/guard/reproducer but keeps status candidate when observed_result is unknown and records evidence.observed_result in provenance.unverified_fields.",
+      "files": [
+        "evals/golden/incomplete-observed-result.md"
+      ],
+      "assertions": [
+        {
+          "type": "candidate_when_observed_unknown",
+          "text": "observed_result unknown must not be confirmed"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "/omv-audit demo-duplicate-advisory",
+      "expected_output": "Audit blocks likely duplicate advisories with status blocked, a duplicate CVE/GHSA signal, and blockers.",
+      "files": [
+        "evals/golden/duplicate-blocked.md"
+      ],
+      "assertions": [
+        {
+          "type": "duplicate_blocks_promotion",
+          "text": "duplicate advisory must block promotion"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/omv-audit demo-confirmed",
+      "expected_output": "Confirmed audit output includes concrete source, sink, guard, reproducer, observed_result, CVSS vector, and completed dedup fields.",
+      "files": [
+        "evals/golden/confirmed-complete.md"
+      ],
+      "assertions": [
+        {
+          "type": "confirmed_complete_evidence",
+          "text": "confirmed output must include complete traceable evidence"
+        }
+      ]
+    }
+  ]
+}

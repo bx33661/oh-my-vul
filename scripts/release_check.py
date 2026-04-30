@@ -17,6 +17,14 @@ PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.sh"
 VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
 SYNC_METADATA_SCRIPT = REPO_ROOT / "scripts" / "sync_metadata.py"
+STABLE_EVAL_CHECKS = [
+    ("skills/omv-audit/scripts/check_output.py", "0", "skills/omv-audit/evals/golden/incomplete-observed-result.md"),
+    ("skills/omv-audit/scripts/check_output.py", "1", "skills/omv-audit/evals/golden/duplicate-blocked.md"),
+    ("skills/omv-audit/scripts/check_output.py", "2", "skills/omv-audit/evals/golden/confirmed-complete.md"),
+    ("skills/omv-repro/scripts/check_output.py", "0", "skills/omv-repro/evals/golden/no-agent-execution.md"),
+    ("skills/omv-repro/scripts/check_output.py", "1", "skills/omv-repro/evals/golden/read-only-reproducer.md"),
+    ("skills/omv-repro/scripts/check_output.py", "2", "skills/omv-repro/evals/golden/blocked-repro-failure.md"),
+]
 
 
 def run(args: list[str]) -> None:
@@ -91,6 +99,18 @@ def validate_versions() -> None:
     print(f"OK: version {package_version}", flush=True)
 
 
+def validate_stable_evals() -> None:
+    for script, eval_id, output in STABLE_EVAL_CHECKS:
+        run([
+            sys.executable,
+            str(REPO_ROOT / script),
+            "--eval-id",
+            eval_id,
+            "--output",
+            str(REPO_ROOT / output),
+        ])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -113,6 +133,7 @@ def main() -> None:
     run([sys.executable, str(SYNC_SCRIPT), "--check"])
     validate_versions()
     run([sys.executable, str(VALIDATE_SCRIPT)])
+    validate_stable_evals()
 
     artifacts: list[Path] = []
     if args.write_artifacts:

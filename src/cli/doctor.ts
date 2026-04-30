@@ -1,5 +1,5 @@
 import { existsSync } from "fs";
-import { readFile, readdir, stat } from "fs/promises";
+import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 import {
@@ -10,6 +10,14 @@ import {
   projectSkillsDir,
   setupScopePath,
 } from "./paths.js";
+import {
+  installManifestPath,
+  isExecutable,
+  listRuntimeFiles,
+  readInstallManifest,
+  sha256File,
+  type InstallManifest,
+} from "./install-manifest.js";
 import type { SetupScope } from "./setup.js";
 
 export interface DoctorResult {
@@ -78,6 +86,8 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
     if (unexpected.length > 0) {
       checks.push(check("unexpected skills", "warn", unexpected.join(", ")));
     }
+
+    checks.push(...(await validateInstallManifest(scope, projectRoot, skillsDir, catalog.version)));
   }
 
   const failCount = checks.filter((item) => item.status === "fail").length;
@@ -150,37 +160,64 @@ async function validateExecutableScripts(skillDir: string, files: string[]): Pro
     if (!file.startsWith("scripts/") || !file.endsWith(".sh")) {
       continue;
     }
-    const info = await stat(join(skillDir, file));
-    if ((info.mode & 0o111) === 0) {
+    if (!(await isExecutable(join(skillDir, file)))) {
       errors.push(`not executable ${file}`);
     }
   }
   return errors;
 }
 
-async function listRuntimeFiles(skillDir: string): Promise<string[]> {
-  const files = ["SKILL.md"];
-  for (const dirname of ["references", "scripts", "evals", "contracts"]) {
-    const root = join(skillDir, dirname);
-    if (!existsSync(root)) {
-      continue;
-    }
-    files.push(...(await listFiles(root, dirname)));
+async function validateInstallManifest(
+  scope: SetupScope,
+  projectRoot: string,
+  skillsDir: string,
+  registryVersion: string,
+): Promise<Check[]> {
+  const path = installManifestPath(scope, projectRoot);
+  const manifest = await readInstallManifest(path);
+  if (!manifest) {
+    return [check("install manifest", "warn", `not found or unreadable: ${path} (run: omv setup --scope ${scope} --force)`)];
   }
-  return files;
+
+  const checks: Check[] = [];
+  const packageJson = JSON.parse(await readFile(join(packageRoot(), "package.json"), "utf-8")) as { version?: string };
+
+  if (manifest.scope !== scope) {
+    checks.push(check("install manifest", "warn", `scope is ${manifest.scope}, expected ${scope}`));
+  } else if (manifest.package_version !== packageJson.version || manifest.registry_version !== registryVersion) {
+    checks.push(check(
+      "install manifest",
+      "warn",
+      `stale version package=${manifest.package_version} registry=${manifest.registry_version} (run: omv setup --scope ${scope} --force)`,
+    ));
+  } else {
+    checks.push(check("install manifest", "pass", path));
+  }
+
+  const modified = await findModifiedInstalledFiles(manifest, skillsDir);
+  if (modified.length > 0) {
+    checks.push(check(
+      "modified installed files",
+      "warn",
+      `${modified.slice(0, 3).join(", ")}${modified.length > 3 ? ", ..." : ""}`,
+    ));
+  }
+
+  return checks;
 }
 
-async function listFiles(root: string, prefix: string): Promise<string[]> {
-  const dirents = await readdir(root, { withFileTypes: true });
-  const files: string[] = [];
-  for (const dirent of dirents) {
-    const rel = join(prefix, dirent.name);
-    const abs = join(root, dirent.name);
-    if (dirent.isDirectory()) {
-      files.push(...(await listFiles(abs, rel)));
-    } else if (dirent.isFile()) {
-      files.push(rel);
+async function findModifiedInstalledFiles(manifest: InstallManifest, skillsDir: string): Promise<string[]> {
+  const modified: string[] = [];
+  for (const skill of manifest.skills) {
+    for (const file of skill.files) {
+      const path = join(skillsDir, skill.name, file.path);
+      if (!existsSync(path)) {
+        continue;
+      }
+      if ((await sha256File(path)) !== file.sha256) {
+        modified.push(`${skill.name}/${file.path}`);
+      }
     }
   }
-  return files;
+  return modified;
 }

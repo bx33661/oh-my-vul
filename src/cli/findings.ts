@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import { mkdir, readFile, readdir, writeFile } from "fs/promises";
 import { basename, join } from "path";
+import { parse as parseYaml } from "yaml";
 import { findingsDir, packageRoot } from "./paths.js";
 
 export type EvidenceStatus = "candidate" | "confirmed" | "blocked";
@@ -40,6 +41,60 @@ export interface CreateFindingTemplateOptions {
 
 const VALID_STATUSES = new Set<EvidenceStatus>(["candidate", "confirmed", "blocked"]);
 const FINDING_EXTENSIONS = new Set([".yaml", ".yml"]);
+const VALID_ECOSYSTEMS = new Set([
+  "npm",
+  "python",
+  "go",
+  "rust",
+  "java",
+  "ruby",
+  "php",
+  "csharp",
+  "swift",
+  "dart",
+  "elixir",
+  "perl",
+  "r",
+  "lua",
+]);
+const VALID_SEVERITIES = new Set(["Critical", "High", "Medium", "Low", "None", "unknown"]);
+const VALID_ATTACK_VECTORS = new Set(["Network", "Local", "Physical", "Adjacent", "unknown"]);
+const VALID_TRI_STATE = new Set(["true", "false", "unknown"]);
+const VALID_IMPACT_VALUES = new Set(["High", "Low", "None", "unknown"]);
+const REQUIRED_CONFIRMED_FIELDS = [
+  "versions.tested",
+  "evidence.source",
+  "evidence.sink",
+  "evidence.guard",
+  "evidence.reproducer",
+  "evidence.observed_result",
+  "cvss.vector",
+];
+const UNKNOWN_ACCOUNTING_FIELDS = [
+  "versions.tested",
+  "versions.affected_range",
+  "versions.fixed",
+  "evidence.source",
+  "evidence.sink",
+  "evidence.guard",
+  "evidence.reproducer",
+  "evidence.observed_result",
+  "cvss.vector",
+  "cvss.score",
+  "cvss.severity",
+  "impact.attack_vector",
+  "impact.authentication_required",
+  "impact.user_interaction_required",
+  "impact.scope_changed",
+  "impact.confidentiality",
+  "impact.integrity",
+  "impact.availability",
+  "dedup.existing_cve",
+  "dedup.notes",
+  "disclosure.contact_date",
+  "disclosure.vendor_response",
+  "disclosure.planned_disclosure_date",
+];
 
 export async function listFindings(projectRoot = process.cwd()): Promise<FindingSummary[]> {
   const dir = findingsDir(projectRoot);
@@ -48,7 +103,7 @@ export async function listFindings(projectRoot = process.cwd()): Promise<Finding
 
   for (const file of files) {
     const path = join(dir, file);
-    const parsed = parseEvidenceYaml(await readFile(path, "utf-8"));
+    const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
     summaries.push({
       id: findingIdFromFile(file),
       path,
@@ -66,11 +121,34 @@ export async function listFindings(projectRoot = process.cwd()): Promise<Finding
 export async function validateFinding(target: string, projectRoot = process.cwd()): Promise<FindingValidation> {
   const path = resolveFindingPath(target, projectRoot);
   const text = await readFile(path, "utf-8");
-  const parsed = parseEvidenceYaml(text);
+  const parseResult = parseEvidenceYaml(text);
+  const parsed = parseResult.data;
   const status = getString(parsed, "status");
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  errors.push(...parseResult.errors);
+  validateEvidenceData(parsed, status, errors, warnings);
+
+  const readiness = computeReadiness(parsed);
+
+  return {
+    id: findingIdFromFile(path),
+    path,
+    ok: errors.length === 0,
+    status: status || "unknown",
+    readiness,
+    errors,
+    warnings,
+  };
+}
+
+function validateEvidenceData(
+  parsed: Record<string, unknown>,
+  status: string,
+  errors: string[],
+  warnings: string[],
+): void {
   if (getString(parsed, "schema_version") !== "1") {
     errors.push("schema_version must be 1");
   }
@@ -80,24 +158,49 @@ export async function validateFinding(target: string, projectRoot = process.cwd(
   if (!VALID_STATUSES.has(status as EvidenceStatus)) {
     errors.push("status must be candidate, confirmed, or blocked");
   }
-  if (!getString(parsed, "package.ecosystem")) {
+  const ecosystem = getString(parsed, "package.ecosystem");
+  if (!ecosystem) {
     errors.push("package.ecosystem is required");
+  } else if (!VALID_ECOSYSTEMS.has(ecosystem)) {
+    errors.push(`package.ecosystem must be one of: ${Array.from(VALID_ECOSYSTEMS).join(", ")}`);
   }
   if (!getString(parsed, "package.registry_name") && !getString(parsed, "package.product")) {
     errors.push("package.registry_name or package.product is required");
   }
+  requireUrl(parsed, errors, "package.repository_url");
+  requireCwe(parsed, errors, "vulnerability.cwe");
+  requireCvssVector(parsed, errors, "cvss.vector");
+  requireEnum(parsed, errors, "cvss.severity", VALID_SEVERITIES);
+  requireEnum(parsed, errors, "impact.attack_vector", VALID_ATTACK_VECTORS);
+  requireTriState(parsed, errors, "impact.authentication_required");
+  requireTriState(parsed, errors, "impact.user_interaction_required");
+  requireTriState(parsed, errors, "impact.scope_changed");
+  requireEnum(parsed, errors, "impact.confidentiality", VALID_IMPACT_VALUES);
+  requireEnum(parsed, errors, "impact.integrity", VALID_IMPACT_VALUES);
+  requireEnum(parsed, errors, "impact.availability", VALID_IMPACT_VALUES);
+  requireDate(parsed, errors, "disclosure.contact_date");
+  requireDate(parsed, errors, "disclosure.planned_disclosure_date");
+  requireDate(parsed, errors, "provenance.verification_date");
 
   const readiness = computeReadiness(parsed);
 
   if (status === "confirmed") {
-    requireKnown(parsed, errors, "versions.tested");
-    requireKnown(parsed, errors, "evidence.source");
-    requireKnown(parsed, errors, "evidence.sink");
-    requireKnown(parsed, errors, "evidence.guard");
+    for (const path of REQUIRED_CONFIRMED_FIELDS) {
+      requireKnown(parsed, errors, path);
+    }
     requireKnown(parsed, errors, "evidence.reproducer", { rejectNone: true });
-    requireKnown(parsed, errors, "evidence.observed_result");
+    requireTraceableEvidence(parsed, errors, "evidence.source");
+    requireTraceableEvidence(parsed, errors, "evidence.sink");
+    requireTraceableGuard(parsed, errors);
+    if (
+      !getBoolean(parsed, "dedup.nvd_searched") ||
+      !getBoolean(parsed, "dedup.ghsa_searched") ||
+      !getBoolean(parsed, "dedup.ecosystem_db_searched")
+    ) {
+      errors.push("dedup search must be complete for confirmed findings");
+    }
     if (readiness < 75) {
-      warnings.push(`readiness ${readiness}/100 is below submission-ready threshold 75`);
+      errors.push(`readiness ${readiness}/100 is below submission-ready threshold 75`);
     }
   }
 
@@ -115,16 +218,7 @@ export async function validateFinding(target: string, projectRoot = process.cwd(
   ) {
     warnings.push("dedup search is incomplete");
   }
-
-  return {
-    id: findingIdFromFile(path),
-    path,
-    ok: errors.length === 0,
-    status: status || "unknown",
-    readiness,
-    errors,
-    warnings,
-  };
+  validateUnknownAccounting(parsed, status, errors, warnings);
 }
 
 export async function validateFindings(projectRoot = process.cwd()): Promise<FindingValidation[]> {
@@ -167,6 +261,23 @@ export async function promoteFinding(
 
   const path = resolveFindingPath(target, projectRoot);
   const text = await readFile(path, "utf-8");
+  const parseResult = parseEvidenceYaml(text);
+  const errors = [...parseResult.errors];
+  const warnings: string[] = [];
+  const previousStatus = getString(parseResult.data, "status");
+  parseResult.data.status = status;
+  validateEvidenceData(parseResult.data, status, errors, warnings);
+  if (errors.length > 0) {
+    return {
+      id: findingIdFromFile(path),
+      path,
+      ok: false,
+      status: previousStatus || "unknown",
+      readiness: computeReadiness(parseResult.data),
+      errors,
+      warnings,
+    };
+  }
   const updated = text.match(/^status:\s*.*$/m)
     ? text.replace(/^status:\s*.*$/m, `status: ${status}`)
     : `${text.trimEnd()}\nstatus: ${status}\n`;
@@ -186,114 +297,18 @@ async function readFindingTemplate(status: EvidenceStatus): Promise<string> {
   return text.replace(/^status:\s*.*$/m, `status: ${status}          # candidate | confirmed | blocked`);
 }
 
-function parseEvidenceYaml(text: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  let currentObjectKey: string | null = null;
-  let currentListKey: string | null = null;
-  let pendingEmptyKey: string | null = null;
-
-  for (const rawLine of text.split(/\r?\n/)) {
-    if (!rawLine.trim() || rawLine.trimStart().startsWith("#")) {
-      continue;
+function parseEvidenceYaml(text: string): { data: Record<string, unknown>; errors: string[] } {
+  try {
+    const parsed = parseYaml(text);
+    if (!isRecord(parsed)) {
+      return { data: {}, errors: ["Evidence YAML must be a mapping"] };
     }
-
-    const top = rawLine.match(/^([a-z_]+):\s*(.*)$/);
-    if (top) {
-      const [, key, rawValue] = top;
-      const value = parseValue(rawValue);
-      result[key] = value;
-      currentObjectKey = value && typeof value === "object" && !Array.isArray(value) ? key : null;
-      currentListKey = Array.isArray(value) ? key : null;
-      pendingEmptyKey = stripComment(rawValue).trim() === "" ? key : null;
-      continue;
-    }
-
-    const nested = rawLine.match(/^  ([a-z_]+):\s*(.*)$/);
-    if (nested && currentObjectKey) {
-      const [, key, rawValue] = nested;
-      const value = parseValue(rawValue);
-      (result[currentObjectKey] as Record<string, unknown>)[key] = value;
-      currentListKey = Array.isArray(value) ? `${currentObjectKey}.${key}` : null;
-      pendingEmptyKey = stripComment(rawValue).trim() === "" ? `${currentObjectKey}.${key}` : null;
-      continue;
-    }
-
-    const listItem = rawLine.match(/^  -\s*(.*)$/);
-    if (listItem && (currentListKey || pendingEmptyKey)) {
-      const listKey = currentListKey ?? pendingEmptyKey;
-      if (listKey) {
-        ensureList(result, listKey);
-        pushListValue(result, listKey, parseValue(listItem[1]));
-        currentListKey = listKey;
-        pendingEmptyKey = null;
-      }
-    }
-  }
-
-  return result;
-}
-
-function parseValue(rawValue: string): unknown {
-  const value = stripComment(rawValue).trim();
-  if (value === "") {
-    return {};
-  }
-  if (value === "[]") {
-    return [];
-  }
-  if (value === "{}") {
-    return {};
-  }
-  if (value === "true") {
-    return true;
-  }
-  if (value === "false") {
-    return false;
-  }
-  if (/^\d+(?:\.\d+)?$/.test(value)) {
-    return Number(value);
-  }
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
-
-function stripComment(value: string): string {
-  return value.replace(/\s+#.*$/, "");
-}
-
-function pushListValue(root: Record<string, unknown>, path: string, value: unknown): void {
-  const parts = path.split(".");
-  const key = parts.pop();
-  if (!key) {
-    return;
-  }
-  let current: Record<string, unknown> = root;
-  for (const part of parts) {
-    current = current[part] as Record<string, unknown>;
-  }
-  const list = current[key];
-  if (Array.isArray(list)) {
-    list.push(value);
-  }
-}
-
-function ensureList(root: Record<string, unknown>, path: string): void {
-  const parts = path.split(".");
-  const key = parts.pop();
-  if (!key) {
-    return;
-  }
-  let current: Record<string, unknown> = root;
-  for (const part of parts) {
-    if (!current[part] || typeof current[part] !== "object") {
-      current[part] = {};
-    }
-    current = current[part] as Record<string, unknown>;
-  }
-  if (!Array.isArray(current[key])) {
-    current[key] = [];
+    return { data: parsed, errors: [] };
+  } catch (err) {
+    return {
+      data: {},
+      errors: [`Evidence YAML parse error: ${err instanceof Error ? err.message : String(err)}`],
+    };
   }
 }
 
@@ -329,6 +344,114 @@ function requireKnown(
   }
 }
 
+function requireEnum(data: Record<string, unknown>, errors: string[], path: string, allowed: Set<string>): void {
+  const value = getString(data, path);
+  if (!value || value === "unknown") {
+    return;
+  }
+  if (!allowed.has(value)) {
+    errors.push(`${path} must be one of: ${Array.from(allowed).join(", ")}`);
+  }
+}
+
+function requireTriState(data: Record<string, unknown>, errors: string[], path: string): void {
+  const value = getString(data, path);
+  if (!value || value === "unknown") {
+    return;
+  }
+  if (!VALID_TRI_STATE.has(value)) {
+    errors.push(`${path} must be true, false, or unknown`);
+  }
+}
+
+function requireUrl(data: Record<string, unknown>, errors: string[], path: string): void {
+  const value = getString(data, path);
+  if (!isKnown(value)) {
+    return;
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      errors.push(`${path} must be an http or https URL`);
+    }
+  } catch {
+    errors.push(`${path} must be a valid URL`);
+  }
+}
+
+function requireDate(data: Record<string, unknown>, errors: string[], path: string): void {
+  const value = getString(data, path);
+  if (!isKnown(value)) {
+    return;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+    errors.push(`${path} must be an ISO date in YYYY-MM-DD format`);
+  }
+}
+
+function requireCwe(data: Record<string, unknown>, errors: string[], path: string): void {
+  const value = getString(data, path);
+  if (!isKnown(value)) {
+    return;
+  }
+  if (!/^CWE-\d+$/.test(value)) {
+    errors.push(`${path} must use CWE-<number> format`);
+  }
+}
+
+function requireCvssVector(data: Record<string, unknown>, errors: string[], path: string): void {
+  const value = getString(data, path);
+  if (!isKnown(value)) {
+    return;
+  }
+  const cvss31 = /^CVSS:3\.1\/AV:[NALP]\/AC:[LH]\/PR:[NLH]\/UI:[NR]\/S:[UC]\/C:[HLN]\/I:[HLN]\/A:[HLN]$/;
+  if (!cvss31.test(value)) {
+    errors.push(`${path} must be a valid CVSS v3.1 vector`);
+  }
+}
+
+function requireTraceableEvidence(data: Record<string, unknown>, errors: string[], path: string): void {
+  const value = getString(data, path);
+  if (isKnown(value) && !hasFileLineReference(value)) {
+    errors.push(`${path} must include a file:line reference for confirmed findings`);
+  }
+}
+
+function requireTraceableGuard(data: Record<string, unknown>, errors: string[]): void {
+  const value = getString(data, "evidence.guard");
+  if (!isKnown(value)) {
+    return;
+  }
+  const explicitAbsence = /\b(absent|missing|none|not present|不存在|缺失|无)\b/i.test(value);
+  if (!explicitAbsence && !hasFileLineReference(value)) {
+    errors.push("evidence.guard must include a file:line reference or explicit absence explanation for confirmed findings");
+  }
+}
+
+function hasFileLineReference(value: string): boolean {
+  return /(?:^|\s)[^\s:]+\.[A-Za-z0-9]+:\d+(?::\d+)?(?:\s|$)/.test(value);
+}
+
+function validateUnknownAccounting(
+  data: Record<string, unknown>,
+  status: string,
+  errors: string[],
+  warnings: string[],
+): void {
+  const unverified = new Set(getList(data, "provenance.unverified_fields").map((value) => String(value)));
+  for (const path of UNKNOWN_ACCOUNTING_FIELDS) {
+    const value = getString(data, path);
+    if (value !== "unknown") {
+      continue;
+    }
+    if (status === "confirmed" && REQUIRED_CONFIRMED_FIELDS.includes(path)) {
+      errors.push(`${path} is unknown and cannot be unverified for confirmed findings`);
+    } else if (!unverified.has(path)) {
+      warnings.push(`${path} is unknown but not listed in provenance.unverified_fields`);
+    }
+  }
+}
+
 function isKnown(value: string): boolean {
   return value !== "" && value !== "unknown";
 }
@@ -356,6 +479,10 @@ function getValue(data: Record<string, unknown>, path: string): unknown {
     current = (current as Record<string, unknown>)[part];
   }
   return current;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 async function listFindingFiles(dir: string): Promise<string[]> {

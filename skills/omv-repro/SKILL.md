@@ -46,6 +46,7 @@ Stay in passive research mode: do not execute any commands yourself. Guide the u
 2. **不修改 `evidence.reproducer`** — 该字段属于 omv-audit 职责，只读
 3. **不推断或编造 `observed_result`** — 必须来自用户的真实执行报告，不得根据 reproducer 文字推断结果
 4. **不攻击线上服务** — 所有执行在本地隔离环境中进行
+5. **confirmed 由 CLI validation 决定** — 写入用户报告的 `observed_result` 后，必须运行 `omv findings validate <id>`；失败时保持 `candidate`
 
 ## 结论规则
 
@@ -54,6 +55,8 @@ Stay in passive research mode: do not execute any commands yourself. Guide the u
 | `confirmed` | `observed_result` 已填，readiness ≥ 75 | 运行 `omv findings validate <id>`，提示用户运行 `/omv-report` |
 | `blocked` | 多次尝试后无法在本地复现，或环境依赖无法满足 | 填写 `blockers`，运行 `omv findings validate <id>`（预期 FAIL） |
 | `candidate`（保留） | `observed_result` 已填但其他字段缺失，readiness 50–74 | 展示缺失项清单，提示回到 `/omv-audit` 补充 |
+
+`evidence.reproducer` 必须保持只读；如果用户发现步骤本身错误，提示回到 `/omv-audit` 修订，而不是在 `/omv-repro` 中改写。
 
 复现结束时始终运行：
 

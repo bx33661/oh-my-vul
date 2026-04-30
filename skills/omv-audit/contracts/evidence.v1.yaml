@@ -11,7 +11,9 @@
 #   - Use "unknown" for unverified fields; never fill from memory.
 #   - List unverified fields under provenance.unverified_fields.
 #   - omv-report must preserve all unverified markers; never silently upgrade them.
-#   - CVE readiness score 0-100 based on field completeness; threshold >=75 for submission-ready output.
+#   - CVE readiness score 0-100 based on field completeness; threshold >=75 is necessary but not sufficient.
+#   - CLI validation is the machine gate for status transitions; confirmed findings must satisfy field-level checks.
+#   - Unknown values in important fields must be listed in provenance.unverified_fields until verified.
 
 schema_version: "1"
 
@@ -42,11 +44,11 @@ vulnerability:
 
 # ── Evidence ──────────────────────────────────────────────────────────────────
 evidence:
-  source: unknown          # attacker-controlled input entry point
-  sink: unknown            # dangerous operation reached
-  guard: unknown           # check that is missing or bypassable
+  source: unknown          # attacker-controlled input entry point; confirmed findings include file:line
+  sink: unknown            # dangerous operation reached; confirmed findings include file:line
+  guard: unknown           # check that is missing/bypassable; include file:line or explicit absence
   reproducer: unknown      # local PoC command or description; "none" if not yet written
-  observed_result: unknown # what happens when the PoC runs
+  observed_result: unknown # user-reported local observation; do not infer or fabricate
 
 # ── CVSS ──────────────────────────────────────────────────────────────────────
 cvss:
@@ -92,7 +94,7 @@ blockers: []
 provenance:
   verification_date: ""
   researcher: ""
-  unverified_fields: []    # list field paths that carry "unknown" or unconfirmed data
+  unverified_fields: []    # list field paths that carry "unknown" or unconfirmed data; checked by CLI validation
   tool_versions: {}        # e.g. {omv-find: "1.0"}
 
 # ── CVE Readiness (computed, not stored) ─────────────────────────────────────

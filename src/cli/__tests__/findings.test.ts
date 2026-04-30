@@ -32,15 +32,15 @@ vulnerability:
   affected_component: lib/index.js
   affected_function: loadFile
 evidence:
-  source: options.filename
-  sink: fs.readFileSync
+  source: lib/index.js:12 options.filename
+  sink: lib/index.js:44 fs.readFileSync
   guard: missing path normalization
   reproducer: node repro.js
   observed_result: reads outside base directory
 cvss:
-  vector: unknown
-  score: unknown
-  severity: unknown
+  vector: CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N
+  score: 5.5
+  severity: Medium
 impact:
   attack_vector: Local
   authentication_required: unknown
@@ -50,11 +50,11 @@ impact:
   integrity: unknown
   availability: unknown
 dedup:
-  nvd_searched: false
-  ghsa_searched: false
-  ecosystem_db_searched: false
-  existing_cve: unknown
-  notes: ""
+  nvd_searched: true
+  ghsa_searched: true
+  ecosystem_db_searched: true
+  existing_cve: none
+  notes: "searched #security advisory"
 disclosure:
   vendor_contacted: false
   contact_date: unknown
@@ -81,12 +81,11 @@ test("findings ledger lists and validates Evidence.v1 files", async () => {
     assert.equal(findings[0].status, "candidate");
     assert.equal(findings[0].ecosystem, "npm");
     assert.equal(findings[0].package, "demo-package");
-    assert.equal(findings[0].readiness, 75);
+    assert.equal(findings[0].readiness, 95);
 
     const validation = await validateFinding("demo", projectRoot);
     assert.equal(validation.ok, true);
     assert.deepEqual(validation.errors, []);
-    assert.match(validation.warnings.join("\n"), /dedup search is incomplete/);
 
     const all = await validateFindings(projectRoot);
     assert.equal(all.length, 1);
@@ -163,6 +162,78 @@ test("promoteFinding updates status and confirmed findings reject missing reprod
     const validation = await validateFinding("missing-repro", projectRoot);
     assert.equal(validation.ok, false);
     assert.match(validation.errors.join("\n"), /evidence\.reproducer is required/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("structured YAML parsing preserves quoted hashes, multiline strings, and inline lists", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "yaml.yaml"),
+      BASE_FINDING.replace(
+        "observed_result: reads outside base directory",
+        "observed_result: |\n    reads outside base directory\n    includes marker #not-a-comment",
+      ).replace(
+        "unverified_fields: []",
+        "unverified_fields: [versions.fixed, disclosure.contact_date]",
+      ),
+      "utf-8",
+    );
+
+    const validation = await validateFinding("yaml", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.equal(validation.readiness, 95);
+    assert.doesNotMatch(validation.errors.join("\n"), /parse/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("validateFinding rejects invalid contract fields and untracked confirmed unknowns", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "invalid.yaml"),
+      BASE_FINDING.replace("status: candidate", "status: confirmed")
+        .replace("ecosystem: npm", "ecosystem: unknown-ecosystem")
+        .replace("cwe: CWE-22", "cwe: 22")
+        .replace("vector: CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N", "vector: invalid")
+        .replace("observed_result: reads outside base directory", "observed_result: unknown"),
+      "utf-8",
+    );
+
+    const validation = await validateFinding("invalid", projectRoot);
+    assert.equal(validation.ok, false);
+    assert.match(validation.errors.join("\n"), /package\.ecosystem/);
+    assert.match(validation.errors.join("\n"), /vulnerability\.cwe/);
+    assert.match(validation.errors.join("\n"), /cvss\.vector/);
+    assert.match(validation.errors.join("\n"), /evidence\.observed_result/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("promoteFinding rejects invalid confirmed promotion without rewriting status", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "candidate.yaml"),
+      BASE_FINDING.replace("vector: CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N", "vector: unknown"),
+      "utf-8",
+    );
+
+    const result = await promoteFinding("candidate", "confirmed", projectRoot);
+    assert.equal(result.ok, false);
+    assert.equal(result.status, "candidate");
+    assert.match(await readFile(join(dir, "candidate.yaml"), "utf-8"), /status: candidate/);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
