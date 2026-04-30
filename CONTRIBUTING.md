@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve `oh-my-vul`. This project is a Codex skill collection, so the most important contribution quality is reproducibility: installed skills, `.skill` archives, and source checkout behavior should all match.
+Thanks for helping improve `oh-my-vul`. This project is a Claude Code skill collection, so the most important contribution quality is reproducibility: installed skills, `.skill` archives, and source checkout behavior should all match.
 
 ## Development Setup
 

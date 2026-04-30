@@ -1,6 +1,6 @@
 # AGENTS.md
 
-oh-my-vul is a modular, community-oriented collection of LLM-friendly vulnerability research skills for Codex.
+oh-my-vul is a modular, community-oriented collection of LLM-friendly vulnerability research skills for Claude Code.
 
 The project ships a TypeScript CLI (`omv`) for installing skills, plus Markdown skill definitions and Python dev tools. Users install via `npx oh-my-vul setup`.
 
@@ -10,10 +10,10 @@ The project ships a TypeScript CLI (`omv`) for installing skills, plus Markdown 
 src/
   cli/
     omv.ts                        — CLI entry point (setup / doctor / findings / help)
-    setup.ts                      — copies installable skills to ~/.codex/skills/ or ./.codex/skills/
+    setup.ts                      — copies installable skills to ~/.claude/skills/ or ./.claude/skills/
     doctor.ts                     — checks installation health
     findings.ts                   — creates, lists, validates, and promotes Evidence.v1 handoffs
-    paths.ts                      — path utilities (codexSkillsDir, projectSkillsDir, findingsDir, packageRoot, …)
+    paths.ts                      — path utilities (claudeSkillsDir, projectSkillsDir, findingsDir, packageRoot, …)
   index.ts                        — package exports
 
 skills/
@@ -69,7 +69,7 @@ registry.yaml                   — collection metadata: versions, produces/cons
 ## CLI
 
 ```sh
-# Install skills to ~/.codex/skills/
+# Install skills to ~/.claude/skills/
 npx oh-my-vul setup
 npx oh-my-vul setup --scope project
 npx oh-my-vul setup --force      # overwrite existing

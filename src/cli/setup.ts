@@ -1,7 +1,7 @@
 import { mkdir, cp, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { codexSkillsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
+import { claudeSkillsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 
 export type SetupScope = "user" | "project";
@@ -23,7 +23,7 @@ export interface SetupResult {
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
   const { force = false, dryRun = false, scope = "user", projectRoot = process.cwd() } = options;
-  const destDir = scope === "project" ? projectSkillsDir(projectRoot) : codexSkillsDir();
+  const destDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
   const result: SetupResult = { scope, destination: destDir, installed: [], skipped: [], errors: [] };
 
   const catalog = await readCatalog();

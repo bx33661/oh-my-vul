@@ -32,7 +32,7 @@ done
 
 (
   cd "$skill_dir"
-  zip -qr "$out" "${entries[@]}" -x '*/__pycache__/*' '*.pyc' '*.pyo' '.git/*' '.claude/*' '.codex/*'
+  zip -qr "$out" "${entries[@]}" -x '*/__pycache__/*' '*.pyc' '*.pyo' '.git/*' '.claude/*'
 )
 
 python3 "$repo_root/scripts/validate_skill.py" "$skill_dir" --package "$out"

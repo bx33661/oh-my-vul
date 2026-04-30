@@ -23,7 +23,7 @@ def run(args: list[str]) -> None:
     subprocess.run(args, cwd=REPO_ROOT, check=True)
 
 
-IGNORED_DIRS = {".git", ".github", ".claude", ".codex", "scripts", "__pycache__", "shared", "agents", "contracts"}
+IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__", "shared", "agents", "contracts"}
 
 
 def skill_dirs() -> list[Path]:

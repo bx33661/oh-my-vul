@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALID_NAME = re.compile(r"^[a-z0-9-]{1,64}$")
-IGNORED_DIRS = {".git", ".github", ".claude", ".codex", "scripts", "__pycache__", "shared", "agents", "contracts"}
+IGNORED_DIRS = {".git", ".github", ".claude", "scripts", "__pycache__", "shared", "agents", "contracts"}
 
 
 def fail(message: str) -> None:
@@ -98,7 +98,6 @@ def is_package_source(path: Path) -> bool:
         "__pycache__" not in path.parts
         and ".git" not in path.parts
         and ".claude" not in path.parts
-        and ".codex" not in path.parts
         and path.suffix not in {".pyc", ".pyo"}
     )
 
@@ -205,7 +204,7 @@ def validate_package(skill_dir: Path, package: Path, skill_name: str) -> None:
         for name in package_files
         if "__pycache__/" in name
         or name.endswith((".pyc", ".pyo"))
-        or name.startswith((".git/", ".claude/", ".codex/"))
+        or name.startswith((".git/", ".claude/"))
     )
     if generated:
         fail(f"{skill_name}: package contains generated or local files: {', '.join(generated)}")

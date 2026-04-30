@@ -6,7 +6,7 @@ It is different from `CHANGELOG.md`: the changelog records release-facing deltas
 
 ## Project Direction
 
-`oh-my-vul` is a Codex skill collection for passive vulnerability research and disclosure preparation:
+`oh-my-vul` is a Claude Code skill collection for passive vulnerability research and disclosure preparation:
 
 - `omv-find` finds and ranks promising open-source audit targets.
 - `.omv/findings/*.yaml` stores Evidence.v1 handoffs and CVE readiness state.
@@ -29,7 +29,7 @@ The project has three layers:
 
 | Layer | Files | Purpose |
 |---|---|---|
-| User workflow | `skills/omv-*`, `.omv/findings/*.yaml` | Codex-facing research and reporting flow |
+| User workflow | `skills/omv-*`, `.omv/findings/*.yaml` | Claude Code-facing research and reporting flow |
 | Deterministic CLI | `src/cli/*` | setup, doctor, catalog, and Evidence.v1 ledger checks |
 | Release guardrails | `scripts/*`, `contracts/*`, evals | packaging, metadata sync, asset sync, and behavior checks |
 
@@ -153,11 +153,11 @@ Next considerations:
 - Add per-assertion documentation with examples of pass/fail text.
 - Consider using a structured intermediate report object so checker quality improves.
 
-### v0.7 - Codex Packaging Foundation
+### v0.7 - Claude Code Packaging Foundation
 
 What changed:
 
-- Standardized installation on Codex's `~/.codex/skills/` directory.
+- Standardized installation on Claude Code's `~/.claude/skills/` directory.
 - Made each skill directory self-contained by bundling the references, scripts, contracts, and registry metadata it needs at runtime.
 - Added `scripts/sync_skill_assets.py` so canonical root assets can be copied into skill-local runtime paths deterministically.
 - Added release checks for asset synchronization and version consistency across `package.json`, `package-lock.json`, and `registry.yaml`.

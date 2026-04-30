@@ -10,15 +10,13 @@ export {
   ensureFindingsDir,
 } from "./cli/findings.js";
 export {
-  codexSkillsDir,
-  codexHome,
-  projectCodexHome,
+  claudeSkillsDir,
+  claudeHome,
+  projectClaudeHome,
   projectSkillsDir,
   omvStateDir,
   findingsDir,
   setupScopePath,
-  claudeSkillsDir,
-  claudeHome,
   packageRoot,
   packageSkillsDir,
 } from "./cli/paths.js";

@@ -1,7 +1,7 @@
 {
   "name": "oh-my-vul",
   "version": "0.7.0",
-  "description": "LLM-friendly vulnerability research skills for Codex",
+  "description": "LLM-friendly vulnerability research skills for Claude Code",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -37,7 +37,7 @@
     "registry.yaml"
   ],
   "keywords": [
-    "codex",
+    "claude-code",
     "security",
     "vulnerability",
     "cve",

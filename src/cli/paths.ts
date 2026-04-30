@@ -4,24 +4,24 @@ import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
-/** ~/.codex/ — Codex config home. Override with CODEX_HOME when needed. */
-export function codexHome(): string {
-  return process.env.CODEX_HOME || join(homedir(), ".codex");
+/** ~/.claude/ — Claude Code config home. Override with CLAUDE_HOME when needed. */
+export function claudeHome(): string {
+  return process.env.CLAUDE_HOME || join(homedir(), ".claude");
 }
 
-/** ~/.codex/skills/ — where Codex loads user-level skills from. */
-export function codexSkillsDir(): string {
-  return join(codexHome(), "skills");
+/** ~/.claude/skills/ — where Claude Code loads user-level skills from. */
+export function claudeSkillsDir(): string {
+  return join(claudeHome(), "skills");
 }
 
-/** .codex/ — project-scoped Codex config home. */
-export function projectCodexHome(projectRoot = process.cwd()): string {
-  return join(projectRoot, ".codex");
+/** .claude/ — project-scoped Claude Code config home. */
+export function projectClaudeHome(projectRoot = process.cwd()): string {
+  return join(projectRoot, ".claude");
 }
 
-/** .codex/skills/ — project-scoped skills directory. */
+/** .claude/skills/ — project-scoped skills directory. */
 export function projectSkillsDir(projectRoot = process.cwd()): string {
-  return join(projectCodexHome(projectRoot), "skills");
+  return join(projectClaudeHome(projectRoot), "skills");
 }
 
 /** .omv/ — project-scoped oh-my-vul state directory. */
@@ -38,12 +38,6 @@ export function findingsDir(projectRoot = process.cwd()): string {
 export function setupScopePath(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "setup-scope.json");
 }
-
-/** @deprecated Use codexSkillsDir(). */
-export const claudeSkillsDir = codexSkillsDir;
-
-/** @deprecated Use codexHome(). */
-export const claudeHome = codexHome;
 
 /** Root of the oh-my-vul package (where skills/, agents/, contracts/ live) */
 export function packageRoot(): string {

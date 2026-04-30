@@ -49,6 +49,30 @@ Use `pushed:>=YYYY-MM-DD` with a date 12 months before the current date unless t
 {keyword} language:Lua stars:50..3000 pushed:>=YYYY-MM-DD archived:false fork:false
 ```
 
+## Source Fetch Priority
+
+Before fetching any source file for a candidate, resolve the authoritative path via the registry manifest. Do not probe path variants blindly. Use `shared/scripts/resolve_source_path.py` as a helper when available.
+
+### npm
+
+1. **Registry manifest first**: `GET https://registry.npmjs.org/<pkg>` → read `main` field (or `versions.<latest>.main`) and `repository.url` → construct `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<main>`.
+2. **Dist/minified detected**: if `main` contains `dist/`, `build/`, or `.min.js`, skip it and try `src/index.ts` → `src/index.js` → `index.js` at repo root instead.
+3. **CDN fallback** (one attempt only): `https://unpkg.com/<pkg>@<ver>/<main>` or `https://cdn.jsdelivr.net/npm/<pkg>/<main>`.
+4. **Give up**: if both attempts fail, mark source confidence low — do NOT try additional path variants.
+
+### PyPI
+
+1. **Registry manifest first**: `GET https://pypi.org/pypi/<name>/json` → read `info.project_urls["Source Code"]` → fall back to `info.project_urls["Repository"]` → `info.project_urls["Homepage"]` → `info.home_page`.
+2. Derive owner/repo from the GitHub URL; inspect `src/<pkg_name>/` first, then package root.
+3. **CDN fallback**: use `info.download_url` (sdist tarball) as last resort.
+4. **Give up**: if no GitHub URL found, mark source confidence low.
+
+### Go
+
+1. Visit `https://pkg.go.dev/<module>` to confirm the canonical GitHub URL (the page redirects or shows the source repo link).
+2. Fetch individual `.go` files directly from `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<file>.go`.
+3. Inspect `<module-root>/`, not sub-packages, unless the vulnerability is in a specific sub-path.
+
 ## Keyword Rotation
 
 | Ecosystem | Functional keywords |

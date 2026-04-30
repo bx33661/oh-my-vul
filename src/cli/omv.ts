@@ -17,11 +17,11 @@ const args = process.argv.slice(2);
 const command = args[0];
 
 function usage(): void {
-  console.log(`oh-my-vul — vulnerability research skills for Codex
+  console.log(`oh-my-vul — vulnerability research skills for Claude Code
 
 Usage:
   omv setup [--scope user|project] [--force] [--dry-run]
-                                     Install skills to ~/.codex/skills/ or ./.codex/skills/
+                                     Install skills to ~/.claude/skills/ or ./.claude/skills/
   omv doctor [--scope user|project] [--json]
                                      Check installation health
   omv findings list [--json]        List .omv/findings evidence files

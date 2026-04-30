@@ -3,10 +3,10 @@ import { readFile, readdir, stat } from "fs/promises";
 import { join } from "path";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 import {
-  codexHome,
-  codexSkillsDir,
+  claudeHome,
+  claudeSkillsDir,
   packageRoot,
-  projectCodexHome,
+  projectClaudeHome,
   projectSkillsDir,
   setupScopePath,
 } from "./paths.js";
@@ -36,10 +36,10 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
   const checks: Check[] = [];
   const projectRoot = options.projectRoot ?? process.cwd();
   const scope = options.scope ?? (await resolveDoctorScope(projectRoot));
-  const home = scope === "project" ? projectCodexHome(projectRoot) : codexHome();
-  const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : codexSkillsDir();
+  const home = scope === "project" ? projectClaudeHome(projectRoot) : claudeHome();
+  const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
 
-  checks.push(check("codex home", existsSync(home) ? "pass" : "fail", existsSync(home) ? home : `not found: ${home}`));
+  checks.push(check("claude home", existsSync(home) ? "pass" : "fail", existsSync(home) ? home : `not found: ${home}`));
 
   const skillsDirExists = existsSync(skillsDir);
   checks.push(check(

@@ -3,7 +3,7 @@
 
 name: oh-my-vul
 version: "0.7.0"
-platform: codex
+platform: claude-code
 updated: "2026-04-29"
 
 skills:

@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/oh-my-vul)](https://www.npmjs.com/package/oh-my-vul)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Evidence-first vulnerability research skills for Codex.
+Evidence-first vulnerability research skills for Claude Code.
 
 `oh-my-vul` helps you find promising open-source audit targets, keep the evidence organized, and turn confirmed findings into reviewer-friendly VulDB, CVE, GHSA, OSV, or Markdown advisory drafts.
 
@@ -18,7 +18,7 @@ Install the skills:
 npx oh-my-vul setup
 ```
 
-This installs three self-contained skills to `~/.codex/skills/` and makes them available as slash commands in Codex.
+This installs three self-contained skills to `~/.claude/skills/` and makes them available as slash commands in Claude Code.
 
 Check the install:
 
@@ -86,7 +86,7 @@ Project-level setup writes `.omv/setup-scope.json` so `omv doctor` can resolve t
 
 ## Finding Targets
 
-Use `/omv-find` inside Codex:
+Use `/omv-find` inside Claude Code:
 
 ```text
 /omv-find --lang npm --vuln traversal --count 10
@@ -171,7 +171,7 @@ Use `/omv-report` after you have a validated Evidence.v1 file or a complete hand
 
 ## Requirements
 
-- Codex
+- Claude Code
 - Node.js 20 or newer
 
 ## Project Docs

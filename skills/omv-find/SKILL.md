@@ -65,7 +65,7 @@ For narrow requests, use `rg` inside the relevant reference to read only the nee
      - `python scripts/collect_metadata.py --repo <github-url> [--registry npm:pkg]`
      - `scripts/estimate_loc.sh <github-url-or-local-path>`
 
-5. **Scan source risk**
+5. **Scan source risk** — see `## Source File Discovery` for how to locate files before fetching.
    - Inspect 2-5 relevant source files per surviving candidate.
    - Build a concise source -> sink -> guard note.
    - Keyword hits alone are low confidence.
@@ -81,6 +81,44 @@ For narrow requests, use `rg` inside the relevant reference to read only the nee
    - Sort by score descending.
    - Include data freshness, sources used, and uncertainty.
    - If the user asks to pass a confirmed finding to `omv-report`, create or output a `.omv/findings/<id>.yaml` Evidence.v1 handoff structured per `contracts/evidence.v1.yaml`. Do not emit a handoff packet for ordinary unconfirmed target lists.
+
+## Source File Discovery
+
+Before fetching any source file for a candidate, resolve the authoritative path using the registry manifest. **Do not probe path variants blindly.**
+
+### npm packages
+
+1. Fetch `https://registry.npmjs.org/<package-name>` (one request).
+2. Extract `main` (or `versions.<latest>.main`) and `repository.url`.
+3. Normalise the GitHub URL: strip `git+`, `.git` suffix, convert `git://` → `https://`.
+4. Construct the raw URL: `https://raw.githubusercontent.com/<owner>/<repo>/<default-branch>/<main>`.
+5. If `main` points to a `dist/`, `.min.js`, or bundled file, fall back in order:
+   - `src/index.ts` → `src/index.js` → `index.js` at repo root.
+6. If `repository.url` is absent, derive the repo from `homepage` or `bugs.url`.
+7. Helper: `python shared/scripts/resolve_source_path.py --ecosystem npm --pkg <name>` prints the resolved URL as JSON.
+
+### PyPI packages
+
+1. Fetch `https://pypi.org/pypi/<name>/json` (one request).
+2. Extract `info.project_urls["Source Code"]` → fall back to `info.home_page`.
+3. Treat the resulting GitHub URL as the repo; inspect `src/<name>/` or package root.
+
+### Go modules
+
+Use the `pkg.go.dev/<module>` page to confirm the canonical GitHub URL, then fetch individual `.go` files directly.
+
+### Fallback (any ecosystem)
+
+If the registry manifest returns non-200 or the extracted URL returns 404, make **one** CDN fallback attempt (unpkg for npm, PyPI tarball for Python). If that also fails, skip source inspection for this candidate and mark source confidence as low.
+
+## Fetch Budget
+
+**Per candidate: max 3 source files, max 2 fetch attempts per file.**
+
+- Attempt 1: primary URL from registry manifest.
+- Attempt 2 (if attempt 1 is 404): CDN fallback (unpkg `https://unpkg.com/<pkg>@<ver>/<main>` or jsdelivr).
+- If both attempts fail, count the slot as used and move on — do NOT try additional path variants.
+- When all 3 file slots are exhausted without a successful read, record: `source risk: not inspected — fetch budget exhausted` and assign confidence `low`.
 
 ## Evidence Handoff
 
