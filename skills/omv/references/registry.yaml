@@ -4,7 +4,7 @@
 name: oh-my-vul
 version: "0.7.0"
 platform: claude-code
-updated: "2026-04-29"
+updated: "2026-04-30"
 
 skills:
   - name: omv
@@ -27,6 +27,28 @@ skills:
       - Evidence.v1    # handoff packet on confirmed/explicit request
     consumes: []
 
+  - name: omv-audit
+    category: audit
+    path: skills/omv-audit
+    invocation: /omv-audit
+    status: stable
+    description: Deep-audit a candidate finding — prove or disprove the vulnerability, fill Evidence.v1 fields for omv-report
+    produces:
+      - Evidence.v1    # confirmed or blocked finding with all fields populated
+    consumes:
+      - Evidence.v1    # candidate finding from omv-find
+
+  - name: omv-repro
+    category: audit
+    path: skills/omv-repro
+    invocation: /omv-repro
+    status: stable
+    description: Guide local reproduction of a finding — walk through execution, record observed_result, confirm or block
+    produces:
+      - Evidence.v1    # confirmed or blocked finding with observed_result populated
+    consumes:
+      - Evidence.v1    # candidate/confirmed finding with evidence.reproducer filled
+
   - name: omv-report
     category: reporting
     path: skills/omv-report
@@ -48,11 +70,11 @@ agents:
 
   - name: dataflow-tracer
     path: agents/dataflow-tracer.md
-    used_by: [omv-find]
+    used_by: [omv-find, omv-audit]
 
   - name: cvss-analyst
     path: agents/cvss-analyst.md
-    used_by: [omv-report]
+    used_by: [omv-report, omv-audit]
 
   - name: dedup-analyst
     path: agents/dedup-analyst.md

@@ -19,6 +19,9 @@ ASSET_MAPPINGS = [
     ("shared/scripts/collect_metadata.py", "skills/omv-find/scripts/collect_metadata.py"),
     ("shared/scripts/estimate_loc.sh", "skills/omv-find/scripts/estimate_loc.sh"),
     ("contracts/evidence.v1.yaml", "skills/omv-find/contracts/evidence.v1.yaml"),
+    ("shared/references/cvss-builder.md", "skills/omv-audit/references/shared/cvss-builder.md"),
+    ("contracts/evidence.v1.yaml", "skills/omv-audit/contracts/evidence.v1.yaml"),
+    ("contracts/evidence.v1.yaml", "skills/omv-repro/contracts/evidence.v1.yaml"),
     ("shared/references/cvss-builder.md", "skills/omv-report/references/shared/cvss-builder.md"),
     ("contracts/evidence.v1.yaml", "skills/omv-report/contracts/evidence.v1.yaml"),
 ]

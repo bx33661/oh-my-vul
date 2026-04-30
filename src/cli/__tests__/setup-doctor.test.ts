@@ -15,10 +15,12 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
   try {
     const result = await setup();
     assert.deepEqual(result.errors, []);
-    assert.deepEqual(result.installed.sort(), ["omv", "omv-find", "omv-report"]);
+    assert.deepEqual(result.installed.sort(), ["omv", "omv-audit", "omv-find", "omv-report", "omv-repro"]);
 
     assert.equal(existsSync(join(claudeHome, "skills", "omv-find", "references", "shared", "ecosystems.md")), true);
     assert.equal(existsSync(join(claudeHome, "skills", "omv-find", "contracts", "evidence.v1.yaml")), true);
+    assert.equal(existsSync(join(claudeHome, "skills", "omv-audit", "contracts", "evidence.v1.yaml")), true);
+    assert.equal(existsSync(join(claudeHome, "skills", "omv-repro", "contracts", "evidence.v1.yaml")), true);
     assert.equal(existsSync(join(claudeHome, "skills", "omv-report", "references", "shared", "cvss-builder.md")), true);
     assert.equal(existsSync(join(claudeHome, "skills", "omv", "references", "registry.yaml")), true);
 

@@ -18,7 +18,7 @@ Install the skills:
 npx oh-my-vul setup
 ```
 
-This installs three self-contained skills to `~/.claude/skills/` and makes them available as slash commands in Claude Code.
+This installs 5 self-contained skills to `~/.claude/skills/` and makes them available as slash commands in Claude Code.
 
 Check the install:
 
@@ -31,8 +31,9 @@ Use the workflow:
 ```text
 /omv-find --lang npm --vuln traversal --count 10
 
-# after local verification
 omv findings init demo-traversal
+/omv-audit demo-traversal
+/omv-repro demo-traversal
 omv findings validate demo-traversal
 
 /omv-report
@@ -45,6 +46,8 @@ omv findings validate demo-traversal
 |---|---|---|---|
 | `omv` | `/omv` | manager | Collection manager — lists skills, shows registry status |
 | `omv-find` | `/omv-find` | research | Find and rank open-source packages worth auditing for passive CVE research |
+| `omv-audit` | `/omv-audit` | audit | Deep-audit a candidate finding — prove or disprove the vulnerability, fill Evidence.v1 fields for omv-report |
+| `omv-repro` | `/omv-repro` | audit | Guide local reproduction of a finding — walk through execution, record observed_result, confirm or block |
 | `omv-report` | `/omv-report` | reporting | Generate VulDB/CVE/GHSA/OSV advisory reports from confirmed findings |
 <!-- omv:skills:end -->
 
@@ -53,8 +56,9 @@ The intended flow is simple:
 ```text
 /omv-find
   -> candidate packages and code-reading entry points
-  -> local verification by the researcher
   -> .omv/findings/<id>.yaml
+  -> /omv-audit
+  -> /omv-repro when observed_result still needs local confirmation
   -> omv findings validate <id>
   -> /omv-report
   -> advisory draft for VulDB, CVE, GHSA, OSV, or Markdown

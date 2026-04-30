@@ -1,6 +1,6 @@
 # Release Process
 
-This repository ships standalone `.skill` archives for `omv`, `omv-find`, and `omv-report`.
+This repository ships standalone `.skill` archives for every installable skill in `registry.yaml`.
 
 ## Version policy
 
@@ -42,6 +42,8 @@ Before tagging, verify:
 
 - `omv-find` still rejects invalid flags without fabricating projects.
 - `omv-find` can create or emit `.omv/findings/<id>.yaml` handoffs from `contracts/evidence.v1.yaml`.
+- `omv-audit` can consume candidate Evidence.v1 files and leave confirmed or blocked evidence.
+- `omv-repro` can guide local confirmation without modifying the reproducer field or inventing observations.
 - `omv findings validate <id>` catches missing confirmed evidence before report generation.
 - `omv-report` can consume validated handoffs without asking for already-provided metadata.
 - `omv-report` can produce VulDB, GHSA, OSV, and standalone Markdown advisory formats.
