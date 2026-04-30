@@ -2,7 +2,7 @@
 # Lists all skills in this collection with their invocation, status, and contract bindings.
 
 name: oh-my-vul
-version: "0.7.0"
+version: "0.7.1"
 platform: claude-code
 updated: "2026-04-30"
 

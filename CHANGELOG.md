@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.1 - Hardened evidence workflow
+
+- Replaced shallow CLI YAML parsing with structured parsing for Evidence.v1 and registry metadata.
+- Added stricter Evidence.v1 validation gates, CLI argument validation, install manifests, and doctor integrity warnings.
+- Added stable `omv-audit` and `omv-repro` eval checkers and release-time enforcement.
+- Improved CLI ergonomics with command help, `omv version`, JSON setup output, and strict validation modes.
+
 ## v0.7.0 - Evidence ledger workflow
 
 - Standardized the README as a user-facing guide for installation, target discovery, Evidence.v1 handoffs, validation, reporting, and safety boundaries.
