@@ -18,6 +18,8 @@ VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
 SYNC_METADATA_SCRIPT = REPO_ROOT / "scripts" / "sync_metadata.py"
 STABLE_EVAL_CHECKS = [
+    ("skills/omv/scripts/check_output.py", "0", "skills/omv/evals/golden/next-workflow.md"),
+    ("skills/omv/scripts/check_output.py", "1", "skills/omv/evals/golden/archive-delegation.md"),
     ("skills/omv-audit/scripts/check_output.py", "0", "skills/omv-audit/evals/golden/incomplete-observed-result.md"),
     ("skills/omv-audit/scripts/check_output.py", "1", "skills/omv-audit/evals/golden/duplicate-blocked.md"),
     ("skills/omv-audit/scripts/check_output.py", "2", "skills/omv-audit/evals/golden/confirmed-complete.md"),

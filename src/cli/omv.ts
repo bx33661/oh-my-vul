@@ -10,12 +10,38 @@ import {
   validateFinding,
   validateFindings,
   promoteFinding,
+  archiveFinding,
   createFindingTemplate,
+  listArchivedFindings,
+  listFindingWorkflow,
+  restoreFinding,
+  showFinding,
   type FindingTemplateResult,
   type EvidenceStatus,
   type FindingSummary,
+  type FindingWorkflowSummary,
+  type FindingDetail,
   type FindingValidation,
+  type ArchivedFindingSummary,
+  type FindingArchiveResult,
+  type FindingRestoreResult,
 } from "./findings.js";
+import { initWorkspace, readWorkspaceActivity, workspaceStatus, type WorkspaceActivityEntry, type WorkspaceStatus } from "./workspace.js";
+import {
+  command as cmd,
+  empty,
+  error as tuiError,
+  kv,
+  muted,
+  panel,
+  readiness,
+  statusBadge,
+  table,
+  title,
+  truncate,
+  validationBadge,
+  warn,
+} from "./tui.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -28,13 +54,28 @@ Usage:
                                      Install skills to ~/.claude/skills/ or ./.claude/skills/
   omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
+  omv dashboard [--json]            Show workspace, queue, and recent activity
+  omv workspace init [--json]        Initialize local .omv workspace
+  omv workspace status [--json]      Show local .omv workspace status
+  omv workspace log [--json]         Show local workspace activity log
   omv findings list [--json]        List .omv/findings evidence files
+  omv findings workflow [--json]    Show active finding lifecycle next actions
+  omv findings show <id> [--archived] [--json]
+                                     Show one finding's details and next action
+  omv findings open <id> [--archived] [--json]
+                                     Print a finding YAML path for editing
   omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
                                      Create an Evidence.v1 finding template
   omv findings validate [id|path] [--json] [--strict]
                                      Validate one finding or the whole ledger
   omv findings promote <id|path> --status candidate|confirmed|blocked [--json]
                                      Update a finding status and revalidate it
+  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
+                                     Move a finding out of the active queue
+  omv findings archive list [--json]
+                                     List archived findings
+  omv findings restore <id> [--force] [--json]
+                                     Restore an archived finding
   omv version [--json]               Show package and registry version
   omv help                           Show this message
 
@@ -44,10 +85,14 @@ Examples:
   npx oh-my-vul setup --force
   omv doctor
   omv doctor --json
+  omv dashboard
   omv findings list
   omv findings init demo
   omv findings validate
   omv findings promote demo --status confirmed
+  omv findings workflow
+  omv findings show demo
+  omv findings archive demo --reason reported
 `);
 }
 
@@ -69,6 +114,14 @@ Check installed skills, runtime assets, references, scripts, and install manifes
 
 Show package version, registry version, platform, and registry update date.`);
       return;
+    case "dashboard":
+      console.log(`Usage: omv dashboard [--json]
+
+Show local workspace status, active workflow queue, and recent activity in one view.`);
+      return;
+    case "workspace":
+      workspaceUsage(args[1]);
+      return;
     case "findings":
       findingsUsage(args[1]);
       return;
@@ -78,10 +131,39 @@ Show package version, registry version, platform, and registry update date.`);
   }
 }
 
+function workspaceUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "init":
+      console.log("Usage: omv workspace init [--json]");
+      return;
+    case "status":
+      console.log("Usage: omv workspace status [--json]");
+      return;
+    case "log":
+      console.log("Usage: omv workspace log [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv workspace init [--json]
+  omv workspace status [--json]
+  omv workspace log [--json]`);
+      return;
+  }
+}
+
 function findingsUsage(subcommand: string | undefined): void {
   switch (subcommand) {
     case "list":
       console.log("Usage: omv findings list [--json]");
+      return;
+    case "workflow":
+      console.log("Usage: omv findings workflow [--json]");
+      return;
+    case "show":
+      console.log("Usage: omv findings show <id> [--archived] [--json]");
+      return;
+    case "open":
+      console.log("Usage: omv findings open <id> [--archived] [--json]");
       return;
     case "init":
       console.log("Usage: omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]");
@@ -94,12 +176,26 @@ Validate Evidence.v1 files. --strict treats warnings as failures.`);
     case "promote":
       console.log("Usage: omv findings promote <id|path> --status candidate|confirmed|blocked [--json]");
       return;
+    case "archive":
+      console.log(`Usage:
+  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
+  omv findings archive list [--json]`);
+      return;
+    case "restore":
+      console.log("Usage: omv findings restore <id> [--force] [--json]");
+      return;
     default:
       console.log(`Usage:
   omv findings list [--json]
+  omv findings workflow [--json]
+  omv findings show <id> [--archived] [--json]
+  omv findings open <id> [--archived] [--json]
   omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
   omv findings validate [id|path] [--json] [--strict]
-  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]`);
+  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]
+  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
+  omv findings archive list [--json]
+  omv findings restore <id> [--force] [--json]`);
       return;
   }
 }
@@ -181,6 +277,33 @@ async function runDoctor(): Promise<void> {
   }
 }
 
+async function runWorkspace(): Promise<void> {
+  const subcommand = args[1] ?? "status";
+  const json = args.includes("--json");
+
+  switch (subcommand) {
+    case "init":
+      await printWorkspaceCommandResult(await initWorkspace(), json);
+      return;
+    case "status":
+      await printWorkspaceCommandResult(await workspaceStatus(), json);
+      return;
+    case "log":
+      await runWorkspaceLog(json);
+      return;
+    case "help":
+    case "--help":
+    case "-h":
+      workspaceUsage(undefined);
+      return;
+    default:
+      console.error(`Unknown workspace command: ${subcommand}\n`);
+      workspaceUsage(undefined);
+      process.exit(1);
+  }
+
+}
+
 async function runVersion(): Promise<void> {
   const json = args.includes("--json");
   const pkg = JSON.parse(await readFile(`${packageRoot()}/package.json`, "utf-8")) as { name?: string; version?: string };
@@ -202,6 +325,21 @@ async function runVersion(): Promise<void> {
   console.log(`Registry: ${result.registryVersion} (${result.platform}, updated ${result.updated})`);
 }
 
+async function runDashboard(): Promise<void> {
+  const json = args.includes("--json");
+  const [status, workflow, activity] = await Promise.all([
+    workspaceStatus(),
+    listFindingWorkflow(),
+    readWorkspaceActivity(),
+  ]);
+  const result = { status, workflow, activity: activity.slice(-8) };
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printDashboard(status, workflow, activity.slice(-8));
+}
+
 async function runFindings(): Promise<void> {
   const subcommand = args[1] ?? "list";
   const json = args.includes("--json");
@@ -209,6 +347,15 @@ async function runFindings(): Promise<void> {
   switch (subcommand) {
     case "list":
       await runFindingsList(json);
+      return;
+    case "workflow":
+      await runFindingsWorkflow(json);
+      return;
+    case "show":
+      await runFindingsShow(json);
+      return;
+    case "open":
+      await runFindingsOpen(json);
       return;
     case "init":
       await runFindingsInit(json);
@@ -218,6 +365,12 @@ async function runFindings(): Promise<void> {
       return;
     case "promote":
       await runFindingsPromote(json);
+      return;
+    case "archive":
+      await runFindingsArchive(json);
+      return;
+    case "restore":
+      await runFindingsRestore(json);
       return;
     case "help":
     case "--help":
@@ -229,6 +382,79 @@ async function runFindings(): Promise<void> {
       usage();
       process.exit(1);
   }
+}
+
+async function printWorkspaceCommandResult(result: WorkspaceStatus, json: boolean): Promise<void> {
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printWorkspaceStatus(result);
+}
+
+async function runWorkspaceLog(json: boolean): Promise<void> {
+  const entries = await readWorkspaceActivity();
+  if (json) {
+    console.log(JSON.stringify(entries, null, 2));
+    return;
+  }
+  printWorkspaceActivity(entries);
+}
+
+async function runFindingsWorkflow(json: boolean): Promise<void> {
+  const findings = await listFindingWorkflow();
+  if (json) {
+    console.log(JSON.stringify(findings, null, 2));
+    return;
+  }
+  if (findings.length === 0) {
+    console.log("No active findings. Run /omv-find or omv findings init <id> to add one.");
+    return;
+  }
+  printWorkflowSummaries(findings);
+}
+
+async function runFindingsShow(json: boolean): Promise<void> {
+  const target = firstPositionalAfter("show");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await showFinding(target, process.cwd(), { archived: args.includes("--archived") });
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printFindingDetail(result);
+}
+
+async function runFindingsOpen(json: boolean): Promise<void> {
+  const target = firstPositionalAfter("open");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await showFinding(target, process.cwd(), { archived: args.includes("--archived") });
+  const output = {
+    id: result.id,
+    path: result.path,
+    archived: result.archived,
+    nextAction: result.nextAction,
+  };
+  if (json) {
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+  console.log(
+    panel("finding file", [
+      ...kv([
+        ["id", output.id],
+        ["path", output.path],
+        ["state", output.archived ? "archived" : "active"],
+        ["next", cmd(output.nextAction)],
+      ]),
+    ]),
+  );
 }
 
 async function runFindingsList(json: boolean): Promise<void> {
@@ -317,56 +543,294 @@ async function runFindingsPromote(json: boolean): Promise<void> {
   }
 }
 
-function printFindingSummaries(findings: FindingSummary[]): void {
-  const idWidth = boundedWidth("ID", findings.map((finding) => finding.id), 24, 40);
-  const packageWidth = boundedWidth(
-    "PACKAGE",
-    findings.map((finding) => `${finding.ecosystem}:${finding.package}`),
-    28,
-    44,
-  );
+async function runFindingsArchive(json: boolean): Promise<void> {
+  const target = firstPositionalAfter("archive");
+  if (target === "list") {
+    const archived = await listArchivedFindings();
+    if (json) {
+      console.log(JSON.stringify(archived, null, 2));
+      return;
+    }
+    printArchivedSummaries(archived);
+    return;
+  }
+
+  const reason = parseReason();
+  const force = args.includes("--force");
+  const strict = args.includes("--strict");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  if (!reason) {
+    console.error("Missing --reason.");
+    process.exit(1);
+  }
+
+  const result = await archiveFinding(target, reason, process.cwd(), { force, strict });
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printArchiveResult(result);
+}
+
+async function runFindingsRestore(json: boolean): Promise<void> {
+  const target = firstPositionalAfter("restore");
+  const force = args.includes("--force");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await restoreFinding(target, process.cwd(), { force });
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printRestoreResult(result);
+}
+
+function printWorkspaceStatus(result: WorkspaceStatus): void {
+  const statuses = Object.entries(result.statusCounts)
+    .map(([status, count]) => `${status}=${count}`)
+    .join(", ");
+  console.log(title("oh-my-vul workspace"));
   console.log(
-    "ID".padEnd(idWidth) +
-      "STATUS".padEnd(12) +
-      "READY".padEnd(8) +
-      "PACKAGE".padEnd(packageWidth) +
-      "VULNERABILITY",
+    panel("workspace", [
+      ...kv([
+        ["root", result.root],
+        ["findings", result.findingsDir],
+        ["archive", result.archiveDir],
+        ["active", String(result.activeCount)],
+        ["archived", String(result.archivedCount)],
+        ["statuses", statuses || "none"],
+        ["index", result.staleIndex ? "rebuilt from stale cache" : result.indexPath],
+      ]),
+      ...result.warnings.map((item) => warn(`warning  ${item}`)),
+    ]),
   );
-  for (const finding of findings) {
-    const pkg = `${finding.ecosystem}:${finding.package}`;
+}
+
+function printDashboard(
+  status: WorkspaceStatus,
+  workflow: FindingWorkflowSummary[],
+  activity: WorkspaceActivityEntry[],
+): void {
+  console.log(title("oh-my-vul dashboard"));
+  const statuses = Object.entries(status.statusCounts)
+    .map(([name, count]) => `${name}=${count}`)
+    .join(", ");
+  console.log(
+    panel("workspace", [
+      ...kv([
+        ["root", status.root],
+        ["active", String(status.activeCount)],
+        ["archived", String(status.archivedCount)],
+        ["statuses", statuses || "none"],
+        ["next", workflow[0] ? cmd(workflow[0].nextAction) : cmd("omv findings init <id>")],
+      ]),
+      ...status.warnings.map((item) => warn(`warning  ${item}`)),
+    ]),
+  );
+
+  if (workflow.length === 0) {
+    console.log(empty("No active findings. Start with omv findings init <id> or /omv-find."));
+  } else {
     console.log(
-      truncate(finding.id, idWidth - 1).padEnd(idWidth) +
-        finding.status.padEnd(12) +
-        `${finding.readiness}/100`.padEnd(8) +
-        truncate(pkg, packageWidth - 1).padEnd(packageWidth) +
-        finding.vulnerability,
+      table(
+      ["id", "status", "ready", "next action"],
+      workflow.slice(0, 8).map((finding) => [
+        truncate(finding.id, 30),
+        statusBadge(finding.status),
+        readiness(finding.readiness),
+        cmd(truncate(finding.nextAction, 54)),
+      ]),
+      ),
+    );
+  }
+
+  if (activity.length > 0) {
+    console.log(
+      table(
+        ["time", "action", "id"],
+        activity.map((entry) => [
+          truncate(entry.timestamp, 27),
+          entry.action,
+          truncate(entry.id ?? "-", 28),
+        ]),
+      ),
     );
   }
 }
 
-function boundedWidth(label: string, values: string[], min: number, max: number): number {
-  return Math.min(max, Math.max(min, label.length + 2, ...values.map((value) => value.length + 2)));
+function printWorkspaceActivity(entries: WorkspaceActivityEntry[]): void {
+  if (entries.length === 0) {
+    console.log(empty("No workspace activity yet."));
+    return;
+  }
+  console.log(title("activity log"));
+  console.log(
+    table(
+      ["time", "action", "id", "detail"],
+      entries.map((entry) => [
+        truncate(entry.timestamp, 27),
+        entry.action,
+        truncate(entry.id ?? "-", 26),
+        entry.reason ? `reason=${entry.reason}` : entry.status ? `status=${entry.status}` : entry.path ?? "",
+      ]),
+    ),
+  );
 }
 
-function truncate(value: string, maxLength: number): string {
-  return value.length <= maxLength ? value : `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+function printFindingSummaries(findings: FindingSummary[]): void {
+  console.log(title("active findings"));
+  console.log(
+    table(
+      ["id", "status", "ready", "package", "vulnerability"],
+      findings.map((finding) => [
+        truncate(finding.id, 36),
+        statusBadge(finding.status),
+        readiness(finding.readiness),
+        truncate(`${finding.ecosystem}:${finding.package}`, 42),
+        truncate(finding.vulnerability, 36),
+      ]),
+    ),
+  );
+}
+
+function printWorkflowSummaries(findings: FindingWorkflowSummary[]): void {
+  console.log(title("workflow queue"));
+  console.log(
+    table(
+      ["id", "priority", "status", "ready", "next action", "package", "vulnerability"],
+      findings.map((finding) => [
+        truncate(finding.id, 30),
+        String(finding.priority),
+        statusBadge(finding.status),
+        readiness(finding.readiness),
+        cmd(truncate(finding.nextAction, 46)),
+        truncate(`${finding.ecosystem}:${finding.package}`, 34),
+        truncate(finding.vulnerability, 30),
+      ]),
+    ),
+  );
+}
+
+function printFindingDetail(finding: FindingDetail): void {
+  console.log(title(`finding ${finding.id}`));
+  const lines = kv([
+    ["status", statusBadge(finding.status)],
+    ["readiness", readiness(finding.readiness)],
+    ["validation", validationBadge(finding.validation.ok)],
+    ["priority", `${finding.priority} (${finding.priorityReason})`],
+    ["path", finding.path],
+    ["package", `${finding.ecosystem}:${finding.package}`],
+    ["vulnerability", finding.vulnerability],
+  ]);
+  if (finding.archived) {
+    lines.push(...kv([
+      ["archived", finding.archivedAt ?? "unknown"],
+      ["reason", finding.archiveReason ?? "unknown"],
+    ]));
+  }
+  lines.push(...kv([["next", cmd(finding.nextAction)]]));
+  if (finding.validation.errors.length > 0) {
+    lines.push("", tuiError("errors"));
+    lines.push(...finding.validation.errors.map((item) => `  ${item}`));
+  }
+  if (finding.validation.warnings.length > 0) {
+    lines.push("", warn("warnings"));
+    lines.push(...finding.validation.warnings.slice(0, 8).map((item) => `  ${item}`));
+    if (finding.validation.warnings.length > 8) {
+      lines.push(muted(`  ... ${finding.validation.warnings.length - 8} more warning(s)`));
+    }
+  }
+  if (finding.missingFields.length > 0) {
+    lines.push("", muted(`missing  ${finding.missingFields.join(", ")}`));
+  }
+  console.log(panel(finding.id, lines));
+}
+
+function printArchivedSummaries(findings: ArchivedFindingSummary[]): void {
+  if (findings.length === 0) {
+    console.log(empty("No archived findings."));
+    return;
+  }
+  console.log(title("archive"));
+  console.log(
+    table(
+      ["id", "status", "archived", "reason", "package"],
+      findings.map((finding) => [
+        truncate(finding.id, 34),
+        statusBadge(finding.status),
+        truncate(finding.archivedAt, 27),
+        truncate(finding.archiveReason, 26),
+        truncate(`${finding.ecosystem}:${finding.package}`, 40),
+      ]),
+    ),
+  );
 }
 
 function printFindingValidation(result: FindingValidation): void {
-  const marker = result.ok ? "OK" : "FAIL";
-  console.log(`${marker} ${result.id} (${result.status}, readiness ${result.readiness}/100)`);
-  for (const error of result.errors) {
-    console.log(`  error   ${error}`);
+  const lines = kv([
+    ["status", statusBadge(result.status)],
+    ["readiness", readiness(result.readiness)],
+    ["validation", validationBadge(result.ok)],
+    ["path", result.path],
+  ]);
+  if (result.errors.length > 0) {
+    lines.push("", tuiError("errors"));
+    lines.push(...result.errors.map((item) => `  ${item}`));
   }
-  for (const warning of result.warnings) {
-    console.log(`  warning ${warning}`);
+  if (result.warnings.length > 0) {
+    lines.push("", warn("warnings"));
+    lines.push(...result.warnings.map((item) => `  ${item}`));
   }
+  console.log(panel(result.id, lines));
 }
 
 function printFindingTemplateResult(result: FindingTemplateResult): void {
-  console.log(`Created ${result.path}`);
-  console.log(`Status: ${result.status}`);
-  console.log(`Next: fill verified evidence, then run: omv findings validate ${result.id}`);
+  console.log(
+    panel("finding created", [
+      ...kv([
+        ["id", result.id],
+        ["path", result.path],
+        ["status", statusBadge(result.status)],
+        ["next", cmd(`omv findings show ${result.id}`)],
+      ]),
+    ]),
+  );
+}
+
+function printArchiveResult(result: FindingArchiveResult): void {
+  console.log(
+    panel("finding archived", [
+      ...kv([
+        ["id", result.id],
+        ["status", statusBadge(result.status)],
+        ["from", result.from],
+        ["to", result.to],
+        ["reason", result.archiveReason],
+        ["reports", result.reportArtifactPaths.length > 0 ? `${result.reportArtifactPaths.length} artifact(s)` : "none"],
+        ["next", cmd(`omv findings show ${result.id} --archived`)],
+      ]),
+      ...result.warnings.map((item) => warn(`warning  ${item}`)),
+    ]),
+  );
+}
+
+function printRestoreResult(result: FindingRestoreResult): void {
+  console.log(
+    panel("finding restored", [
+      ...kv([
+        ["id", result.id],
+        ["status", statusBadge(result.status)],
+        ["from", result.from],
+        ["to", result.to],
+        ["next", cmd("omv findings workflow")],
+      ]),
+    ]),
+  );
 }
 
 function firstPositionalAfter(subcommand: string): string | undefined {
@@ -383,7 +847,7 @@ function firstPositionalAfter(subcommand: string): string | undefined {
 }
 
 function optionTakesValue(option: string): boolean {
-  return option === "--scope" || option === "--status";
+  return option === "--scope" || option === "--status" || option === "--reason";
 }
 
 function parseStatus(): EvidenceStatus | undefined {
@@ -393,6 +857,12 @@ function parseStatus(): EvidenceStatus | undefined {
     return raw;
   }
   return undefined;
+}
+
+function parseReason(): string | undefined {
+  const index = args.indexOf("--reason");
+  const raw = index === -1 ? undefined : args[index + 1];
+  return raw && !raw.startsWith("--") ? raw : undefined;
 }
 
 function parseOptionalScope(): "user" | "project" | undefined {
@@ -440,6 +910,18 @@ switch (command) {
     break;
   case "doctor":
     runDoctor().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "dashboard":
+    runDashboard().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "workspace":
+    runWorkspace().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     });

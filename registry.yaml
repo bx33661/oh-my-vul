@@ -12,7 +12,7 @@ skills:
     path: skills/omv
     invocation: /omv
     status: stable
-    description: Collection manager — lists skills, shows registry status
+    description: Local-first project manager — shows workspace status, active finding next actions, archive state, and installed skills
     produces: []
     consumes: []
 

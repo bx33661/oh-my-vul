@@ -72,9 +72,22 @@ Stay in passive research mode: read public source code only. Do not send request
 omv findings validate <id>
 ```
 
+然后运行或建议：
+
+```bash
+omv findings workflow
+```
+
+Use the CLI result for lifecycle handoff:
+
+- If the finding remains `candidate` because only `evidence.observed_result` is missing, tell the user to run `/omv-repro <id>`.
+- If the finding is `confirmed` and validation returns OK, tell the user to run `/omv-report <id>`.
+- If the finding is `blocked`, tell the user to review blockers and optionally run `omv findings archive <id> --reason blocked`.
+
 ## Deterministic Helpers
 
 - `omv findings validate <id>` — 校验字段完整性，输出 readiness 分数
 - `omv findings promote <id> --status confirmed|blocked` — 更新 status 字段
+- `omv findings workflow` — 显示 active findings 的下一步动作
 - `python3 shared/scripts/resolve_source_path.py --ecosystem npm --pkg <name>` — 获取源文件 raw URL
 - `python3 shared/scripts/collect_metadata.py --repo <github-url>` — 获取仓库元数据

@@ -44,7 +44,7 @@ omv findings validate demo-traversal
 <!-- omv:skills:start -->
 | Skill | Command | Category | Purpose |
 |---|---|---|---|
-| `omv` | `/omv` | manager | Collection manager — lists skills, shows registry status |
+| `omv` | `/omv` | manager | Local-first project manager — shows workspace status, active finding next actions, archive state, and installed skills |
 | `omv-find` | `/omv-find` | research | Find and rank open-source packages worth auditing for passive CVE research |
 | `omv-audit` | `/omv-audit` | audit | Deep-audit a candidate finding — prove or disprove the vulnerability, fill Evidence.v1 fields for omv-report |
 | `omv-repro` | `/omv-repro` | audit | Guide local reproduction of a finding — walk through execution, record observed_result, confirm or block |

@@ -57,6 +57,20 @@ Use the validation result to choose output mode:
 - `status: candidate`: produce only triage notes or a draft outline clearly marked not ready for submission.
 - `status: confirmed`: proceed only if required evidence is present and readiness is at least 75/100; include validation warnings in the pre-submission checklist.
 
+After producing a submission-ready report for a confirmed finding, suggest removing it from the active local queue:
+
+```bash
+omv findings archive <id> --reason reported
+```
+
+If the report was written under `.omv/reports/<id>/`, the archive command records those artifact paths in archive metadata. For a stricter local gate, use:
+
+```bash
+omv findings archive <id> --reason reported --strict
+```
+
+Do not archive automatically unless the user asks; archiving is project-management state, not part of Evidence.v1 validation.
+
 ---
 
 ## Severity

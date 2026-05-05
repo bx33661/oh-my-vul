@@ -34,6 +34,46 @@ export function findingsDir(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "findings");
 }
 
+/** .omv/archive/ — project-scoped inactive research state. */
+export function archiveDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "archive");
+}
+
+/** .omv/archive/findings/ — archived Evidence.v1 findings. */
+export function archivedFindingsDir(projectRoot = process.cwd()): string {
+  return join(archiveDir(projectRoot), "findings");
+}
+
+/** .omv/archive/metadata/ — durable archive metadata sidecars. */
+export function archiveMetadataDir(projectRoot = process.cwd()): string {
+  return join(archiveDir(projectRoot), "metadata");
+}
+
+/** .omv/archive/metadata/<id>.json — durable archive metadata for one finding. */
+export function archiveMetadataPath(id: string, projectRoot = process.cwd()): string {
+  return join(archiveMetadataDir(projectRoot), `${id}.json`);
+}
+
+/** .omv/index.json — rebuildable workspace index cache. */
+export function workspaceIndexPath(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "index.json");
+}
+
+/** .omv/activity.jsonl — append-only local activity log. */
+export function workspaceActivityLogPath(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "activity.jsonl");
+}
+
+/** .omv/reports/ — project-scoped report artifacts. */
+export function reportsDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "reports");
+}
+
+/** .omv/reports/<id>/ — report artifacts for one finding. */
+export function findingReportsDir(id: string, projectRoot = process.cwd()): string {
+  return join(reportsDir(projectRoot), id);
+}
+
 /** .omv/setup-scope.json — persisted setup scope for doctor. */
 export function setupScopePath(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "setup-scope.json");

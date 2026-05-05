@@ -64,7 +64,20 @@ Stay in passive research mode: do not execute any commands yourself. Guide the u
 omv findings validate <id>
 ```
 
+然后运行或建议：
+
+```bash
+omv findings workflow
+```
+
+Use the CLI result for lifecycle handoff:
+
+- If reproduction confirms the finding and validation returns OK, tell the user to run `/omv-report <id>`.
+- If reproduction cannot continue and the finding is `blocked`, tell the user to review blockers and optionally run `omv findings archive <id> --reason not-reproducible`.
+- If validation still fails because audit fields are missing, tell the user to return to `/omv-audit <id>`.
+
 ## Deterministic Helpers
 
 - `omv findings validate <id>` — 校验字段完整性，输出 readiness 分数
 - `omv findings promote <id> --status confirmed|blocked` — 更新 status 字段
+- `omv findings workflow` — 显示 active findings 的下一步动作

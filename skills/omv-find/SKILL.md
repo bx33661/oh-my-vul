@@ -81,6 +81,7 @@ For narrow requests, use `rg` inside the relevant reference to read only the nee
    - Sort by score descending.
    - Include data freshness, sources used, and uncertainty.
    - If the user asks to pass a confirmed finding to `omv-report`, create or output a `.omv/findings/<id>.yaml` Evidence.v1 handoff structured per `contracts/evidence.v1.yaml`. Do not emit a handoff packet for ordinary unconfirmed target lists.
+   - When any `.omv/findings/<id>.yaml` candidate is created or updated, end by telling the user to run `omv findings workflow` or `/omv next` to choose the next audit target.
 
 ## Source File Discovery
 
@@ -128,6 +129,7 @@ When a user asks to continue from a confirmed or blocked finding, use the Eviden
 2. If workspace file tools are available, run or suggest `omv findings init <id> --status candidate|confirmed|blocked`, then fill the YAML fields from verified evidence only.
 3. If file tools are not available, output a fenced YAML block titled `Save as .omv/findings/<id>.yaml`.
 4. Run or suggest `omv findings validate <id>` after filling the file.
+5. Run or suggest `omv findings workflow` after validation so the candidate appears in the local-first active queue.
 
 Use `status: confirmed` only when tested version, source, sink, guard, local reproducer, and observed result are known. Use `status: candidate` for promising but unproven research and `status: blocked` when the missing evidence or duplicate risk should stop report generation.
 

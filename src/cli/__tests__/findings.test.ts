@@ -1,16 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  archiveFinding,
   createFindingTemplate,
   ensureFindingsDir,
+  listArchivedFindings,
   listFindings,
+  listFindingWorkflow,
   promoteFinding,
+  restoreFinding,
+  showFinding,
   validateFinding,
   validateFindings,
 } from "../findings.js";
+import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingsDir, workspaceIndexPath } from "../paths.js";
+import { readWorkspaceActivity } from "../workspace.js";
 
 const BASE_FINDING = `schema_version: "1"
 handoff_version: "1.0"
@@ -234,6 +242,132 @@ test("promoteFinding rejects invalid confirmed promotion without rewriting statu
     assert.equal(result.ok, false);
     assert.equal(result.status, "candidate");
     assert.match(await readFile(join(dir, "candidate.yaml"), "utf-8"), /status: candidate/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("finding workflow recommends audit, repro, report, and archive next actions", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "needs-audit.yaml"),
+      BASE_FINDING.replace("source: lib/index.js:12 options.filename", "source: unknown"),
+      "utf-8",
+    );
+    await writeFile(
+      join(dir, "needs-repro.yaml"),
+      BASE_FINDING.replace("observed_result: reads outside base directory", "observed_result: unknown"),
+      "utf-8",
+    );
+    await writeFile(join(dir, "ready-report.yaml"), BASE_FINDING.replace("status: candidate", "status: confirmed"), "utf-8");
+    await writeFile(
+      join(dir, "blocked.yaml"),
+      BASE_FINDING.replace("status: candidate", "status: blocked").replace("blockers: []", "blockers:\n  - duplicate CVE"),
+      "utf-8",
+    );
+
+    const workflow = await listFindingWorkflow(projectRoot);
+    assert.deepEqual(
+      workflow.map((finding) => finding.id),
+      ["ready-report", "needs-repro", "needs-audit", "blocked"],
+    );
+    assert.equal(workflow.find((finding) => finding.id === "needs-audit")?.nextAction, "/omv-audit needs-audit");
+    assert.equal(workflow.find((finding) => finding.id === "needs-repro")?.nextAction, "/omv-repro needs-repro");
+    assert.equal(workflow.find((finding) => finding.id === "ready-report")?.nextAction, "/omv-report ready-report");
+    assert.equal(workflow.find((finding) => finding.id === "ready-report")?.priorityReason, "confirmed finding ready for report");
+    assert.equal(
+      workflow.find((finding) => finding.id === "blocked")?.nextAction,
+      "omv findings archive blocked --reason blocked",
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("archive and restore move findings while preserving Evidence.v1 content", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "demo.yaml"), BASE_FINDING, "utf-8");
+
+    const archived = await archiveFinding("demo", "reported", projectRoot);
+    assert.equal(archived.id, "demo");
+    assert.equal(archived.archiveReason, "reported");
+    assert.equal(archived.warnings.length, 0);
+    assert.equal(existsSync(join(findingsDir(projectRoot), "demo.yaml")), false);
+    assert.equal(existsSync(join(archivedFindingsDir(projectRoot), "demo.yaml")), true);
+    assert.equal(existsSync(archiveMetadataPath("demo", projectRoot)), true);
+
+    const archivedList = await listArchivedFindings(projectRoot);
+    assert.equal(archivedList.length, 1);
+    assert.equal(archivedList[0].archiveReason, "reported");
+    assert.equal(archivedList[0].package, "demo-package");
+    await rm(workspaceIndexPath(projectRoot), { force: true });
+    const rebuiltArchiveList = await listArchivedFindings(projectRoot);
+    assert.equal(rebuiltArchiveList[0].archiveReason, "reported");
+
+    const archivedDetail = await showFinding("demo", projectRoot, { archived: true });
+    assert.equal(archivedDetail.archived, true);
+    assert.equal(archivedDetail.archiveReason, "reported");
+    assert.equal(archivedDetail.nextAction, "omv findings restore demo");
+
+    await writeFile(join(dir, "conflict.yaml"), BASE_FINDING, "utf-8");
+    await archiveFinding("conflict", "reported", projectRoot);
+    await writeFile(join(dir, "conflict.yaml"), BASE_FINDING, "utf-8");
+    await assert.rejects(() => archiveFinding("conflict", "reported", projectRoot), /already exists/);
+
+    const restored = await restoreFinding("demo", projectRoot);
+    assert.equal(restored.id, "demo");
+    assert.equal(existsSync(join(findingsDir(projectRoot), "demo.yaml")), true);
+    assert.equal(existsSync(join(archivedFindingsDir(projectRoot), "demo.yaml")), false);
+    assert.match(await readFile(join(findingsDir(projectRoot), "demo.yaml"), "utf-8"), /schema_version: "1"/);
+    const activeDetail = await showFinding("demo", projectRoot);
+    assert.equal(activeDetail.archived, false);
+    assert.equal(activeDetail.nextAction, "omv findings promote demo --status confirmed");
+
+    const activity = await readWorkspaceActivity(projectRoot);
+    assert.deepEqual(
+      activity.map((entry) => entry.action).filter((action) => action !== "workspace.init"),
+      ["finding.archive", "finding.archive", "finding.restore"],
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("archive reported warns or blocks confirmed findings without report artifacts", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "confirmed.yaml"), BASE_FINDING.replace("status: candidate", "status: confirmed"), "utf-8");
+
+    await assert.rejects(
+      () => archiveFinding("confirmed", "reported", projectRoot, { strict: true }),
+      /no report artifacts/,
+    );
+    assert.equal(existsSync(join(findingsDir(projectRoot), "confirmed.yaml")), true);
+
+    const warned = await archiveFinding("confirmed", "reported", projectRoot);
+    assert.match(warned.warnings.join("\n"), /no report artifacts/);
+
+    const restored = await restoreFinding("confirmed", projectRoot);
+    assert.equal(restored.id, "confirmed");
+    await mkdir(findingReportsDir("confirmed", projectRoot), { recursive: true });
+    const reportPath = join(findingReportsDir("confirmed", projectRoot), "vuldb.md");
+    await writeFile(reportPath, "# report\n", "utf-8");
+
+    const archived = await archiveFinding("confirmed", "reported", projectRoot, { strict: true });
+    assert.deepEqual(archived.warnings, []);
+    assert.deepEqual(archived.reportArtifactPaths, [reportPath]);
+    const metadata = JSON.parse(await readFile(archiveMetadataPath("confirmed", projectRoot), "utf-8")) as {
+      reportArtifactPaths?: string[];
+    };
+    assert.deepEqual(metadata.reportArtifactPaths, [reportPath]);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

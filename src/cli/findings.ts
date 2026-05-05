@@ -1,8 +1,18 @@
 import { existsSync } from "fs";
-import { mkdir, readFile, readdir, writeFile } from "fs/promises";
+import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, join } from "path";
 import { parse as parseYaml } from "yaml";
-import { findingsDir, packageRoot } from "./paths.js";
+import { archivedFindingsDir, findingReportsDir, findingsDir, packageRoot } from "./paths.js";
+import {
+  appendWorkspaceActivity,
+  ensureWorkspaceDirs,
+  readArchiveMetadata,
+  readWorkspaceIndex,
+  rebuildWorkspaceIndex,
+  removeWorkspaceFinding,
+  touchWorkspaceFinding,
+  writeArchiveMetadata,
+} from "./workspace.js";
 
 export type EvidenceStatus = "candidate" | "confirmed" | "blocked";
 
@@ -24,6 +34,43 @@ export interface FindingValidation {
   readiness: number;
   errors: string[];
   warnings: string[];
+}
+
+export interface FindingWorkflowSummary extends FindingSummary {
+  nextAction: string;
+  missingFields: string[];
+  priority: number;
+  priorityReason: string;
+}
+
+export interface FindingDetail extends FindingWorkflowSummary {
+  archived: boolean;
+  validation: FindingValidation;
+  archivedAt?: string;
+  archiveReason?: string;
+}
+
+export interface ArchivedFindingSummary extends FindingSummary {
+  archivedAt: string;
+  archiveReason: string;
+}
+
+export interface FindingArchiveResult {
+  id: string;
+  from: string;
+  to: string;
+  status: string;
+  archiveReason: string;
+  archivedAt: string;
+  warnings: string[];
+  reportArtifactPaths: string[];
+}
+
+export interface FindingRestoreResult {
+  id: string;
+  from: string;
+  to: string;
+  status: string;
 }
 
 export interface FindingTemplateResult {
@@ -103,19 +150,61 @@ export async function listFindings(projectRoot = process.cwd()): Promise<Finding
 
   for (const file of files) {
     const path = join(dir, file);
-    const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
-    summaries.push({
-      id: findingIdFromFile(file),
-      path,
-      status: getString(parsed, "status") || "unknown",
-      ecosystem: getString(parsed, "package.ecosystem") || "unknown",
-      package: getString(parsed, "package.registry_name") || getString(parsed, "package.product") || "unknown",
-      vulnerability: getString(parsed, "vulnerability.class") || "unknown",
-      readiness: computeReadiness(parsed),
-    });
+    summaries.push(await readFindingSummary(path, findingIdFromFile(file)));
   }
 
   return summaries.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+export async function listFindingWorkflow(projectRoot = process.cwd()): Promise<FindingWorkflowSummary[]> {
+  const findings = await listFindings(projectRoot);
+  const summaries = await Promise.all(
+    findings.map(async (finding) => {
+      const validation = await validateFinding(finding.id, projectRoot);
+      const missingFields = workflowMissingFields(validation);
+      const nextAction = workflowNextAction(finding, validation, missingFields);
+      const priority = workflowPriority(finding, validation, missingFields, nextAction);
+      return {
+        ...finding,
+        nextAction,
+        missingFields,
+        priority,
+        priorityReason: workflowPriorityReason(priority, nextAction),
+      };
+    }),
+  );
+  return summaries.sort((left, right) => right.priority - left.priority || left.id.localeCompare(right.id));
+}
+
+export async function showFinding(
+  target: string,
+  projectRoot = process.cwd(),
+  options: { archived?: boolean } = {},
+): Promise<FindingDetail> {
+  const archived = options.archived ?? false;
+  const id = normalizeFindingId(target);
+  const path = archived ? join(archivedFindingsDir(projectRoot), `${id}.yaml`) : resolveFindingPath(id, projectRoot);
+  if (!existsSync(path)) {
+    throw new Error(`${path} does not exist`);
+  }
+  const summary = await readFindingSummary(path, id);
+  const validation = archived ? await validateFinding(path, projectRoot) : await validateFinding(id, projectRoot);
+  const missingFields = workflowMissingFields(validation);
+  const metadata = archived ? await readArchiveMetadata(id, projectRoot) : undefined;
+  return {
+    ...summary,
+    archived,
+    validation,
+    missingFields,
+    nextAction: archived ? `omv findings restore ${id}` : workflowNextAction(summary, validation, missingFields),
+    priority: archived ? 0 : workflowPriority(summary, validation, missingFields, workflowNextAction(summary, validation, missingFields)),
+    priorityReason: archived ? "archived" : workflowPriorityReason(
+      workflowPriority(summary, validation, missingFields, workflowNextAction(summary, validation, missingFields)),
+      workflowNextAction(summary, validation, missingFields),
+    ),
+    archivedAt: metadata?.archivedAt,
+    archiveReason: metadata?.archiveReason,
+  };
 }
 
 export async function validateFinding(target: string, projectRoot = process.cwd()): Promise<FindingValidation> {
@@ -247,6 +336,8 @@ export async function createFindingTemplate(
 
   const template = await readFindingTemplate(status);
   await writeFile(path, template, "utf-8");
+  await touchWorkspaceFinding(normalizedId, status, projectRoot);
+  await appendWorkspaceActivity({ action: "finding.init", id: normalizedId, status, path }, projectRoot);
   return { id: normalizedId, path, status, created: true };
 }
 
@@ -282,10 +373,104 @@ export async function promoteFinding(
     ? text.replace(/^status:\s*.*$/m, `status: ${status}`)
     : `${text.trimEnd()}\nstatus: ${status}\n`;
   await writeFile(path, updated, "utf-8");
+  await touchWorkspaceFinding(findingIdFromFile(path), status, projectRoot);
+  await appendWorkspaceActivity({ action: "finding.promote", id: findingIdFromFile(path), status, path }, projectRoot);
   return validateFinding(path, projectRoot);
 }
 
+export async function archiveFinding(
+  target: string,
+  reason: string,
+  projectRoot = process.cwd(),
+  options: { force?: boolean; strict?: boolean } = {},
+): Promise<FindingArchiveResult> {
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    throw new Error("--reason is required to archive a finding");
+  }
+  await ensureWorkspaceDirs(projectRoot);
+  const from = resolveFindingPath(target, projectRoot);
+  if (!existsSync(from)) {
+    throw new Error(`${from} does not exist`);
+  }
+  const id = findingIdFromFile(from);
+  const to = join(archivedFindingsDir(projectRoot), `${id}.yaml`);
+  if (existsSync(to) && !options.force) {
+    throw new Error(`${to} already exists; use --force to overwrite`);
+  }
+  const status = getString(parseEvidenceYaml(await readFile(from, "utf-8")).data, "status") || "unknown";
+  const reportArtifactPaths = await listReportArtifacts(id, projectRoot);
+  const warnings: string[] = [];
+  if (trimmedReason === "reported" && status === "confirmed" && reportArtifactPaths.length === 0) {
+    const warning = `confirmed finding ${id} has no report artifacts under ${findingReportsDir(id, projectRoot)}`;
+    if (options.strict) {
+      throw new Error(`${warning}; create report artifacts or archive with a different reason`);
+    }
+    warnings.push(warning);
+  }
+  await rename(from, to);
+  const archivedAt = new Date().toISOString();
+  await writeArchiveMetadata(
+    { id, status, archivedAt, archiveReason: trimmedReason, sourcePath: from, archivePath: to, reportArtifactPaths },
+    projectRoot,
+  );
+  await removeWorkspaceFinding(id, false, projectRoot);
+  await touchWorkspaceFinding(id, status, projectRoot, { archived: true, archiveReason: trimmedReason, archivedAt });
+  await appendWorkspaceActivity(
+    { action: "finding.archive", id, status, archived: true, reason: trimmedReason, from, to },
+    projectRoot,
+  );
+  return { id, from, to, status, archiveReason: trimmedReason, archivedAt, warnings, reportArtifactPaths };
+}
+
+export async function listArchivedFindings(projectRoot = process.cwd()): Promise<ArchivedFindingSummary[]> {
+  await ensureWorkspaceDirs(projectRoot);
+  const index = existsSync(join(projectRoot, ".omv", "index.json"))
+    ? await readWorkspaceIndex(projectRoot)
+    : await rebuildWorkspaceIndex(projectRoot);
+  const metadata = new Map(index.findings.filter((entry) => entry.archived).map((entry) => [entry.id, entry]));
+  const dir = archivedFindingsDir(projectRoot);
+  const files = await listFindingFiles(dir);
+  const summaries: ArchivedFindingSummary[] = [];
+  for (const file of files) {
+    const id = findingIdFromFile(file);
+    const summary = await readFindingSummary(join(dir, file), id);
+    const sidecar = await readArchiveMetadata(id, projectRoot);
+    const archived = metadata.get(id);
+    summaries.push({
+      ...summary,
+      archivedAt: sidecar?.archivedAt ?? archived?.archivedAt ?? "unknown",
+      archiveReason: sidecar?.archiveReason ?? archived?.archiveReason ?? "unknown",
+    });
+  }
+  return summaries.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+export async function restoreFinding(
+  target: string,
+  projectRoot = process.cwd(),
+  options: { force?: boolean } = {},
+): Promise<FindingRestoreResult> {
+  await ensureWorkspaceDirs(projectRoot);
+  const id = normalizeFindingId(target);
+  const from = join(archivedFindingsDir(projectRoot), `${id}.yaml`);
+  const to = join(findingsDir(projectRoot), `${id}.yaml`);
+  if (!existsSync(from)) {
+    throw new Error(`${from} does not exist`);
+  }
+  if (existsSync(to) && !options.force) {
+    throw new Error(`${to} already exists; use --force to overwrite`);
+  }
+  const status = getString(parseEvidenceYaml(await readFile(from, "utf-8")).data, "status") || "unknown";
+  await rename(from, to);
+  await removeWorkspaceFinding(id, true, projectRoot);
+  await touchWorkspaceFinding(id, status, projectRoot);
+  await appendWorkspaceActivity({ action: "finding.restore", id, status, archived: false, from, to }, projectRoot);
+  return { id, from, to, status };
+}
+
 export async function ensureFindingsDir(projectRoot = process.cwd()): Promise<string> {
+  await ensureWorkspaceDirs(projectRoot);
   const dir = findingsDir(projectRoot);
   await mkdir(dir, { recursive: true });
   return dir;
@@ -330,6 +515,122 @@ function computeReadiness(data: Record<string, unknown>): number {
   }
   if (getBoolean(data, "disclosure.vendor_contacted")) score += 5;
   return score;
+}
+
+async function readFindingSummary(path: string, id: string): Promise<FindingSummary> {
+  const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
+  return {
+    id,
+    path,
+    status: getString(parsed, "status") || "unknown",
+    ecosystem: getString(parsed, "package.ecosystem") || "unknown",
+    package: getString(parsed, "package.registry_name") || getString(parsed, "package.product") || "unknown",
+    vulnerability: getString(parsed, "vulnerability.class") || "unknown",
+    readiness: computeReadiness(parsed),
+  };
+}
+
+function workflowMissingFields(validation: FindingValidation): string[] {
+  const missing = new Set<string>();
+  for (const error of validation.errors) {
+    const match = error.match(/^([A-Za-z0-9_.]+) /);
+    if (match) {
+      missing.add(match[1]);
+    }
+  }
+  for (const warning of validation.warnings) {
+    const match = warning.match(/^([A-Za-z0-9_.]+) is unknown/);
+    if (match) {
+      missing.add(match[1]);
+    }
+  }
+  return Array.from(missing).sort();
+}
+
+function workflowNextAction(
+  finding: FindingSummary,
+  validation: FindingValidation,
+  missingFields: string[],
+): string {
+  if (finding.status === "blocked") {
+    return `omv findings archive ${finding.id} --reason blocked`;
+  }
+  if (finding.status === "confirmed" && validation.ok) {
+    return `/omv-report ${finding.id}`;
+  }
+  const missing = new Set(missingFields);
+  if (
+    missing.has("evidence.source") ||
+    missing.has("evidence.sink") ||
+    missing.has("evidence.guard") ||
+    missing.has("evidence.reproducer") ||
+    missing.has("cvss.vector")
+  ) {
+    return `/omv-audit ${finding.id}`;
+  }
+  if (missing.has("evidence.observed_result")) {
+    return `/omv-repro ${finding.id}`;
+  }
+  if (finding.status === "candidate" && validation.ok && finding.readiness >= 75) {
+    return `omv findings promote ${finding.id} --status confirmed`;
+  }
+  return `/omv-audit ${finding.id}`;
+}
+
+function workflowPriority(
+  finding: FindingSummary,
+  validation: FindingValidation,
+  missingFields: string[],
+  nextAction: string,
+): number {
+  if (finding.status === "confirmed" && validation.ok) {
+    return 100;
+  }
+  if (nextAction.includes("--status confirmed")) {
+    return 90;
+  }
+  if (nextAction.startsWith("/omv-repro")) {
+    return 80;
+  }
+  if (nextAction.startsWith("/omv-audit")) {
+    return Math.max(20, 70 - missingFields.length);
+  }
+  if (finding.status === "blocked") {
+    return 10;
+  }
+  return Math.min(60, finding.readiness);
+}
+
+function workflowPriorityReason(priority: number, nextAction: string): string {
+  if (priority >= 100) return "confirmed finding ready for report";
+  if (priority >= 90) return "submission-ready candidate needs promotion";
+  if (priority >= 80) return "only local reproduction is blocking confirmation";
+  if (priority >= 20) return "audit evidence still missing";
+  if (nextAction.includes("archive")) return "blocked finding can be archived";
+  return "low readiness";
+}
+
+async function listReportArtifacts(id: string, projectRoot: string): Promise<string[]> {
+  const dir = findingReportsDir(id, projectRoot);
+  if (!existsSync(dir)) {
+    return [];
+  }
+  const paths: string[] = [];
+  await collectReportArtifacts(dir, paths);
+  return paths.sort();
+}
+
+async function collectReportArtifacts(dir: string, paths: string[]): Promise<void> {
+  for (const dirent of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, dirent.name);
+    if (dirent.isDirectory()) {
+      await collectReportArtifacts(path, paths);
+      continue;
+    }
+    if (dirent.isFile() && (await stat(path)).size >= 0) {
+      paths.push(path);
+    }
+  }
 }
 
 function requireKnown(

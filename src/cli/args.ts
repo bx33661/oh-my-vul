@@ -40,10 +40,51 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
+    case "dashboard":
+      return validateOptions(args.slice(1), {
+        command: "dashboard",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "workspace":
+      return validateWorkspaceArgs(args.slice(1));
     case "findings":
       return validateFindingsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: setup, doctor, findings, help`);
+      return fail(`Unknown command: ${command}. Valid commands: version, setup, doctor, dashboard, workspace, findings, help`);
+  }
+}
+
+function validateWorkspaceArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0] ?? "status";
+  const rest = args[0] ? args.slice(1) : args;
+
+  switch (subcommand) {
+    case "init":
+    case "status":
+      return validateOptions(rest, {
+        command: `workspace ${subcommand}`,
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "log":
+      return validateOptions(rest, {
+        command: "workspace log",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`workspace ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown workspace command: ${subcommand}. Valid commands: init, status, log, help`);
   }
 }
 
@@ -59,6 +100,30 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
         options: new Map(),
         minPositionals: 0,
         maxPositionals: 0,
+      });
+    case "workflow":
+      return validateOptions(rest, {
+        command: "findings workflow",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "show":
+      return validateOptions(rest, {
+        command: "findings show",
+        flags: new Set(["--archived", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "open":
+      return validateOptions(rest, {
+        command: "findings open",
+        flags: new Set(["--archived", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
       });
     case "init":
       return validateOptions(rest, {
@@ -85,19 +150,51 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
         maxPositionals: 1,
         requiredOptions: new Set(["--status"]),
       });
+    case "archive":
+      return validateFindingsArchiveArgs(rest);
+    case "restore":
+      return validateOptions(rest, {
+        command: "findings restore",
+        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
     case "help":
     case "--help":
     case "-h":
       return rest.length === 0 ? ok() : fail(`findings ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, init, validate, promote, help`);
+      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, workflow, show, open, init, validate, promote, archive, restore, help`);
   }
+}
+
+function validateFindingsArchiveArgs(args: string[]): ArgsValidation {
+  if (args[0] === "list") {
+    return validateOptions(args.slice(1), {
+      command: "findings archive list",
+      flags: new Set(["--json", ...HELP_FLAGS]),
+      options: new Map(),
+      minPositionals: 0,
+      maxPositionals: 0,
+    });
+  }
+  return validateOptions(args, {
+    command: "findings archive",
+    flags: new Set(["--force", "--strict", "--json", ...HELP_FLAGS]),
+    options: new Map(),
+    freeOptions: new Set(["--reason"]),
+    minPositionals: 1,
+    maxPositionals: 1,
+    requiredOptions: new Set(["--reason"]),
+  });
 }
 
 interface OptionSpec {
   command: string;
   flags: Set<string>;
   options: Map<string, Set<string>>;
+  freeOptions?: Set<string>;
   minPositionals: number;
   maxPositionals: number;
   requiredOptions?: Set<string>;
@@ -120,6 +217,15 @@ function validateOptions(args: string[], spec: OptionSpec): ArgsValidation {
     if (spec.flags.has(value)) {
       continue;
     }
+    if (spec.freeOptions?.has(value)) {
+      const optionValue = args[index + 1];
+      if (!optionValue || optionValue.startsWith("--")) {
+        return fail(`${value} requires a value`);
+      }
+      seenOptions.add(value);
+      index += 1;
+      continue;
+    }
     const allowedValues = spec.options.get(value);
     if (!allowedValues) {
       return fail(`Unknown flag for ${spec.command}: ${value}`);
@@ -138,7 +244,8 @@ function validateOptions(args: string[], spec: OptionSpec): ArgsValidation {
   for (const option of spec.requiredOptions ?? []) {
     if (!seenOptions.has(option)) {
       const allowedValues = spec.options.get(option) ?? new Set<string>();
-      return fail(`${option} requires one of: ${Array.from(allowedValues).join(", ")}`);
+      const message = allowedValues.size > 0 ? `one of: ${Array.from(allowedValues).join(", ")}` : "a value";
+      return fail(`${option} requires ${message}`);
     }
   }
 

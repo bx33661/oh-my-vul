@@ -36,11 +36,37 @@ test("CLI argument validation enforces command positional arity", () => {
   assert.equal(validateArgs(["findings", "validate", "demo", "--json"]).ok, true);
 });
 
+test("CLI argument validation covers workspace and archive workflow commands", () => {
+  assert.equal(validateArgs(["workspace", "init"]).ok, true);
+  assert.equal(validateArgs(["workspace", "status", "--json"]).ok, true);
+  assert.equal(validateArgs(["workspace", "log", "--json"]).ok, true);
+  assert.equal(validateArgs(["workspace", "bogus"]).ok, false);
+  assert.match(validateArgs(["workspace", "bogus"]).error ?? "", /Unknown workspace command/);
+
+  assert.equal(validateArgs(["findings", "workflow"]).ok, true);
+  assert.equal(validateArgs(["findings", "show", "demo", "--archived"]).ok, true);
+  assert.equal(validateArgs(["findings", "open", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["findings", "archive", "demo", "--reason", "reported", "--strict"]).ok, true);
+  assert.equal(validateArgs(["findings", "archive", "demo", "--reason", "reported"]).ok, true);
+  assert.equal(validateArgs(["findings", "archive", "list", "--json"]).ok, true);
+  assert.equal(validateArgs(["findings", "restore", "demo", "--force"]).ok, true);
+
+  const missingReason = validateArgs(["findings", "archive", "demo"]);
+  assert.equal(missingReason.ok, false);
+  assert.match(missingReason.error ?? "", /--reason requires/);
+
+  const extraWorkflowArg = validateArgs(["findings", "workflow", "extra"]);
+  assert.equal(extraWorkflowArg.ok, false);
+  assert.match(extraWorkflowArg.error ?? "", /accepts at most 0 positional/);
+});
+
 test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["version"]).ok, true);
   assert.equal(validateArgs(["version", "--json"]).ok, true);
   assert.equal(validateArgs(["setup", "--json", "--force"]).ok, true);
   assert.equal(validateArgs(["doctor", "--strict"]).ok, true);
+  assert.equal(validateArgs(["dashboard"]).ok, true);
+  assert.equal(validateArgs(["dashboard", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--strict"]).ok, true);
   assert.equal(validateArgs(["setup", "--help"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--help"]).ok, true);

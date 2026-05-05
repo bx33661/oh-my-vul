@@ -1,0 +1,33 @@
+{
+  "skill_name": "omv",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv next",
+      "expected_output": "The agent delegates next-action discovery to the CLI workflow dashboard.",
+      "files": [
+        "evals/golden/next-workflow.md"
+      ],
+      "assertions": [
+        {
+          "type": "delegates_next_to_cli",
+          "text": "next command must run omv findings workflow"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "/omv archive demo --reason reported",
+      "expected_output": "The agent delegates archive requests to the CLI and does not move files manually.",
+      "files": [
+        "evals/golden/archive-delegation.md"
+      ],
+      "assertions": [
+        {
+          "type": "delegates_archive_to_cli",
+          "text": "archive command must run omv findings archive with reason"
+        }
+      ]
+    }
+  ]
+}
