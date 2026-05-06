@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { setup } from "./setup.js";
-import { doctor } from "./doctor.js";
+import { doctor, type Check, type DoctorResult } from "./doctor.js";
 import { validateArgs } from "./args.js";
 import { readCatalog } from "./catalog.js";
 import { packageRoot } from "./paths.js";
 import { readFile } from "fs/promises";
+import type { SetupResult } from "./setup.js";
 import {
   listFindings,
   validateFinding,
@@ -33,9 +34,12 @@ import {
   error as tuiError,
   kv,
   muted,
+  outcomeBadge,
   panel,
   readiness,
+  section,
   statusBadge,
+  statusIcon,
   table,
   title,
   truncate,
@@ -224,24 +228,9 @@ async function runSetup(): Promise<void> {
     return;
   }
 
-  console.log(`Scope: ${result.scope}`);
-  console.log(`Destination: ${result.destination}\n`);
+  printSetupResult(result);
 
-  for (const name of result.installed) {
-    console.log(`  installed  ${name}`);
-  }
-  for (const name of result.skipped) {
-    console.log(`  skipped    ${name}  (already installed; use --force to overwrite)`);
-  }
-  for (const msg of result.errors) {
-    console.error(`  error      ${msg}`);
-  }
-
-  const total = result.installed.length + result.skipped.length;
-  if (result.errors.length === 0) {
-    console.log(`\n${result.installed.length}/${total} skill(s) installed.`);
-  } else {
-    console.error(`\n${result.errors.length} error(s). ${result.installed.length} installed.`);
+  if (result.errors.length > 0) {
     process.exit(1);
   }
 }
@@ -261,18 +250,8 @@ async function runDoctor(): Promise<void> {
     return;
   }
 
-  console.log(`Scope: ${result.scope}`);
-  console.log(`Skills: ${result.skillsDir}\n`);
-
-  for (const check of result.checks) {
-    const icon = check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "✗";
-    console.log(`  ${icon}  ${check.name.padEnd(24)} ${check.message}`);
-  }
-
-  if (ok) {
-    console.log(result.warnings ? "\nChecks passed with warnings." : "\nAll checks passed.");
-  } else {
-    console.error(result.ok ? "\nChecks passed with warnings; strict mode failed." : "\nSome checks failed.");
+  printDoctorResult(result, strict);
+  if (!ok) {
     process.exit(1);
   }
 }
@@ -590,6 +569,94 @@ async function runFindingsRestore(json: boolean): Promise<void> {
   printRestoreResult(result);
 }
 
+function printSetupResult(result: SetupResult): void {
+  const total = result.installed.length + result.skipped.length + result.errors.length;
+  const summary = result.errors.length > 0
+    ? `${result.errors.length} error(s), ${result.installed.length}/${total} skill(s) installed`
+    : result.installed.length === 0
+      ? `${result.skipped.length}/${total} skill(s) already installed`
+      : `${result.installed.length}/${total} skill(s) installed`;
+  const next = result.errors.length > 0
+    ? `omv setup --scope ${result.scope} --force`
+    : "omv doctor";
+  const finalState = result.errors.length > 0 ? "error" : result.installed.length === 0 ? "skipped" : "installed";
+
+  console.log(title("oh-my-vul setup"));
+  console.log(
+    panel("install summary", [
+      ...kv([
+        ["scope", result.scope],
+        ["destination", result.destination],
+        ["result", outcomeBadge(finalState)],
+        ["skills", summary],
+        ["next", cmd(next)],
+      ]),
+    ]),
+  );
+
+  const rows = [
+    ...result.installed.map((name) => [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
+    ...result.skipped.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "already installed; use --force to overwrite"]),
+    ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
+  ];
+  if (rows.length > 0) {
+    console.log(table(["", "skill", "state", "detail"], rows));
+  }
+}
+
+function printDoctorResult(result: DoctorResult, strict: boolean): void {
+  const passed = result.checks.filter((item) => item.status === "pass").length;
+  const warned = result.checks.filter((item) => item.status === "warn").length;
+  const failed = result.checks.filter((item) => item.status === "fail").length;
+  const finalState = failed > 0 ? "fail" : strict && warned > 0 ? "fail" : warned > 0 ? "warn" : "pass";
+  const next = failed > 0
+    ? `omv setup --scope ${result.scope} --force`
+    : warned > 0
+      ? `omv doctor --scope ${result.scope} --strict`
+      : "omv dashboard";
+
+  console.log(title("oh-my-vul doctor"));
+  console.log(
+    panel("health summary", [
+      ...kv([
+        ["scope", result.scope],
+        ["skills", result.skillsDir],
+        ["status", outcomeBadge(finalState)],
+        ["checks", `${passed} pass, ${warned} warn, ${failed} fail`],
+        ["next", cmd(next)],
+      ]),
+    ]),
+  );
+
+  console.log(section("Checks"));
+  console.log(
+    table(
+      ["", "check", "state", "detail"],
+      result.checks.map((check) => [
+        statusIcon(check.status),
+        truncate(check.name, 30),
+        outcomeBadge(check.status),
+        truncate(check.message, 76),
+      ]),
+    ),
+  );
+
+  const warnings = result.checks.filter((item) => item.status === "warn");
+  if (warnings.length > 0) {
+    console.log(panel("warnings", warnings.map(formatCheckDetail)));
+  }
+  const failures = result.checks.filter((item) => item.status === "fail");
+  if (failures.length > 0) {
+    console.log(panel("failures", failures.map(formatCheckDetail)));
+  } else if (strict && warnings.length > 0) {
+    console.log(panel("strict mode", [warn("warnings are treated as failures in --strict mode")]));
+  }
+}
+
+function formatCheckDetail(check: Check): string {
+  return `${statusIcon(check.status)} ${check.name}: ${check.message}`;
+}
+
 function printWorkspaceStatus(result: WorkspaceStatus): void {
   const statuses = Object.entries(result.statusCounts)
     .map(([status, count]) => `${status}=${count}`)
@@ -638,11 +705,12 @@ function printDashboard(
   } else {
     console.log(
       table(
-      ["id", "status", "ready", "next action"],
+      ["id", "status", "evidence", "submission", "next action"],
       workflow.slice(0, 8).map((finding) => [
         truncate(finding.id, 30),
         statusBadge(finding.status),
-        readiness(finding.readiness),
+        readiness(finding.evidenceScore),
+        readiness(finding.submissionScore),
         cmd(truncate(finding.nextAction, 54)),
       ]),
       ),
@@ -686,11 +754,12 @@ function printFindingSummaries(findings: FindingSummary[]): void {
   console.log(title("active findings"));
   console.log(
     table(
-      ["id", "status", "ready", "package", "vulnerability"],
+      ["id", "status", "evidence", "submission", "package", "vulnerability"],
       findings.map((finding) => [
         truncate(finding.id, 36),
         statusBadge(finding.status),
-        readiness(finding.readiness),
+        readiness(finding.evidenceScore),
+        readiness(finding.submissionScore),
         truncate(`${finding.ecosystem}:${finding.package}`, 42),
         truncate(finding.vulnerability, 36),
       ]),
@@ -702,12 +771,13 @@ function printWorkflowSummaries(findings: FindingWorkflowSummary[]): void {
   console.log(title("workflow queue"));
   console.log(
     table(
-      ["id", "priority", "status", "ready", "next action", "package", "vulnerability"],
+      ["id", "priority", "status", "evidence", "submission", "next action", "package", "vulnerability"],
       findings.map((finding) => [
         truncate(finding.id, 30),
         String(finding.priority),
         statusBadge(finding.status),
-        readiness(finding.readiness),
+        readiness(finding.evidenceScore),
+        readiness(finding.submissionScore),
         cmd(truncate(finding.nextAction, 46)),
         truncate(`${finding.ecosystem}:${finding.package}`, 34),
         truncate(finding.vulnerability, 30),
@@ -720,13 +790,18 @@ function printFindingDetail(finding: FindingDetail): void {
   console.log(title(`finding ${finding.id}`));
   const lines = kv([
     ["status", statusBadge(finding.status)],
-    ["readiness", readiness(finding.readiness)],
+    ["evidence", readiness(finding.evidenceScore)],
+    ["submission", readiness(finding.submissionScore)],
+    ["verdict", `${finding.verdict.exploitability}/${finding.verdict.confidence}`],
     ["validation", validationBadge(finding.validation.ok)],
     ["priority", `${finding.priority} (${finding.priorityReason})`],
     ["path", finding.path],
     ["package", `${finding.ecosystem}:${finding.package}`],
     ["vulnerability", finding.vulnerability],
   ]);
+  if (finding.reproArtifacts.length > 0) {
+    lines.push(...kv([["repro artifacts", String(finding.reproArtifacts.length)]]));
+  }
   if (finding.archived) {
     lines.push(...kv([
       ["archived", finding.archivedAt ?? "unknown"],
@@ -774,7 +849,8 @@ function printArchivedSummaries(findings: ArchivedFindingSummary[]): void {
 function printFindingValidation(result: FindingValidation): void {
   const lines = kv([
     ["status", statusBadge(result.status)],
-    ["readiness", readiness(result.readiness)],
+    ["evidence", readiness(result.evidenceScore)],
+    ["submission", readiness(result.submissionScore)],
     ["validation", validationBadge(result.ok)],
     ["path", result.path],
   ]);

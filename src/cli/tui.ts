@@ -1,19 +1,17 @@
-const ANSI_RE = /\u001b\[[0-9;]*m/g;
+import boxen from "boxen";
+import Table from "cli-table3";
+import pc from "picocolors";
+import stringWidth from "string-width";
+import wrapAnsi from "wrap-ansi";
 
-const COLOR = {
-  reset: "\u001b[0m",
-  bold: "\u001b[1m",
-  dim: "\u001b[2m",
-  red: "\u001b[31m",
-  green: "\u001b[32m",
-  yellow: "\u001b[33m",
-  blue: "\u001b[34m",
-  cyan: "\u001b[36m",
-  gray: "\u001b[90m",
-};
+const ANSI_RE = /\u001b\[[0-9;]*m/g;
+const color = pc.createColors(shouldColor());
+
+type Outcome = "pass" | "warn" | "fail" | "installed" | "skipped" | "error";
+type ColorName = "red" | "green" | "yellow" | "cyan" | "gray";
 
 export function title(text: string): string {
-  return style(`\n${text}`, "bold", "cyan");
+  return color.bold(color.cyan(`\n◆ ${text}`));
 }
 
 export function empty(text: string): string {
@@ -21,33 +19,54 @@ export function empty(text: string): string {
 }
 
 export function panel(heading: string, lines: string[]): string {
-  const maxWidth = Math.max(48, Math.min(process.stdout.columns ? process.stdout.columns - 4 : 100, 120));
-  const wrapped = lines.flatMap((line) => wrapLine(line, maxWidth));
-  const width = Math.min(maxWidth, Math.max(visibleLength(heading), ...wrapped.map(visibleLength), 12));
-  const top = `╭─ ${heading} ${"─".repeat(Math.max(0, width - visibleLength(heading) - 1))}╮`;
-  const body = wrapped.map((line) => `│ ${line}${" ".repeat(width - visibleLength(line))} │`);
-  const bottom = `╰${"─".repeat(width + 2)}╯`;
-  return [top, ...body, bottom].join("\n");
+  const maxWidth = terminalWidth();
+  const content = lines
+    .flatMap((line) => wrapAnsi(line, maxWidth - 6, { hard: true }).split("\n"))
+    .join("\n");
+  return boxen(content, {
+    title: ` ${heading} `,
+    padding: { top: 0, bottom: 0, left: 1, right: 1 },
+    borderStyle: "round",
+    borderColor: shouldColor() ? "cyan" : undefined,
+    width: Math.min(maxWidth, Math.max(48, widestLine([heading, content]) + 4)),
+  });
 }
 
 export function kv(rows: Array<[string, string]>): string[] {
-  const width = Math.max(...rows.map(([key]) => key.length), 1);
-  return rows.map(([key, value]) => `${muted(key.padEnd(width))}  ${value}`);
+  const width = Math.max(...rows.map(([key]) => stringWidth(key)), 1);
+  return rows.map(([key, value]) => `${muted(pad(key, width))}  ${value}`);
 }
 
 export function table(headers: string[], rows: string[][]): string {
-  const widths = headers.map((header, index) =>
-    Math.max(
-      visibleLength(header),
-      ...rows.map((row) => visibleLength(row[index] ?? "")),
-    ),
-  );
-  const top = `╭${widths.map((width) => "─".repeat(width + 2)).join("┬")}╮`;
-  const head = `│ ${headers.map((header, index) => style(pad(header, widths[index]), "bold")).join(" │ ")} │`;
-  const sep = `├${widths.map((width) => "─".repeat(width + 2)).join("┼")}┤`;
-  const body = rows.map((row) => `│ ${row.map((cell, index) => pad(cell ?? "", widths[index])).join(" │ ")} │`);
-  const bottom = `╰${widths.map((width) => "─".repeat(width + 2)).join("┴")}╯`;
-  return [top, head, sep, ...body, bottom].join("\n");
+  const instance = new Table({
+    head: headers.map((header) => color.bold(header)),
+    chars: {
+      top: "─",
+      "top-mid": "┬",
+      "top-left": "╭",
+      "top-right": "╮",
+      bottom: "─",
+      "bottom-mid": "┴",
+      "bottom-left": "╰",
+      "bottom-right": "╯",
+      left: "│",
+      "left-mid": "├",
+      mid: "─",
+      "mid-mid": "┼",
+      right: "│",
+      "right-mid": "┤",
+      middle: "│",
+    },
+    style: {
+      head: [],
+      border: shouldColor() ? ["cyan"] : [],
+      compact: true,
+    },
+    wordWrap: true,
+    wrapOnWordBoundary: false,
+  });
+  instance.push(...rows);
+  return instance.toString();
 }
 
 export function statusBadge(status: string): string {
@@ -62,82 +81,87 @@ export function validationBadge(ok: boolean): string {
   return ok ? badge("OK", "green") : badge("FAIL", "red");
 }
 
+export function outcomeBadge(status: Outcome): string {
+  if (status === "pass" || status === "installed") return badge(status, "green");
+  if (status === "warn" || status === "skipped") return badge(status, "yellow");
+  return badge(status, "red");
+}
+
+export function statusIcon(status: Outcome): string {
+  if (status === "pass" || status === "installed") return color.green("✓");
+  if (status === "warn" || status === "skipped") return color.yellow("!");
+  return color.red("✗");
+}
+
+export function section(text: string): string {
+  return color.bold(text);
+}
+
 export function readiness(value: number): string {
   const bounded = Math.max(0, Math.min(100, value));
   const filled = Math.round(bounded / 10);
   const bar = `${"█".repeat(filled)}${"░".repeat(10 - filled)}`;
-  const color = bounded >= 75 ? "green" : bounded >= 50 ? "yellow" : "red";
-  return `${style(bar, color)} ${String(bounded).padStart(3)}/100`;
+  const painted = bounded >= 75 ? color.green(bar) : bounded >= 50 ? color.yellow(bar) : color.red(bar);
+  return `${painted} ${String(bounded).padStart(3)}/100`;
 }
 
 export function command(text: string): string {
-  return style(text, "cyan");
+  return color.cyan(text);
 }
 
 export function muted(text: string): string {
-  return style(text, "gray");
+  return color.gray(text);
 }
 
 export function warn(text: string): string {
-  return style(text, "yellow");
+  return color.yellow(text);
 }
 
 export function error(text: string): string {
-  return style(text, "red");
+  return color.red(text);
 }
 
 export function truncate(value: string, maxLength: number): string {
-  if (visibleLength(value) <= maxLength) {
+  if (stringWidth(value) <= maxLength) {
     return value;
   }
   const plain = value.replace(ANSI_RE, "");
-  return `${plain.slice(0, Math.max(0, maxLength - 1))}…`;
+  let output = "";
+  for (const char of plain) {
+    if (stringWidth(`${output}${char}…`) > maxLength) {
+      break;
+    }
+    output += char;
+  }
+  return `${output}…`;
 }
 
-function badge(text: string, color: keyof typeof COLOR): string {
-  return style(` ${text} `, color);
+function badge(text: string, colorName: ColorName): string {
+  const value = ` ${text} `;
+  switch (colorName) {
+    case "green":
+      return color.green(value);
+    case "red":
+      return color.red(value);
+    case "yellow":
+      return color.yellow(value);
+    case "cyan":
+      return color.cyan(value);
+    case "gray":
+      return color.gray(value);
+  }
 }
 
 function pad(value: string, width: number): string {
-  return `${value}${" ".repeat(Math.max(0, width - visibleLength(value)))}`;
+  return `${value}${" ".repeat(Math.max(0, width - stringWidth(value)))}`;
 }
 
-function visibleLength(value: string): number {
-  return value.replace(ANSI_RE, "").length;
+function widestLine(lines: string[]): number {
+  return Math.max(...lines.flatMap((line) => line.split("\n")).map((line) => stringWidth(line)), 0);
 }
 
-function wrapLine(line: string, width: number): string[] {
-  if (visibleLength(line) <= width) {
-    return [line];
-  }
-  const plain = line.replace(ANSI_RE, "");
-  const indent = plain.match(/^\s*/)?.[0] ?? "";
-  const words = plain.trimEnd().split(/(\s+)/);
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    if (current && visibleLength(current + word) > width) {
-      lines.push(current.trimEnd());
-      current = indent + word.trimStart();
-      continue;
-    }
-    current += word;
-    while (visibleLength(current) > width) {
-      lines.push(current.slice(0, width));
-      current = indent + current.slice(width);
-    }
-  }
-  if (current) {
-    lines.push(current.trimEnd());
-  }
-  return lines.length > 0 ? lines : [""];
-}
-
-function style(text: string, ...styles: Array<keyof typeof COLOR>): string {
-  if (!shouldColor()) {
-    return text;
-  }
-  return `${styles.map((name) => COLOR[name]).join("")}${text}${COLOR.reset}`;
+function terminalWidth(): number {
+  return Math.max(48, Math.min(process.stdout.columns ? process.stdout.columns - 4 : 100, 120));
 }
 
 function shouldColor(): boolean {

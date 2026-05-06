@@ -49,6 +49,7 @@ evidence:
   guard: unknown           # check that is missing/bypassable; include file:line or explicit absence
   reproducer: unknown      # local PoC command or description; "none" if not yet written
   observed_result: unknown # user-reported local observation; do not infer or fabricate
+  repro_artifacts: []      # optional .omv/repro/<id>/ files: commands.sh, observed.txt, screenshots/, docker-compose.yml
 
 # ── CVSS ──────────────────────────────────────────────────────────────────────
 cvss:
@@ -90,6 +91,12 @@ blockers: []
 #   - "developer-controlled trigger only"
 #   - "no local reproducer"
 
+# ── Audit Verdict ─────────────────────────────────────────────────────────────
+verdict:
+  exploitability: unknown  # proven | plausible | blocked | disproven | unknown
+  confidence: unknown      # high | medium | low | unknown
+  reason: ""               # concise reason for the current verdict
+
 # ── Provenance ────────────────────────────────────────────────────────────────
 provenance:
   verification_date: ""
@@ -97,10 +104,13 @@ provenance:
   unverified_fields: []    # list field paths that carry "unknown" or unconfirmed data; checked by CLI validation
   tool_versions: {}        # e.g. {omv-find: "1.0"}
 
-# ── CVE Readiness (computed, not stored) ─────────────────────────────────────
-# omv-report computes this from field completeness before deciding output mode.
+# ── Evidence and Submission Scores (computed, not stored) ─────────────────────
+# omv computes evidence_score from field completeness.
+# omv computes submission_score by penalizing unresolved blockers, unknown
+# observed_result, unknown affected range, incomplete dedup, and blocked/disproven
+# verdicts. A high evidence_score is not enough for submission-ready output.
 #
-# Scoring guide (total 100):
+# Evidence scoring guide (total 100):
 #   tested version present          +20
 #   source identified               +10
 #   sink identified                 +10
@@ -111,7 +121,8 @@ provenance:
 #   dedup search completed          +10
 #   vendor contacted                +5
 #
-# Threshold: score >= 75 required for submission-ready report output.
+# Threshold: submission_score >= 75 plus validation OK is required before
+# suggesting promotion to confirmed.
 cve_readiness_scoring:
   tested_version: 20
   source_identified: 10

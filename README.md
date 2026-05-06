@@ -4,6 +4,8 @@
 [![npm](https://img.shields.io/npm/v/oh-my-vul)](https://www.npmjs.com/package/oh-my-vul)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+[中文文档](README.zh-CN.md) · [漏洞挖掘最佳实践](docs/vulnerability-research-best-practices.zh-CN.md)
+
 Evidence-first vulnerability research skills for Claude Code.
 
 `oh-my-vul` helps you find promising open-source audit targets, keep the evidence organized, and turn confirmed findings into reviewer-friendly VulDB, CVE, GHSA, OSV, or Markdown advisory drafts.

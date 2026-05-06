@@ -8,6 +8,7 @@ import {
   archivedFindingsDir,
   findingsDir,
   omvStateDir,
+  reproDir,
   workspaceActivityLogPath,
   workspaceIndexPath,
 } from "./paths.js";
@@ -97,6 +98,7 @@ export async function workspaceStatus(projectRoot = process.cwd()): Promise<Work
 
 export async function ensureWorkspaceDirs(projectRoot = process.cwd()): Promise<void> {
   await mkdir(findingsDir(projectRoot), { recursive: true });
+  await mkdir(reproDir(projectRoot), { recursive: true });
   await mkdir(archivedFindingsDir(projectRoot), { recursive: true });
   await mkdir(archiveMetadataDir(projectRoot), { recursive: true });
 }

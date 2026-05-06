@@ -90,10 +90,14 @@ test("findings ledger lists and validates Evidence.v1 files", async () => {
     assert.equal(findings[0].ecosystem, "npm");
     assert.equal(findings[0].package, "demo-package");
     assert.equal(findings[0].readiness, 95);
+    assert.equal(findings[0].evidenceScore, 95);
+    assert.equal(findings[0].submissionScore, 85);
 
     const validation = await validateFinding("demo", projectRoot);
     assert.equal(validation.ok, true);
     assert.deepEqual(validation.errors, []);
+    assert.equal(validation.evidenceScore, 95);
+    assert.equal(validation.submissionScore, 85);
 
     const all = await validateFindings(projectRoot);
     assert.equal(all.length, 1);
@@ -282,6 +286,34 @@ test("finding workflow recommends audit, repro, report, and archive next actions
       workflow.find((finding) => finding.id === "blocked")?.nextAction,
       "omv findings archive blocked --reason blocked",
     );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("workflow separates evidence completeness from submission readiness", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "blocked-candidate.yaml"),
+      BASE_FINDING
+        .replace("observed_result: reads outside base directory", "observed_result: unknown")
+        .replace("blockers: []", "blockers:\n  - local PoC not executed")
+        .replace("unverified_fields: []", "unverified_fields: [evidence.observed_result]"),
+      "utf-8",
+    );
+
+    const validation = await validateFinding("blocked-candidate", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.equal(validation.evidenceScore, 85);
+    assert.equal(validation.submissionScore, 20);
+    assert.match(validation.warnings.join("\n"), /blockers remain unresolved/);
+
+    const workflow = await listFindingWorkflow(projectRoot);
+    assert.equal(workflow[0].nextAction, "/omv-audit blocked-candidate");
+    assert.equal(workflow[0].priorityReason, "audit evidence still missing");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

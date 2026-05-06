@@ -25,6 +25,10 @@ export {
   archivedFindingsDir,
   archiveMetadataDir,
   archiveMetadataPath,
+  reportsDir,
+  findingReportsDir,
+  reproDir,
+  findingReproDir,
   workspaceIndexPath,
   workspaceActivityLogPath,
   setupScopePath,
@@ -53,4 +57,5 @@ export type {
   FindingArchiveResult,
   FindingRestoreResult,
   CreateFindingTemplateOptions,
+  FindingVerdict,
 } from "./cli/findings.js";

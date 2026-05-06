@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { archivedFindingsDir, findingsDir, workspaceIndexPath } from "../paths.js";
+import { archivedFindingsDir, findingsDir, reproDir, workspaceIndexPath } from "../paths.js";
 import { initWorkspace, readWorkspaceActivity, workspaceStatus } from "../workspace.js";
 
 test("workspace init creates local state and is idempotent", async () => {
@@ -13,6 +13,7 @@ test("workspace init creates local state and is idempotent", async () => {
   try {
     const result = await initWorkspace(projectRoot);
     assert.equal(existsSync(findingsDir(projectRoot)), true);
+    assert.equal(existsSync(reproDir(projectRoot)), true);
     assert.equal(existsSync(archivedFindingsDir(projectRoot)), true);
     assert.equal(existsSync(workspaceIndexPath(projectRoot)), true);
     assert.equal(result.activeCount, 0);

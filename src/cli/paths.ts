@@ -74,6 +74,16 @@ export function findingReportsDir(id: string, projectRoot = process.cwd()): stri
   return join(reportsDir(projectRoot), id);
 }
 
+/** .omv/repro/ — project-scoped local reproduction artifacts. */
+export function reproDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "repro");
+}
+
+/** .omv/repro/<id>/ — local reproduction artifacts for one finding. */
+export function findingReproDir(id: string, projectRoot = process.cwd()): string {
+  return join(reproDir(projectRoot), id);
+}
+
 /** .omv/setup-scope.json — persisted setup scope for doctor. */
 export function setupScopePath(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "setup-scope.json");

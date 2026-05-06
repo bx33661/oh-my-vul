@@ -1,8 +1,8 @@
 import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
-import { basename, join } from "path";
+import { basename, isAbsolute, join, relative } from "path";
 import { parse as parseYaml } from "yaml";
-import { archivedFindingsDir, findingReportsDir, findingsDir, packageRoot } from "./paths.js";
+import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot } from "./paths.js";
 import {
   appendWorkspaceActivity,
   ensureWorkspaceDirs,
@@ -24,6 +24,10 @@ export interface FindingSummary {
   package: string;
   vulnerability: string;
   readiness: number;
+  evidenceScore: number;
+  submissionScore: number;
+  verdict: FindingVerdict;
+  reproArtifacts: string[];
 }
 
 export interface FindingValidation {
@@ -32,6 +36,8 @@ export interface FindingValidation {
   ok: boolean;
   status: string;
   readiness: number;
+  evidenceScore: number;
+  submissionScore: number;
   errors: string[];
   warnings: string[];
 }
@@ -80,6 +86,12 @@ export interface FindingTemplateResult {
   created: boolean;
 }
 
+export interface FindingVerdict {
+  exploitability: string;
+  confidence: string;
+  reason: string;
+}
+
 export interface CreateFindingTemplateOptions {
   status?: EvidenceStatus;
   force?: boolean;
@@ -108,6 +120,8 @@ const VALID_SEVERITIES = new Set(["Critical", "High", "Medium", "Low", "None", "
 const VALID_ATTACK_VECTORS = new Set(["Network", "Local", "Physical", "Adjacent", "unknown"]);
 const VALID_TRI_STATE = new Set(["true", "false", "unknown"]);
 const VALID_IMPACT_VALUES = new Set(["High", "Low", "None", "unknown"]);
+const VALID_EXPLOITABILITY = new Set(["proven", "plausible", "blocked", "disproven", "unknown"]);
+const VALID_CONFIDENCE = new Set(["high", "medium", "low", "unknown"]);
 const REQUIRED_CONFIRMED_FIELDS = [
   "versions.tested",
   "evidence.source",
@@ -141,6 +155,9 @@ const UNKNOWN_ACCOUNTING_FIELDS = [
   "disclosure.contact_date",
   "disclosure.vendor_response",
   "disclosure.planned_disclosure_date",
+  "verdict.exploitability",
+  "verdict.confidence",
+  "verdict.reason",
 ];
 
 export async function listFindings(projectRoot = process.cwd()): Promise<FindingSummary[]> {
@@ -217,16 +234,19 @@ export async function validateFinding(target: string, projectRoot = process.cwd(
   const warnings: string[] = [];
 
   errors.push(...parseResult.errors);
-  validateEvidenceData(parsed, status, errors, warnings);
+  validateEvidenceData(parsed, status, errors, warnings, projectRoot);
 
-  const readiness = computeReadiness(parsed);
+  const evidenceScore = computeEvidenceScore(parsed);
+  const submissionScore = computeSubmissionScore(parsed, status, projectRoot);
 
   return {
     id: findingIdFromFile(path),
     path,
     ok: errors.length === 0,
     status: status || "unknown",
-    readiness,
+    readiness: evidenceScore,
+    evidenceScore,
+    submissionScore,
     errors,
     warnings,
   };
@@ -237,6 +257,7 @@ function validateEvidenceData(
   status: string,
   errors: string[],
   warnings: string[],
+  projectRoot: string,
 ): void {
   if (getString(parsed, "schema_version") !== "1") {
     errors.push("schema_version must be 1");
@@ -267,11 +288,13 @@ function validateEvidenceData(
   requireEnum(parsed, errors, "impact.confidentiality", VALID_IMPACT_VALUES);
   requireEnum(parsed, errors, "impact.integrity", VALID_IMPACT_VALUES);
   requireEnum(parsed, errors, "impact.availability", VALID_IMPACT_VALUES);
+  requireEnum(parsed, errors, "verdict.exploitability", VALID_EXPLOITABILITY);
+  requireEnum(parsed, errors, "verdict.confidence", VALID_CONFIDENCE);
   requireDate(parsed, errors, "disclosure.contact_date");
   requireDate(parsed, errors, "disclosure.planned_disclosure_date");
   requireDate(parsed, errors, "provenance.verification_date");
 
-  const readiness = computeReadiness(parsed);
+  const readiness = computeEvidenceScore(parsed);
 
   if (status === "confirmed") {
     for (const path of REQUIRED_CONFIRMED_FIELDS) {
@@ -297,6 +320,7 @@ function validateEvidenceData(
     errors.push("blocked findings must include at least one blocker");
   }
 
+  addEvidenceQualityWarnings(parsed, status, warnings, projectRoot);
   if (!getString(parsed, "provenance.verification_date")) {
     warnings.push("provenance.verification_date is empty");
   }
@@ -357,14 +381,17 @@ export async function promoteFinding(
   const warnings: string[] = [];
   const previousStatus = getString(parseResult.data, "status");
   parseResult.data.status = status;
-  validateEvidenceData(parseResult.data, status, errors, warnings);
+  validateEvidenceData(parseResult.data, status, errors, warnings, projectRoot);
   if (errors.length > 0) {
+    const evidenceScore = computeEvidenceScore(parseResult.data);
     return {
       id: findingIdFromFile(path),
       path,
       ok: false,
       status: previousStatus || "unknown",
-      readiness: computeReadiness(parseResult.data),
+      readiness: evidenceScore,
+      evidenceScore,
+      submissionScore: computeSubmissionScore(parseResult.data, previousStatus || "unknown", projectRoot),
       errors,
       warnings,
     };
@@ -497,7 +524,7 @@ function parseEvidenceYaml(text: string): { data: Record<string, unknown>; error
   }
 }
 
-function computeReadiness(data: Record<string, unknown>): number {
+function computeEvidenceScore(data: Record<string, unknown>): number {
   let score = 0;
   if (isKnown(getString(data, "versions.tested"))) score += 20;
   if (isKnown(getString(data, "evidence.source"))) score += 10;
@@ -517,8 +544,29 @@ function computeReadiness(data: Record<string, unknown>): number {
   return score;
 }
 
+function computeSubmissionScore(data: Record<string, unknown>, status: string, projectRoot: string): number {
+  let score = computeEvidenceScore(data);
+  if (!isKnown(getString(data, "evidence.observed_result"))) score -= 25;
+  if (getList(data, "blockers").length > 0) score -= 30;
+  if (isUnknownPath(data, "versions.affected_range")) score -= 10;
+  if (!getBoolean(data, "dedup.nvd_searched") || !getBoolean(data, "dedup.ghsa_searched") || !getBoolean(data, "dedup.ecosystem_db_searched")) {
+    score -= 15;
+  }
+  const exploitability = getString(data, "verdict.exploitability");
+  if (exploitability === "blocked" || exploitability === "disproven") score -= 50;
+  if (exploitability === "plausible") score -= 10;
+  if (status === "blocked") score = 0;
+  if (status === "confirmed" && score < 75) score -= 10;
+  const artifacts = getReproArtifacts(data, projectRoot);
+  const listedArtifacts = getList(data, "evidence.repro_artifacts");
+  if (listedArtifacts.length > 0 && artifacts.length === 0) score -= 10;
+  return Math.max(0, Math.min(100, score));
+}
+
 async function readFindingSummary(path: string, id: string): Promise<FindingSummary> {
   const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
+  const evidenceScore = computeEvidenceScore(parsed);
+  const projectRoot = projectRootFromFindingPath(path);
   return {
     id,
     path,
@@ -526,7 +574,11 @@ async function readFindingSummary(path: string, id: string): Promise<FindingSumm
     ecosystem: getString(parsed, "package.ecosystem") || "unknown",
     package: getString(parsed, "package.registry_name") || getString(parsed, "package.product") || "unknown",
     vulnerability: getString(parsed, "vulnerability.class") || "unknown",
-    readiness: computeReadiness(parsed),
+    readiness: evidenceScore,
+    evidenceScore,
+    submissionScore: computeSubmissionScore(parsed, getString(parsed, "status") || "unknown", projectRoot),
+    verdict: getVerdict(parsed),
+    reproArtifacts: getReproArtifacts(parsed, projectRoot),
   };
 }
 
@@ -559,6 +611,9 @@ function workflowNextAction(
     return `/omv-report ${finding.id}`;
   }
   const missing = new Set(missingFields);
+  if (getListFromWarnings(validation.warnings, "blockers").length > 0) {
+    return `/omv-audit ${finding.id}`;
+  }
   if (
     missing.has("evidence.source") ||
     missing.has("evidence.sink") ||
@@ -571,7 +626,7 @@ function workflowNextAction(
   if (missing.has("evidence.observed_result")) {
     return `/omv-repro ${finding.id}`;
   }
-  if (finding.status === "candidate" && validation.ok && finding.readiness >= 75) {
+  if (finding.status === "candidate" && validation.ok && finding.submissionScore >= 75) {
     return `omv findings promote ${finding.id} --status confirmed`;
   }
   return `/omv-audit ${finding.id}`;
@@ -608,6 +663,10 @@ function workflowPriorityReason(priority: number, nextAction: string): string {
   if (priority >= 20) return "audit evidence still missing";
   if (nextAction.includes("archive")) return "blocked finding can be archived";
   return "low readiness";
+}
+
+function getListFromWarnings(warnings: string[], field: string): string[] {
+  return warnings.filter((warning) => warning.startsWith(`${field} `));
 }
 
 async function listReportArtifacts(id: string, projectRoot: string): Promise<string[]> {
@@ -753,8 +812,58 @@ function validateUnknownAccounting(
   }
 }
 
+function addEvidenceQualityWarnings(
+  data: Record<string, unknown>,
+  status: string,
+  warnings: string[],
+  projectRoot: string,
+): void {
+  if (status === "candidate" && getList(data, "blockers").length > 0) {
+    warnings.push("blockers remain unresolved for candidate finding");
+  }
+  if (!isKnown(getString(data, "evidence.observed_result"))) {
+    warnings.push("evidence.observed_result is unknown; local reproduction is not complete");
+  }
+  if (!isKnown(getString(data, "versions.affected_range"))) {
+    warnings.push("versions.affected_range is unknown; affected version boundary is not established");
+  }
+  if (getString(data, "cvss.vector").includes("/PR:N/") && /\b(admin|administrator|authenticated|auth)\b/i.test(getString(data, "evidence.source"))) {
+    warnings.push("cvss.vector uses PR:N while source evidence appears to involve admin or authenticated API access");
+  }
+  if (/\b(default|默认)\b.*\b(block|deny|拦|阻止)\b/i.test(getString(data, "evidence.guard"))) {
+    warnings.push("evidence.guard says a default mitigation blocks part of the exploit path; confirm bypass before reporting");
+  }
+  const listedArtifacts = getList(data, "evidence.repro_artifacts");
+  if (listedArtifacts.length > 0 && getReproArtifacts(data, projectRoot).length === 0) {
+    warnings.push("evidence.repro_artifacts are listed but no artifact files were found");
+  }
+  if (status === "confirmed" && listedArtifacts.length === 0) {
+    warnings.push(`evidence.repro_artifacts is empty; consider storing local reproduction evidence under ${findingReproDir("<id>", projectRoot)}`);
+  }
+}
+
 function isKnown(value: string): boolean {
   return value !== "" && value !== "unknown";
+}
+
+function isUnknownPath(data: Record<string, unknown>, path: string): boolean {
+  return !isKnown(getString(data, path));
+}
+
+function getVerdict(data: Record<string, unknown>): FindingVerdict {
+  return {
+    exploitability: getString(data, "verdict.exploitability") || "unknown",
+    confidence: getString(data, "verdict.confidence") || "unknown",
+    reason: getString(data, "verdict.reason") || "",
+  };
+}
+
+function getReproArtifacts(data: Record<string, unknown>, projectRoot: string): string[] {
+  return getList(data, "evidence.repro_artifacts")
+    .map((value) => String(value))
+    .filter((value) => value.trim() !== "")
+    .map((value) => (isAbsolute(value) ? value : join(projectRoot, value)))
+    .filter((path) => existsSync(path));
 }
 
 function getString(data: Record<string, unknown>, path: string): string {
@@ -821,6 +930,13 @@ function normalizeFindingId(id: string): string {
     throw new Error("finding id must start with a letter or number and contain only letters, numbers, dots, underscores, or hyphens");
   }
   return normalized;
+}
+
+function projectRootFromFindingPath(path: string): string {
+  const marker = `${relative("/", findingsDir("/"))}/`;
+  const normalized = path.replaceAll("\\", "/");
+  const index = normalized.lastIndexOf(marker);
+  return index === -1 ? process.cwd() : normalized.slice(0, index || 1);
 }
 
 function extension(path: string): string {
