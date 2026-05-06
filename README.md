@@ -220,6 +220,8 @@ Use `/omv-report` after you have a validated Evidence.v1 file or a complete hand
 |---|---|
 | [README.zh-CN.md](README.zh-CN.md) | Chinese project guide. |
 | [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | Chinese best-practices guide for vulnerability research with this project. |
+| [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | Sanitized end-to-end finding workflow example. |
+| [docs/roadmap-0.8.md](docs/roadmap-0.8.md) | Planned `v0.8` CLI improvements. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and contribution rules. |
 | [SECURITY.md](SECURITY.md) | Reporting issues in this project. |
 | [RELEASE.md](RELEASE.md) | Release packaging and compatibility checks. |

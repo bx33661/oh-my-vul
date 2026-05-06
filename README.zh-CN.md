@@ -219,6 +219,8 @@ omv findings promote demo-traversal --status blocked
 | 文档 | 用途 |
 |---|---|
 | [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | 使用本项目做漏洞研究的最佳实践 |
+| [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | 脱敏的端到端 finding 工作流示例 |
+| [docs/roadmap-0.8.md](docs/roadmap-0.8.md) | `v0.8` CLI 改进计划 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 开发与贡献规则 |
 | [SECURITY.md](SECURITY.md) | 报告本项目安全问题 |
 | [RELEASE.md](RELEASE.md) | 发布与兼容性检查 |
