@@ -163,7 +163,7 @@ def check(assertion_type: str, text: str) -> bool:
     if assertion_type == "path_traversal_high":
         return "high" in lowered and contains_any(lowered, ["no auth", "unauthenticated", "authentication required: no"])
     if assertion_type == "duplicate_cve_warning":
-        return contains_any(lowered, ["duplicate", "already exists", "existing cve", "cve-2017-18342", "rejected"])
+        return contains_any(lowered, ["duplicate", "already exists", "existing cve", "cve-2099-18342", "rejected"])
     if assertion_type == "duplicate_cna_warning":
         return contains_any(lowered, ["duplicate cna", "duplicate cve", "cna risk", "ghsa", "do not also submit"])
     if assertion_type == "no_submission_ready_report":

@@ -21,18 +21,26 @@ REQUIRED_FILES = {
     "RELEASE.md",
     "LICENSE",
     "dist/cli/omv.js",
+    "dist/cli/omv-mcp.js",
     "dist/index.js",
     "registry.yaml",
     "contracts/evidence.v1.yaml",
+    "contracts/submission.v1.yaml",
+    "contracts/threat-map.v1.yaml",
     "docs/vulnerability-research-best-practices.zh-CN.md",
     "skills/omv/SKILL.md",
     "skills/omv-find/SKILL.md",
     "skills/omv-audit/SKILL.md",
     "skills/omv-repro/SKILL.md",
     "skills/omv-report/SKILL.md",
+    "skills/omv-radar/SKILL.md",
+    "skills/omv-dedup/SKILL.md",
+    "skills/omv-disclose/SKILL.md",
+    "skills/omv-critic/SKILL.md",
     "shared/scripts/collect_metadata.py",
     "shared/scripts/estimate_loc.sh",
     "shared/scripts/resolve_source_path.py",
+    "shared/references/patterns/npm.md",
 }
 
 REQUIRED_PREFIXES = {
@@ -44,6 +52,10 @@ REQUIRED_PREFIXES = {
     "skills/omv-audit/",
     "skills/omv-repro/",
     "skills/omv-report/",
+    "skills/omv-radar/",
+    "skills/omv-dedup/",
+    "skills/omv-disclose/",
+    "skills/omv-critic/",
     "shared/",
 }
 

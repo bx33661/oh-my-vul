@@ -1,0 +1,30 @@
+{
+  "skill_name": "omv-radar",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv-radar refresh --dry-run for a watchlist containing npm demo-package",
+      "expected_output": "Runs fixture-backed dry run, reports passive sources, and does not append events."
+    },
+    {
+      "id": 1,
+      "prompt": "/omv-radar brief after advisory, release, and suspected-fix events exist",
+      "expected_output": "Groups signals by ecosystem, package, and signal type."
+    },
+    {
+      "id": 2,
+      "prompt": "/omv-radar refresh when .omv/radar/watchlist.yaml is missing",
+      "expected_output": "Stops and asks the user to create the watchlist."
+    },
+    {
+      "id": 3,
+      "prompt": "/omv-radar refresh for a watched repository",
+      "expected_output": "Keeps passive boundary and does not run PoCs or probe runtime services."
+    },
+    {
+      "id": 4,
+      "prompt": "/omv-radar refresh completed successfully",
+      "expected_output": "Offers an opt-in weekly Monday refresh reminder without creating it automatically."
+    }
+  ]
+}

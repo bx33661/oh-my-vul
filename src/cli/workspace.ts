@@ -7,8 +7,12 @@ import {
   archiveMetadataPath,
   archivedFindingsDir,
   findingsDir,
+  notesDir,
   omvStateDir,
+  radarDir,
   reproDir,
+  submissionsDir,
+  threatMapsDir,
   workspaceActivityLogPath,
   workspaceIndexPath,
 } from "./paths.js";
@@ -44,7 +48,16 @@ export interface WorkspaceStatus {
 
 export interface WorkspaceActivityEntry {
   timestamp: string;
-  action: "workspace.init" | "finding.init" | "finding.promote" | "finding.archive" | "finding.restore";
+  action:
+    | "workspace.init"
+    | "finding.init"
+    | "finding.promote"
+    | "finding.archive"
+    | "finding.restore"
+    | "radar.refresh"
+    | "dedup.update"
+    | "submission.record"
+    | "submission.close";
   id?: string;
   status?: string;
   archived?: boolean;
@@ -99,6 +112,10 @@ export async function workspaceStatus(projectRoot = process.cwd()): Promise<Work
 export async function ensureWorkspaceDirs(projectRoot = process.cwd()): Promise<void> {
   await mkdir(findingsDir(projectRoot), { recursive: true });
   await mkdir(reproDir(projectRoot), { recursive: true });
+  await mkdir(threatMapsDir(projectRoot), { recursive: true });
+  await mkdir(radarDir(projectRoot), { recursive: true });
+  await mkdir(submissionsDir(projectRoot), { recursive: true });
+  await mkdir(notesDir(projectRoot), { recursive: true });
   await mkdir(archivedFindingsDir(projectRoot), { recursive: true });
   await mkdir(archiveMetadataDir(projectRoot), { recursive: true });
 }

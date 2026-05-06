@@ -84,6 +84,51 @@ export function findingReproDir(id: string, projectRoot = process.cwd()): string
   return join(reproDir(projectRoot), id);
 }
 
+/** .omv/threatmaps/ — optional ThreatMap.v1 sidecars keyed by finding id. */
+export function threatMapsDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "threatmaps");
+}
+
+/** .omv/threatmaps/<id>.yaml — optional ThreatMap.v1 sidecar for one finding. */
+export function threatMapPath(id: string, projectRoot = process.cwd()): string {
+  return join(threatMapsDir(projectRoot), `${id}.yaml`);
+}
+
+/** .omv/radar/ — local passive intelligence state. */
+export function radarDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "radar");
+}
+
+/** .omv/radar/watchlist.yaml — user-maintained passive intelligence watchlist. */
+export function radarWatchlistPath(projectRoot = process.cwd()): string {
+  return join(radarDir(projectRoot), "watchlist.yaml");
+}
+
+/** .omv/radar/events.jsonl — append-only normalized radar event stream. */
+export function radarEventsPath(projectRoot = process.cwd()): string {
+  return join(radarDir(projectRoot), "events.jsonl");
+}
+
+/** .omv/submissions/ — local submission tracking state. */
+export function submissionsDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "submissions");
+}
+
+/** .omv/submissions/<id>.yaml — submission tracking state for one finding. */
+export function submissionPath(id: string, projectRoot = process.cwd()): string {
+  return join(submissionsDir(projectRoot), `${id}.yaml`);
+}
+
+/** .omv/notes/ — local research notebooks. */
+export function notesDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "notes");
+}
+
+/** .omv/notes/<id>.md — append-only research notebook for one finding. */
+export function notePath(id: string, projectRoot = process.cwd()): string {
+  return join(notesDir(projectRoot), `${id}.md`);
+}
+
 /** .omv/setup-scope.json — persisted setup scope for doctor. */
 export function setupScopePath(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "setup-scope.json");

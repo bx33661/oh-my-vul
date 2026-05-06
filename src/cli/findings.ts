@@ -2,7 +2,8 @@ import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, isAbsolute, join, relative } from "path";
 import { parse as parseYaml } from "yaml";
-import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot } from "./paths.js";
+import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath } from "./paths.js";
+import { readSubmissions, type SubmissionRecord } from "./submissions.js";
 import {
   appendWorkspaceActivity,
   ensureWorkspaceDirs,
@@ -52,6 +53,7 @@ export interface FindingWorkflowSummary extends FindingSummary {
 export interface FindingDetail extends FindingWorkflowSummary {
   archived: boolean;
   validation: FindingValidation;
+  threatMap?: FindingThreatMap;
   archivedAt?: string;
   archiveReason?: string;
 }
@@ -70,6 +72,7 @@ export interface FindingArchiveResult {
   archivedAt: string;
   warnings: string[];
   reportArtifactPaths: string[];
+  submissionRecords: SubmissionRecord[];
 }
 
 export interface FindingRestoreResult {
@@ -90,6 +93,11 @@ export interface FindingVerdict {
   exploitability: string;
   confidence: string;
   reason: string;
+}
+
+export interface FindingThreatMap {
+  path: string;
+  rendered: string[];
 }
 
 export interface CreateFindingTemplateOptions {
@@ -208,10 +216,12 @@ export async function showFinding(
   const validation = archived ? await validateFinding(path, projectRoot) : await validateFinding(id, projectRoot);
   const missingFields = workflowMissingFields(validation);
   const metadata = archived ? await readArchiveMetadata(id, projectRoot) : undefined;
+  const threatMap = await readThreatMap(id, projectRoot);
   return {
     ...summary,
     archived,
     validation,
+    threatMap,
     missingFields,
     nextAction: archived ? `omv findings restore ${id}` : workflowNextAction(summary, validation, missingFields),
     priority: archived ? 0 : workflowPriority(summary, validation, missingFields, workflowNextAction(summary, validation, missingFields)),
@@ -427,6 +437,7 @@ export async function archiveFinding(
   }
   const status = getString(parseEvidenceYaml(await readFile(from, "utf-8")).data, "status") || "unknown";
   const reportArtifactPaths = await listReportArtifacts(id, projectRoot);
+  const submissionRecords = (await readSubmissions(id, projectRoot)).records;
   const warnings: string[] = [];
   if (trimmedReason === "reported" && status === "confirmed" && reportArtifactPaths.length === 0) {
     const warning = `confirmed finding ${id} has no report artifacts under ${findingReportsDir(id, projectRoot)}`;
@@ -447,7 +458,7 @@ export async function archiveFinding(
     { action: "finding.archive", id, status, archived: true, reason: trimmedReason, from, to },
     projectRoot,
   );
-  return { id, from, to, status, archiveReason: trimmedReason, archivedAt, warnings, reportArtifactPaths };
+  return { id, from, to, status, archiveReason: trimmedReason, archivedAt, warnings, reportArtifactPaths, submissionRecords };
 }
 
 export async function listArchivedFindings(projectRoot = process.cwd()): Promise<ArchivedFindingSummary[]> {
@@ -557,10 +568,55 @@ function computeSubmissionScore(data: Record<string, unknown>, status: string, p
   if (exploitability === "plausible") score -= 10;
   if (status === "blocked") score = 0;
   if (status === "confirmed" && score < 75) score -= 10;
+  score -= cvssConfidencePenalty(data);
   const artifacts = getReproArtifacts(data, projectRoot);
   const listedArtifacts = getList(data, "evidence.repro_artifacts");
   if (listedArtifacts.length > 0 && artifacts.length === 0) score -= 10;
   return Math.max(0, Math.min(100, score));
+}
+
+async function readThreatMap(id: string, projectRoot: string): Promise<FindingThreatMap | undefined> {
+  const path = threatMapPath(id, projectRoot);
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
+  return { path, rendered: renderThreatMap(parsed) };
+}
+
+function renderThreatMap(data: Record<string, unknown>): string[] {
+  return getList(data, "paths").map((item, index) => {
+    if (!isRecord(item)) {
+      return `[path ${index + 1}] -> invalid threat map path`;
+    }
+    const source = describeThreatNode(item.source, "source");
+    const sink = describeThreatNode(item.sink, "sink");
+    const guard = isRecord(item.guard) ? item.guard : {};
+    const present = guard.present === true;
+    const guardText = getRecordString(guard, "description") || (present ? "guard-present" : "no-guard");
+    return `${source} -> ${sink} ${present ? "guard:" : "x"} ${guardText}`;
+  });
+}
+
+function describeThreatNode(value: unknown, fallback: string): string {
+  if (!isRecord(value)) {
+    return `[${fallback}]`;
+  }
+  const description = getRecordString(value, "description");
+  const location = getRecordString(value, "location");
+  const type = getRecordString(value, "type") || fallback;
+  const label = description || location || type;
+  return `[${label}]`;
+}
+
+function cvssConfidencePenalty(data: Record<string, unknown>): number {
+  const confidence = getString(data, "verdict.confidence");
+  const unverifiedCount = getList(data, "provenance.unverified_fields").length;
+  let penalty = Math.min(20, unverifiedCount * 3);
+  if (confidence === "medium") penalty += 5;
+  if (confidence === "low") penalty += 15;
+  if (confidence === "unknown") penalty += 20;
+  return penalty;
 }
 
 async function readFindingSummary(path: string, id: string): Promise<FindingSummary> {
@@ -889,6 +945,11 @@ function getValue(data: Record<string, unknown>, path: string): unknown {
     current = (current as Record<string, unknown>)[part];
   }
   return current;
+}
+
+function getRecordString(data: Record<string, unknown>, key: string): string {
+  const value = data[key];
+  return typeof value === "string" ? value : value === undefined || value === null ? "" : String(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

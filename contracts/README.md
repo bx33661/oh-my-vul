@@ -10,7 +10,8 @@ Skills reference these files directly rather than duplicating schema content in 
 |---|---|
 | `evidence.v1.yaml` | Finding object passed between `omv-find` and `omv-report`. Replaces the old `handoff-contract.md` in both skills. |
 | `candidate-list.v1.yaml` | Schema for the candidate list output produced by `omv-find`. |
-| `threat-map.v1.yaml` | Schema for the threat map sidecar produced by `omv-audit` (future). |
+| `threat-map.v1.yaml` | Optional dataflow threat map sidecar produced by `omv-audit`. |
+| `submission.v1.yaml` | Local submission tracking sidecar for post-report bookkeeping. |
 
 ## Versioning
 

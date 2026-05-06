@@ -5,10 +5,11 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "omv": "dist/cli/omv.js"
+    "omv": "dist/cli/omv.js",
+    "omv-mcp": "dist/cli/omv-mcp.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"import('fs').then(fs => fs.chmodSync('dist/cli/omv.js', 0o755))\"",
+    "build": "tsc && node -e \"import('fs').then(fs => { fs.chmodSync('dist/cli/omv.js', 0o755); fs.chmodSync('dist/cli/omv-mcp.js', 0o755); })\"",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/**/__tests__/*.test.js",

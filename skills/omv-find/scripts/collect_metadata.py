@@ -209,7 +209,7 @@ class RegistrySpec:
 
 def parse_registry(value: str) -> RegistrySpec:
     if ":" not in value:
-        raise argparse.ArgumentTypeError("registry must use KIND:NAME, for example npm:marked")
+        raise argparse.ArgumentTypeError("registry must use KIND:NAME, for example npm:demo-package")
     kind, name = value.split(":", 1)
     return RegistrySpec(kind.strip().lower(), name.strip())
 
@@ -466,7 +466,7 @@ def main() -> None:
         action="append",
         type=parse_registry,
         default=[],
-        help="Registry spec KIND:NAME, e.g. npm:marked, pypi:pyyaml, maven:group:artifact",
+        help="Registry spec KIND:NAME, e.g. npm:demo-package, pypi:example-parser, maven:group:artifact",
     )
     args = parser.parse_args()
 

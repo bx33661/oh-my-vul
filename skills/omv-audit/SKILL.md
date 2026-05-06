@@ -25,6 +25,7 @@ Stay in passive research mode: read public source code only. Do not send request
 
 - 审计方法论与置信度框架：`references/audit-playbook.md`
 - CVSS v3.1 度量决策表：`references/shared/cvss-builder.md`
+- 生态系统 sink registry（npm/Python/Go/Rust/Java/Ruby）：`references/patterns/npm.md` 等同目录文件
 - Evidence.v1 字段定义与 evidence/submission 评分规则：`contracts/evidence.v1.yaml`
 
 ## 审计目标
@@ -43,6 +44,18 @@ Stay in passive research mode: read public source code only. Do not send request
 - `verdict.*` — 当前可利用性判断（`proven|plausible|blocked|disproven`）、置信度和原因
 
 **如何达到目标，由你自主决定。** 根据 finding 的实际情况——漏洞类别、已有线索、代码结构——自主选择切入点、阅读哪些文件、花多少精力在每个环节。参考 `references/audit-playbook.md` 获取思维框架，但不要把它当作执行脚本。
+
+如果 finding 属于 npm、Python、Go、Rust、Java 或 Ruby，按需加载 `references/patterns/` 下对应生态文件，用其中的 source pattern、sink signature、expected guard、evidence criteria、false-positive checks 和 CWE 映射辅助判断。Pattern registry 是方法论，不是真实漏洞案例库；不要加载无关生态 registry。
+
+当证据链足够清楚时，额外生成可选 ThreatMap.v1 sidecar：
+
+```text
+.omv/threatmaps/<id>.yaml
+```
+
+ThreatMap 是 Evidence.v1 的补充，不替代 `evidence.source` / `evidence.sink` / `evidence.guard` 摘要字段。
+
+解释审计结论时使用方法论语言：说明输入如何到达 sink、guard 为什么缺失或可绕过、哪些证据仍不充分。除非用户提供真实 finding 作为上下文，否则不要把真实包或真实 CVE 当作教程示例。
 
 ## 约束边界
 
@@ -85,6 +98,8 @@ omv findings validate <id>
 ```bash
 omv findings workflow
 ```
+
+如本轮做出关键判断（确认 source -> sink、发现 guard 缺失、判定重复或 blocked），在 `.omv/notes/<id>.md` 追加一条时间戳决策记录。不要把 notebook 内容写入 Evidence.v1。
 
 Use the CLI result for lifecycle handoff:
 

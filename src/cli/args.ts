@@ -52,8 +52,115 @@ export function validateArgs(args: string[]): ArgsValidation {
       return validateWorkspaceArgs(args.slice(1));
     case "findings":
       return validateFindingsArgs(args.slice(1));
+    case "radar":
+      return validateRadarArgs(args.slice(1));
+    case "dedup":
+      return validateOptions(args.slice(1), {
+        command: "dedup",
+        flags: new Set(["--confirm", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        freeOptions: new Set(["--existing-cve", "--notes"]),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "disclose":
+      return validateDiscloseArgs(args.slice(1));
+    case "submissions":
+      return validateSubmissionsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: version, setup, doctor, dashboard, workspace, findings, help`);
+      return fail(`Unknown command: ${command}. Valid commands: version, setup, doctor, dashboard, workspace, findings, radar, dedup, disclose, submissions, help`);
+  }
+}
+
+function validateRadarArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0] ?? "brief";
+  const rest = args[0] ? args.slice(1) : args;
+  switch (subcommand) {
+    case "refresh":
+      return validateOptions(rest, {
+        command: "radar refresh",
+        flags: new Set(["--dry-run", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "brief":
+      return validateOptions(rest, {
+        command: "radar brief",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`radar ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown radar command: ${subcommand}. Valid commands: refresh, brief, help`);
+  }
+}
+
+function validateDiscloseArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0] ?? "timeline";
+  const rest = args[0] ? args.slice(1) : args;
+  switch (subcommand) {
+    case "timeline":
+      return validateOptions(rest, {
+        command: "disclose timeline",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        freeOptions: new Set(["--days"]),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`disclose ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown disclose command: ${subcommand}. Valid commands: timeline, help`);
+  }
+}
+
+function validateSubmissionsArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0] ?? "track";
+  const rest = args[0] ? args.slice(1) : args;
+  switch (subcommand) {
+    case "record":
+      return validateOptions(rest, {
+        command: "submissions record",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        freeOptions: new Set(["--platform", "--submission-id", "--url"]),
+        minPositionals: 1,
+        maxPositionals: 1,
+        requiredOptions: new Set(["--platform", "--submission-id", "--url"]),
+      });
+    case "track":
+      return validateOptions(rest, {
+        command: "submissions track",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "close":
+      return validateOptions(rest, {
+        command: "submissions close",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        freeOptions: new Set(["--cve"]),
+        minPositionals: 1,
+        maxPositionals: 1,
+        requiredOptions: new Set(["--cve"]),
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`submissions ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown submissions command: ${subcommand}. Valid commands: record, track, close, help`);
   }
 }
 

@@ -1,0 +1,7 @@
+watch:
+  - ecosystem: npm
+    package: demo-package
+    vulnerability: ssrf
+  - ecosystem: python
+    keyword: url parser
+    vulnerability: redirect

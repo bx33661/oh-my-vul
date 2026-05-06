@@ -33,11 +33,14 @@ Load only the files needed for the request:
 
 - Ecosystem discovery, registry URLs, flagship exclusions: `references/shared/ecosystems.md`
 - Vulnerability source/sink/guard patterns: `references/shared/vuln-patterns.md`
+- Ecosystem sink registry for core lanes: references under `references/patterns/npm.md`
 - Scoring, filtering, confidence rules: `references/scoring.md`
 - Required final table, audit tips, freshness notes, invalid-request template: `references/output-contract.md`
 - Confirmed finding evidence fields for `omv-report`: `contracts/evidence.v1.yaml`
 
 For narrow requests, use `rg` inside the relevant reference to read only the needed ecosystem or vulnerability section. For `--vuln all`, inspect the project type first, then load the most likely vulnerability sections.
+
+For npm, Python, Go, Rust, Java, and Ruby requests, load the matching file under `references/patterns/` when forming source -> sink -> guard hypotheses. Pattern files are methodology registries, not concrete vulnerability examples; do not load unrelated ecosystem registries.
 
 ## Workflow
 
@@ -75,6 +78,8 @@ For narrow requests, use `rg` inside the relevant reference to read only the nee
    - Score out of 100 using `references/scoring.md`.
    - If `--vuln` is set, at least 70% of returned projects must be relevant to that class.
    - If a narrow ecosystem/vulnerability combination has too few strong candidates, say so and return fewer results instead of padding.
+   - If passive advisory evidence strongly matches the same package, vulnerability class, affected range, and sink behavior, mark the candidate as likely duplicate or lower its ranking. Do not treat package-name overlap alone as a duplicate.
+   - Use sanitized examples in explanations unless the user supplied a real target as the audit subject.
 
 7. **Output**
    - Use the table and follow-up sections in `references/output-contract.md`.

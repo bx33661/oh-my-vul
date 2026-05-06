@@ -32,7 +32,9 @@
 | **Evidence ledger** | `.omv/findings/*.yaml` keeps structured Evidence.v1 research state. |
 | **Audit workflow** | `/omv-audit` proves or blocks candidate findings using source -> sink -> guard reasoning. |
 | **Local reproduction** | `/omv-repro` records user-observed local results and repro artifacts. |
+| **Passive intelligence** | `/omv-radar` and `/omv-dedup` track watchlist changes and duplicate advisory risk. |
 | **Report drafting** | `/omv-report` generates review-friendly advisory drafts from validated findings. |
+| **Disclosure lifecycle** | `/omv-disclose`, `/omv-critic`, and `omv submissions ...` cover pre-submit review and post-submit tracking. |
 | **CLI management** | `omv dashboard`, `omv doctor`, and `omv findings ...` keep local state inspectable. |
 
 ## Quick Start
@@ -59,6 +61,9 @@ omv findings init demo-traversal
 omv findings validate demo-traversal
 
 /omv-report demo-traversal
+/omv-critic demo-traversal
+/omv-disclose timeline demo-traversal
+omv submissions record demo-traversal --platform vuldb --submission-id 12345 --url https://example.test/submission/12345
 ```
 
 <details>
@@ -100,7 +105,9 @@ Project-level setup writes `.omv/setup-scope.json` so `omv doctor` can resolve t
   -> /omv-audit
   -> /omv-repro when observed_result still needs local confirmation
   -> omv findings validate <id>
+  -> /omv-critic
   -> /omv-report
+  -> /omv-disclose and omv submissions ...
   -> advisory draft for VulDB, CVE, GHSA, OSV, or Markdown
 ```
 
@@ -116,6 +123,10 @@ Project-level setup writes `.omv/setup-scope.json` so `omv doctor` can resolve t
 | `omv-audit` | `/omv-audit` | audit | Deep-audit a candidate finding — prove or disprove the vulnerability, fill Evidence.v1 fields for omv-report |
 | `omv-repro` | `/omv-repro` | audit | Guide local reproduction of a finding — walk through execution, record observed_result, confirm or block |
 | `omv-report` | `/omv-report` | reporting | Generate VulDB/CVE/GHSA/OSV advisory reports from confirmed findings |
+| `omv-radar` | `/omv-radar` | intelligence | Passive watchlist intelligence — refresh local advisory/release signals and summarize radar events |
+| `omv-dedup` | `/omv-dedup` | intelligence | Duplicate advisory analysis — generate deterministic NVD/GHSA/OSV/ecosystem queries and update Evidence.v1 dedup fields |
+| `omv-disclose` | `/omv-disclose` | disclosure | Responsible disclosure lifecycle helper — draft vendor emails, timelines, and local submission bookkeeping guidance |
+| `omv-critic` | `/omv-critic` | reporting | Adversarial pre-submission review — identify likely CNA rejection reasons before report generation |
 <!-- omv:skills:end -->
 
 ## Finding Targets
@@ -169,6 +180,13 @@ Evidence files follow [contracts/evidence.v1.yaml](contracts/evidence.v1.yaml). 
 - dedup status
 - unknown-field accounting
 
+Optional sidecars keep richer local state without bloating Evidence.v1:
+
+- `.omv/threatmaps/<id>.yaml` stores ThreatMap.v1 source -> sink -> guard graphs.
+- `.omv/radar/events.jsonl` stores passive watchlist intelligence events.
+- `.omv/submissions/<id>.yaml` stores report submission bookkeeping.
+- `.omv/notes/<id>.md` stores timestamped local research decisions.
+
 <details>
 <summary><strong>Status values</strong></summary>
 
@@ -198,6 +216,37 @@ Use `/omv-report` after you have a validated Evidence.v1 file or a complete hand
 - **warn about duplicate CVE/CNA risk**;
 - choose platform-specific wording for VulDB, GHSA, OSV, and Markdown advisories;
 - keep proof-of-concept language local and reviewer-safe.
+
+Before reporting, `/omv-critic <id>` reviews Evidence.v1 plus any ThreatMap.v1 sidecar and returns `reject_risk: low|medium|high`. It is intentionally different from `omv findings validate`: validation checks structure, critic checks argument quality.
+
+After reporting, track submissions locally:
+
+The identifiers in this snippet are sanitized placeholders for command shape.
+
+```sh
+omv submissions record demo-traversal --platform vuldb --submission-id 12345 --url https://example.test/submission/12345
+omv submissions track demo-traversal
+omv submissions close demo-traversal --cve CVE-2026-12345
+```
+
+## Passive Intelligence
+
+Create `.omv/radar/watchlist.yaml`, then run:
+
+The package names in bundled examples are sanitized fixture values. Use real package names only for user-provided research targets.
+
+```sh
+omv radar refresh --dry-run
+omv radar refresh
+omv radar brief
+```
+
+Radar uses passive advisory, registry, and repository metadata sources only. Dedup review starts with deterministic queries:
+
+```sh
+omv dedup demo-traversal
+omv dedup demo-traversal --confirm --existing-cve none --notes "searched NVD, GHSA, OSV, npm advisory DB"
+```
 
 ## Safety Boundary
 

@@ -5,6 +5,14 @@ import { validateArgs } from "./args.js";
 import { readCatalog } from "./catalog.js";
 import { packageRoot } from "./paths.js";
 import { readFile } from "fs/promises";
+import { planDedup, updateDedup, type DedupUpdateResult } from "./dedup.js";
+import { radarBrief, refreshRadar, type RadarBrief, type RadarRefreshResult } from "./radar.js";
+import {
+  closeSubmission,
+  recordSubmission,
+  trackSubmissions,
+  type FindingSubmissions,
+} from "./submissions.js";
 import type { SetupResult } from "./setup.js";
 import {
   listFindings,
@@ -80,6 +88,19 @@ Usage:
                                      List archived findings
   omv findings restore <id> [--force] [--json]
                                      Restore an archived finding
+  omv radar refresh [--dry-run] [--json]
+                                     Refresh passive watchlist intelligence
+  omv radar brief [--json]           Summarize local radar events
+  omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]
+                                     Plan or write Evidence.v1 dedup fields
+  omv disclose timeline <id> [--days N] [--json]
+                                     Show disclosure timeline milestones
+  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
+                                     Record platform submission metadata
+  omv submissions track <id> [--json]
+                                     Show submission status for one finding
+  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]
+                                     Close submission records with a CVE id
   omv version [--json]               Show package and registry version
   omv help                           Show this message
 
@@ -97,6 +118,8 @@ Examples:
   omv findings workflow
   omv findings show demo
   omv findings archive demo --reason reported
+  omv radar refresh --dry-run
+  omv submissions track demo
 `);
 }
 
@@ -129,6 +152,18 @@ Show local workspace status, active workflow queue, and recent activity in one v
     case "findings":
       findingsUsage(args[1]);
       return;
+    case "radar":
+      radarUsage(args[1]);
+      return;
+    case "dedup":
+      console.log("Usage: omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]");
+      return;
+    case "disclose":
+      console.log("Usage: omv disclose timeline <id> [--days N] [--json]");
+      return;
+    case "submissions":
+      submissionsUsage(args[1]);
+      return;
     default:
       usage();
       return;
@@ -151,6 +186,42 @@ function workspaceUsage(subcommand: string | undefined): void {
   omv workspace init [--json]
   omv workspace status [--json]
   omv workspace log [--json]`);
+      return;
+  }
+}
+
+function radarUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "refresh":
+      console.log("Usage: omv radar refresh [--dry-run] [--json]");
+      return;
+    case "brief":
+      console.log("Usage: omv radar brief [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv radar refresh [--dry-run] [--json]
+  omv radar brief [--json]`);
+      return;
+  }
+}
+
+function submissionsUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "record":
+      console.log("Usage: omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]");
+      return;
+    case "track":
+      console.log("Usage: omv submissions track <id> [--json]");
+      return;
+    case "close":
+      console.log("Usage: omv submissions close <id> --cve CVE-YYYY-NNNN [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
+  omv submissions track <id> [--json]
+  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]`);
       return;
   }
 }
@@ -361,6 +432,113 @@ async function runFindings(): Promise<void> {
       usage();
       process.exit(1);
   }
+}
+
+async function runRadar(): Promise<void> {
+  const subcommand = args[1] ?? "brief";
+  const json = args.includes("--json");
+  switch (subcommand) {
+    case "refresh": {
+      const result = await refreshRadar({ dryRun: args.includes("--dry-run") });
+      if (json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      printRadarRefresh(result);
+      return;
+    }
+    case "brief": {
+      const result = await radarBrief();
+      if (json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      printRadarBrief(result);
+      return;
+    }
+    default:
+      console.error(`Unknown radar command: ${subcommand}\n`);
+      radarUsage(undefined);
+      process.exit(1);
+  }
+}
+
+async function runDedup(): Promise<void> {
+  const id = args[1];
+  const json = args.includes("--json");
+  if (!id) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const detail = await showFinding(id);
+  const result = args.includes("--confirm")
+    ? await updateDedup(detail.path, detail.id, {
+      existingCve: parseOption("--existing-cve") ?? "none",
+      notes: parseOption("--notes") ?? "dedup searched with omv dedup",
+      confirmed: true,
+    })
+    : { ...(await planDedup(detail.path, detail.id)), updated: false };
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printDedupResult(result);
+}
+
+async function runDisclose(): Promise<void> {
+  const subcommand = args[1] ?? "timeline";
+  const json = args.includes("--json");
+  if (subcommand !== "timeline") {
+    console.error(`Unknown disclose command: ${subcommand}\n`);
+    commandUsage("disclose");
+    process.exit(1);
+  }
+  const id = firstPositionalAfter("timeline");
+  if (!id) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = disclosureTimeline(id, Number(parseOption("--days") ?? "90"));
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printDisclosureTimeline(result);
+}
+
+async function runSubmissions(): Promise<void> {
+  const subcommand = args[1] ?? "track";
+  const json = args.includes("--json");
+  const id = firstPositionalAfter(subcommand);
+  if (!id) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  let result: FindingSubmissions;
+  switch (subcommand) {
+    case "record":
+      result = await recordSubmission(id, {
+        platform: requireOption("--platform"),
+        submissionId: requireOption("--submission-id"),
+        url: requireOption("--url"),
+      });
+      break;
+    case "track":
+      result = await trackSubmissions(id);
+      break;
+    case "close":
+      result = await closeSubmission(id, requireOption("--cve"));
+      break;
+    default:
+      console.error(`Unknown submissions command: ${subcommand}\n`);
+      submissionsUsage(undefined);
+      process.exit(1);
+  }
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printSubmissions(result);
 }
 
 async function printWorkspaceCommandResult(result: WorkspaceStatus, json: boolean): Promise<void> {
@@ -802,6 +980,11 @@ function printFindingDetail(finding: FindingDetail): void {
   if (finding.reproArtifacts.length > 0) {
     lines.push(...kv([["repro artifacts", String(finding.reproArtifacts.length)]]));
   }
+  if (finding.threatMap) {
+    lines.push(...kv([["threat map", finding.threatMap.path]]));
+    lines.push("", muted("threat map"));
+    lines.push(...finding.threatMap.rendered.map((item) => `  ${item}`));
+  }
   if (finding.archived) {
     lines.push(...kv([
       ["archived", finding.archivedAt ?? "unknown"],
@@ -888,10 +1071,114 @@ function printArchiveResult(result: FindingArchiveResult): void {
         ["to", result.to],
         ["reason", result.archiveReason],
         ["reports", result.reportArtifactPaths.length > 0 ? `${result.reportArtifactPaths.length} artifact(s)` : "none"],
+        ["submissions", result.submissionRecords.length > 0 ? `${result.submissionRecords.length} record(s)` : "none"],
         ["next", cmd(`omv findings show ${result.id} --archived`)],
       ]),
       ...result.warnings.map((item) => warn(`warning  ${item}`)),
     ]),
+  );
+}
+
+function printRadarRefresh(result: RadarRefreshResult): void {
+  console.log(
+    panel("radar refresh", [
+      ...kv([
+        ["watchlist", result.watchlistPath],
+        ["events", result.dryRun ? "dry-run only" : result.eventsPath],
+        ["sources", result.sources.join(", ")],
+        ["count", String(result.events.length)],
+        ["next", cmd("omv radar brief")],
+      ]),
+      ...result.events.slice(0, 8).map((event) => `${event.ecosystem}:${event.package ?? event.keyword ?? "-"} ${event.type} ${event.title}`),
+    ]),
+  );
+  if (!result.dryRun) {
+    console.log(muted("schedule offer  Ask me to create a weekly Monday radar refresh if you want this automated."));
+  }
+}
+
+function printRadarBrief(result: RadarBrief): void {
+  if (result.eventCount === 0) {
+    console.log(empty("No radar events. Run omv radar refresh first."));
+    return;
+  }
+  console.log(title("radar brief"));
+  console.log(
+    table(
+      ["ecosystem", "package", "advisory", "release", "fix", "watch", "signals"],
+      result.groups.map((group) => [
+        group.ecosystem,
+        truncate(group.package, 28),
+        String(group.advisory),
+        String(group.release),
+        String(group.suspectedFix),
+        String(group.watchlist),
+        truncate(group.titles.join("; "), 52),
+      ]),
+    ),
+  );
+}
+
+function printDedupResult(result: DedupUpdateResult): void {
+  console.log(
+    panel("dedup", [
+      ...kv([
+        ["id", result.id],
+        ["updated", result.updated ? "yes" : "no"],
+        ["path", result.path],
+      ]),
+      "",
+      muted("queries"),
+      ...result.queries.map((query) => `  ${query}`),
+      ...(result.updated ? [] : ["", muted("writeback  rerun with --confirm --existing-cve <CVE|none> --notes <text>")]),
+    ]),
+  );
+}
+
+function disclosureTimeline(id: string, days: number): { id: string; days: number; milestones: { name: string; date: string }[] } {
+  if (!Number.isInteger(days) || days <= 0) {
+    throw new Error("--days must be a positive integer");
+  }
+  const start = new Date();
+  const addDays = (count: number) => {
+    const date = new Date(start);
+    date.setUTCDate(date.getUTCDate() + count);
+    return date.toISOString().slice(0, 10);
+  };
+  return {
+    id,
+    days,
+    milestones: [
+      { name: "initial contact", date: addDays(0) },
+      { name: "follow-up", date: addDays(Math.min(45, Math.max(1, Math.floor(days / 2)))) },
+      { name: "7-day reminder", date: addDays(Math.max(0, days - 7)) },
+      { name: "planned disclosure", date: addDays(days) },
+    ],
+  };
+}
+
+function printDisclosureTimeline(result: { id: string; days: number; milestones: { name: string; date: string }[] }): void {
+  console.log(title(`disclosure ${result.id}`));
+  console.log(table(["milestone", "date"], result.milestones.map((item) => [item.name, item.date])));
+}
+
+function printSubmissions(result: FindingSubmissions): void {
+  if (result.records.length === 0) {
+    console.log(empty(`No submissions recorded for ${result.finding_id}.`));
+    return;
+  }
+  console.log(title(`submissions ${result.finding_id}`));
+  console.log(
+    table(
+      ["platform", "id", "status", "cve", "url"],
+      result.records.map((record) => [
+        record.platform,
+        record.submissionId,
+        record.status,
+        record.cve ?? "-",
+        truncate(record.url, 56),
+      ]),
+    ),
   );
 }
 
@@ -923,7 +1210,7 @@ function firstPositionalAfter(subcommand: string): string | undefined {
 }
 
 function optionTakesValue(option: string): boolean {
-  return option === "--scope" || option === "--status" || option === "--reason";
+  return ["--scope", "--status", "--reason", "--existing-cve", "--notes", "--days", "--platform", "--submission-id", "--url", "--cve"].includes(option);
 }
 
 function parseStatus(): EvidenceStatus | undefined {
@@ -939,6 +1226,20 @@ function parseReason(): string | undefined {
   const index = args.indexOf("--reason");
   const raw = index === -1 ? undefined : args[index + 1];
   return raw && !raw.startsWith("--") ? raw : undefined;
+}
+
+function parseOption(name: string): string | undefined {
+  const index = args.indexOf(name);
+  const raw = index === -1 ? undefined : args[index + 1];
+  return raw && !raw.startsWith("--") ? raw : undefined;
+}
+
+function requireOption(name: string): string {
+  const value = parseOption(name);
+  if (!value) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
 }
 
 function parseOptionalScope(): "user" | "project" | undefined {
@@ -1004,6 +1305,30 @@ switch (command) {
     break;
   case "findings":
     runFindings().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "radar":
+    runRadar().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "dedup":
+    runDedup().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "disclose":
+    runDisclose().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "submissions":
+    runSubmissions().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     });

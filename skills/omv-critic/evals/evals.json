@@ -1,0 +1,30 @@
+{
+  "skill_name": "omv-critic",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv-critic demo with missing observed_result",
+      "expected_output": "Reports medium or high reject risk and asks for local observation."
+    },
+    {
+      "id": 1,
+      "prompt": "/omv-critic demo with weak duplicate search",
+      "expected_output": "Flags likely CNA duplicate rejection risk."
+    },
+    {
+      "id": 2,
+      "prompt": "/omv-critic demo with ThreatMap showing no guard",
+      "expected_output": "Uses Evidence.v1 and ThreatMap.v1 to critique source -> sink -> guard reasoning."
+    },
+    {
+      "id": 3,
+      "prompt": "/omv-critic demo that passes findings doctor but overclaims CVSS",
+      "expected_output": "Distinguishes argument quality from structural validation."
+    },
+    {
+      "id": 4,
+      "prompt": "/omv-critic strong confirmed finding",
+      "expected_output": "Reports low reject risk and allows /omv-report recommendation."
+    }
+  ]
+}

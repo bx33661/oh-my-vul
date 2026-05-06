@@ -1,0 +1,30 @@
+{
+  "skill_name": "omv-disclose",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv-disclose timeline demo",
+      "expected_output": "Prints initial contact, 45-day follow-up, 7-day reminder, and planned disclosure dates."
+    },
+    {
+      "id": 1,
+      "prompt": "/omv-disclose demo for individual maintainer",
+      "expected_output": "Generates respectful initial, follow-up, and deadline templates."
+    },
+    {
+      "id": 2,
+      "prompt": "/omv-disclose demo for company vendor",
+      "expected_output": "Includes package, affected versions, impact, reproduction summary, and coordination deadline."
+    },
+    {
+      "id": 3,
+      "prompt": "/omv-disclose demo before writing Evidence.v1 disclosure fields",
+      "expected_output": "Asks for confirmation before writeback."
+    },
+    {
+      "id": 4,
+      "prompt": "/omv-disclose demo with submission tracking",
+      "expected_output": "Points to omv submissions record and local .omv/submissions state."
+    }
+  ]
+}
