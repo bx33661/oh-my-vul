@@ -153,12 +153,12 @@ def sync_readme(content: str, package: dict[str, object], skills: list[Skill], a
     skill_count = skill_count_phrase(len(skills))
 
     content = re.sub(
-        r"https://img\.shields\.io/npm/v/[^)\]]+",
+        r"https://img\.shields\.io/npm/v/[^)\\]\"'<\s]+",
         f"https://img.shields.io/npm/v/{package_name}",
         content,
     )
     content = re.sub(
-        r"https://www\.npmjs\.com/package/[^)\]]+",
+        r"https://www\.npmjs\.com/package/[^)\\]\"'<\s]+",
         f"https://www.npmjs.com/package/{package_name}",
         content,
     )

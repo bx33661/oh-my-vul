@@ -15,9 +15,15 @@ Run the full release check without changing root artifacts:
 
 ```bash
 npm run validate
+npm run release:check
+npm run pack:check
 ```
 
 `scripts/release_check.py` verifies metadata sync, version consistency, skill-local runtime assets synchronized from canonical `shared/` and `contracts/` sources, skill structure, stable eval checkers, and self-contained packages.
+
+`npm run pack:check` runs `npm pack --json --dry-run` and fails if required release files are missing or private/local state would be included.
+
+`npm run release:check` runs the full validation suite plus `pack:check`.
 
 Rebuild tracked package artifacts:
 
@@ -34,8 +40,34 @@ The release check validates every skill directory, builds each `.skill` archive,
 3. Run `npm run sync-assets`.
 4. Run `python3 scripts/release_check.py --write-artifacts`.
 5. Review `git diff --stat` and package digest output.
-6. Commit source changes and rebuilt `.skill` artifacts together.
-7. Tag the release, for example `git tag v0.7.0`.
+6. Run `npm pack --dry-run` and confirm `.omv/`, `.claude/`, local reports, and local reproduction artifacts are not included.
+7. Commit source changes and rebuilt `.skill` artifacts together.
+8. Tag the release, for example `git tag v0.7.1`.
+
+## npm publish checklist
+
+Before running `npm publish`, verify:
+
+```bash
+npm view oh-my-vul version
+npm run release:check
+npm run pack:check
+npm pack --dry-run
+```
+
+Then publish:
+
+```bash
+npm publish --access public
+```
+
+After publishing:
+
+```bash
+npm view oh-my-vul version
+npx -p oh-my-vul omv version
+npx -p oh-my-vul omv setup --dry-run
+```
 
 ## Compatibility checklist
 

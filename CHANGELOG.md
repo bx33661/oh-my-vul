@@ -6,6 +6,11 @@
 - Added stricter Evidence.v1 validation gates, CLI argument validation, install manifests, and doctor integrity warnings.
 - Added stable `omv-audit` and `omv-repro` eval checkers and release-time enforcement.
 - Improved CLI ergonomics with command help, `omv version`, JSON setup output, and strict validation modes.
+- Added a richer CLI/TUI output layer for setup, doctor, dashboard, findings, and validation views.
+- Split finding scoring into evidence completeness and submission readiness so unresolved blockers and missing local observations no longer look submission-ready.
+- Added `verdict` and `evidence.repro_artifacts` to Evidence.v1, plus `.omv/repro/<id>/` artifact conventions for local reproduction evidence.
+- Added Chinese documentation and a full Chinese vulnerability-research best-practices guide.
+- Added npm release guards and dry-run packaging checks.
 
 ## v0.7.0 - Evidence ledger workflow
 
