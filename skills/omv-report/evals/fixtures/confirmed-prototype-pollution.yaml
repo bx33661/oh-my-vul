@@ -1,0 +1,75 @@
+schema_version: "1"
+handoff_version: "1.0"
+status: confirmed
+researcher_goal: VulDB
+
+package:
+  ecosystem: npm
+  registry_name: demo-merge
+  repository_url: https://github.com/example/demo-merge
+  vendor: example-utils project
+  product: demo-merge
+
+versions:
+  tested: "2.4.1"
+  affected_range: "up to and including 2.4.1"
+  fixed: "2.4.2"
+
+vulnerability:
+  class: Prototype Pollution
+  cwe: CWE-1321
+  affected_component: src/merge.js
+  affected_function: mergeDeep()
+
+evidence:
+  source: "JSON.parse(req.body) passed to mergeDeep()"
+  sink: "target[key] = value in mergeDeep() at src/merge.js:42"
+  guard: "no blocklist for __proto__, constructor, prototype"
+  reproducer: |
+    node -e "const {mergeDeep}=require('./'); mergeDeep({},JSON.parse('{\"__proto__\":{\"polluted\":\"yes\"}}'));" \
+      && node -e "const {mergeDeep}=require('./'); mergeDeep({},JSON.parse('{\"__proto__\":{\"polluted\":\"yes\"}}')); console.log({}.polluted);"
+  observed_result: "prints 'yes' confirming Object.prototype mutation"
+  repro_artifacts:
+    - .omv/repro/demo-merge-pp/commands.sh
+    - .omv/repro/demo-merge-pp/observed.txt
+
+cvss:
+  vector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N"
+  score: "6.4"
+  severity: Medium
+
+impact:
+  attack_vector: Network
+  authentication_required: "true"
+  user_interaction_required: "false"
+  scope_changed: "true"
+  confidentiality: Low
+  integrity: Low
+  availability: None
+
+dedup:
+  nvd_searched: true
+  ghsa_searched: true
+  ecosystem_db_searched: true
+  existing_cve: none
+  notes: "Searched NVD, GHSA, npmjs advisory DB — no existing entry found"
+
+disclosure:
+  vendor_contacted: true
+  contact_date: "2026-04-20"
+  vendor_response: acknowledged
+  planned_disclosure_date: "2026-05-20"
+
+blockers: []
+
+verdict:
+  exploitability: proven
+  confidence: high
+  reason: "Local reproducer confirmed Object.prototype mutation via __proto__ injection"
+
+provenance:
+  verification_date: "2026-04-28"
+  researcher: researcher
+  unverified_fields: []
+  tool_versions:
+    omv-find: "0.8.0"

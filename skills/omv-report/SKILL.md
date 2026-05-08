@@ -59,6 +59,24 @@ Use the validation result to choose output mode:
 - `submissionScore` below 75 or `verdict.exploitability` not `proven`: do not produce a submission-ready report; explain what evidence or reproduction artifact is missing.
 - `evidence.repro_artifacts` present: reference the artifacts as local reviewer evidence. If absent, warn that the report depends only on inline reproducer text.
 
+### Deterministic Skeleton Renderer
+
+For confirmed findings with submission score ≥ 75, run the deterministic renderer first to get a pre-filled skeleton:
+
+```bash
+python3 "$(omv doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('skillsDir',''))")/omv-report/scripts/render_template.py" \
+  --finding .omv/findings/<id>.yaml --format vuldb|ghsa|osv|md
+```
+
+Or if the skill directory is known (e.g. `~/.claude/skills/omv-report/`):
+
+```bash
+python3 ~/.claude/skills/omv-report/scripts/render_template.py \
+  --finding .omv/findings/<id>.yaml --format vuldb
+```
+
+The renderer fills all structural fields (package, versions, CVSS, CWE, source→sink→guard, reproducer, dedup checklist) and leaves `[DRAFT: ...]` markers for prose sections. Fill in every `[DRAFT: ...]` before submitting. Do not submit placeholders.
+
 After producing a submission-ready report for a confirmed finding, suggest removing it from the active local queue:
 
 ```bash
