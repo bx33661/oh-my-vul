@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.6.0",
+  "id": "TBD",
+  "modified": "2026-04-28T00:00:00Z",
+  "published": "2026-05-20T00:00:00Z",
+  "summary": "demo-merge: Prototype Pollution in mergeDeep()",
+  "details": "[DRAFT: Root cause, affected component (src/merge.js mergeDeep()), impact, and attack requirements.]  Source: JSON.parse(req.body) passed to mergeDeep() \u2192 Sink: target[key] = value in mergeDeep() at src/merge.js:42 \u2192 Guard: no blocklist for __proto__, constructor, prototype  Observed: prints 'yes' confirming Object.prototype mutation",
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "npm",
+        "name": "demo-merge"
+      },
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "2.4.2"
+            }
+          ]
+        }
+      ],
+      "versions": [
+        "2.4.1"
+      ],
+      "database_specific": {
+        "cwe_ids": [
+          "CWE-1321"
+        ],
+        "source": "Source: JSON.parse(req.body) passed to mergeDeep() \u2192 Sink: target[key] = value in mergeDeep() at src/merge.js:42 \u2192 Guard: no blocklist for __proto__, constructor, prototype"
+      }
+    }
+  ],
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://github.com/example/demo-merge"
+    }
+  ],
+  "severity": [
+    {
+      "type": "CVSS_V3",
+      "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N"
+    }
+  ]
+}
