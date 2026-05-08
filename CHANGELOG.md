@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.0 - Workflow readiness gates
+
+- Added `omv repro init <id>` to scaffold local reproduction artifacts and merge `evidence.repro_artifacts` idempotently.
+- Added `omv findings doctor <id>` with structured readiness issues, score deductions, JSON output, and CI-friendly exit codes.
+- Added `omv report artifacts <id>` and reused the same checks for strict reported archive gates.
+- Improved dashboard workflow detail with verdict, top blocker, full next actions, and richer JSON fields.
+- Added an end-to-end finding lifecycle regression test from template creation through strict reported archive.
+- Added copyable candidate, blocked, and confirmed demo Evidence.v1 examples.
+- Split the CLI entrypoint into focused command modules and render helpers.
+- Added a Python `zipfile` fallback for skill packaging when the system `zip` binary is unavailable.
+
 ## v0.7.1 - Hardened evidence workflow
 
 - Replaced shallow CLI YAML parsing with structured parsing for Evidence.v1 and registry metadata.
