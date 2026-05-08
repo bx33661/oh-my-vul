@@ -10,7 +10,7 @@ Make the CLI answer one question clearly:
 
 ## Planned Work
 
-### 1. `omv repro init <id>`
+### 1. `omv repro init <id>` — implemented
 
 Create a standard reproduction artifact directory:
 
@@ -36,7 +36,7 @@ Acceptance criteria:
 - Adds suggested `evidence.repro_artifacts` paths to the finding or prints a patch users can apply.
 - Works for active findings only by default.
 
-### 2. `omv findings doctor <id>`
+### 2. `omv findings doctor <id>` — implemented
 
 Explain why a finding is not submission-ready:
 
@@ -60,7 +60,7 @@ Acceptance criteria:
 - JSON mode is available for CI or future UI use.
 - It never suggests `/omv-report` unless the same finding would pass promotion and validation gates.
 
-### 3. `omv report artifacts <id>`
+### 3. `omv report artifacts <id>` — implemented
 
 Check report and reproduction material before archiving:
 
@@ -80,7 +80,7 @@ Acceptance criteria:
 - `omv findings archive <id> --reason reported --strict` can reuse the same artifact checks.
 - Missing artifacts produce warnings for candidate findings and errors for strict confirmed archive.
 
-### 4. Better Dashboard Detail
+### 4. Better Dashboard Detail — implemented
 
 Improve `omv dashboard` without turning it into a full-screen app:
 
@@ -95,7 +95,7 @@ Acceptance criteria:
 - The first screen tells users whether to audit, reproduce, report, or archive.
 - Long command truncation never hides the only actionable next step.
 
-### 5. Documentation And Demo Assets
+### 5. Documentation And Demo Assets — implemented
 
 Add sanitized examples:
 

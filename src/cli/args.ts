@@ -48,12 +48,58 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
+    case "repro":
+      return validateReproArgs(args.slice(1));
+    case "report":
+      return validateReportArgs(args.slice(1));
     case "workspace":
       return validateWorkspaceArgs(args.slice(1));
     case "findings":
       return validateFindingsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: version, setup, doctor, dashboard, workspace, findings, help`);
+      return fail(`Unknown command: ${command}. Valid commands: version, setup, doctor, dashboard, repro, report, workspace, findings, help`);
+  }
+}
+
+function validateReproArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0];
+  const rest = args.slice(1);
+  switch (subcommand) {
+    case "init":
+      return validateOptions(rest, {
+        command: "repro init",
+        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`repro ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown repro command: ${subcommand ?? ""}. Valid commands: init, help`);
+  }
+}
+
+function validateReportArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0];
+  const rest = args.slice(1);
+  switch (subcommand) {
+    case "artifacts":
+      return validateOptions(rest, {
+        command: "report artifacts",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`report ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown report command: ${subcommand ?? ""}. Valid commands: artifacts, help`);
   }
 }
 
@@ -108,6 +154,14 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
         options: new Map(),
         minPositionals: 0,
         maxPositionals: 0,
+      });
+    case "doctor":
+      return validateOptions(rest, {
+        command: "findings doctor",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
       });
     case "show":
       return validateOptions(rest, {
@@ -165,7 +219,7 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
     case "-h":
       return rest.length === 0 ? ok() : fail(`findings ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, workflow, show, open, init, validate, promote, archive, restore, help`);
+      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, workflow, doctor, show, open, init, validate, promote, archive, restore, help`);
   }
 }
 

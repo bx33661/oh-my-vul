@@ -12,11 +12,15 @@ import {
   validateFindings,
   promoteFinding,
   archiveFinding,
+  checkReportArtifacts,
   createFindingTemplate,
+  doctorFinding,
+  initReproArtifacts,
   listArchivedFindings,
   listFindingWorkflow,
   restoreFinding,
   showFinding,
+  type FindingDoctorResult,
   type FindingTemplateResult,
   type EvidenceStatus,
   type FindingSummary,
@@ -26,6 +30,8 @@ import {
   type ArchivedFindingSummary,
   type FindingArchiveResult,
   type FindingRestoreResult,
+  type ReportArtifactsResult,
+  type ReproInitResult,
 } from "./findings.js";
 import { initWorkspace, readWorkspaceActivity, workspaceStatus, type WorkspaceActivityEntry, type WorkspaceStatus } from "./workspace.js";
 import {
@@ -59,11 +65,16 @@ Usage:
   omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
   omv dashboard [--json]            Show workspace, queue, and recent activity
+  omv repro init <id> [--force] [--json]
+                                     Create standard local reproduction artifacts
+  omv report artifacts <id> [--json]
+                                     Check report and reproduction artifacts
   omv workspace init [--json]        Initialize local .omv workspace
   omv workspace status [--json]      Show local .omv workspace status
   omv workspace log [--json]         Show local workspace activity log
   omv findings list [--json]        List .omv/findings evidence files
   omv findings workflow [--json]    Show active finding lifecycle next actions
+  omv findings doctor <id> [--json] Explain what blocks submission readiness
   omv findings show <id> [--archived] [--json]
                                      Show one finding's details and next action
   omv findings open <id> [--archived] [--json]
@@ -90,6 +101,9 @@ Examples:
   omv doctor
   omv doctor --json
   omv dashboard
+  omv repro init demo
+  omv findings doctor demo
+  omv report artifacts demo
   omv findings list
   omv findings init demo
   omv findings validate
@@ -123,6 +137,12 @@ Show package version, registry version, platform, and registry update date.`);
 
 Show local workspace status, active workflow queue, and recent activity in one view.`);
       return;
+    case "repro":
+      reproUsage(args[1]);
+      return;
+    case "report":
+      reportUsage(args[1]);
+      return;
     case "workspace":
       workspaceUsage(args[1]);
       return;
@@ -131,6 +151,32 @@ Show local workspace status, active workflow queue, and recent activity in one v
       return;
     default:
       usage();
+      return;
+  }
+}
+
+function reproUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "init":
+      console.log(`Usage: omv repro init <id> [--force] [--json]
+
+Create .omv/repro/<id>/ with README.md, commands.sh, observed.txt, docker-compose.yml, and screenshots/.`);
+      return;
+    default:
+      console.log("Usage: omv repro init <id> [--force] [--json]");
+      return;
+  }
+}
+
+function reportUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "artifacts":
+      console.log(`Usage: omv report artifacts <id> [--json]
+
+Check .omv/reports/<id>/ and Evidence.v1 reproduction artifact references.`);
+      return;
+    default:
+      console.log("Usage: omv report artifacts <id> [--json]");
       return;
   }
 }
@@ -163,6 +209,9 @@ function findingsUsage(subcommand: string | undefined): void {
     case "workflow":
       console.log("Usage: omv findings workflow [--json]");
       return;
+    case "doctor":
+      console.log("Usage: omv findings doctor <id> [--json]");
+      return;
     case "show":
       console.log("Usage: omv findings show <id> [--archived] [--json]");
       return;
@@ -192,6 +241,7 @@ Validate Evidence.v1 files. --strict treats warnings as failures.`);
       console.log(`Usage:
   omv findings list [--json]
   omv findings workflow [--json]
+  omv findings doctor <id> [--json]
   omv findings show <id> [--archived] [--json]
   omv findings open <id> [--archived] [--json]
   omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
@@ -330,6 +380,9 @@ async function runFindings(): Promise<void> {
     case "workflow":
       await runFindingsWorkflow(json);
       return;
+    case "doctor":
+      await runFindingsDoctor(json);
+      return;
     case "show":
       await runFindingsShow(json);
       return;
@@ -363,6 +416,46 @@ async function runFindings(): Promise<void> {
   }
 }
 
+async function runRepro(): Promise<void> {
+  const subcommand = args[1];
+  const json = args.includes("--json");
+
+  switch (subcommand) {
+    case "init":
+      await runReproInit(json);
+      return;
+    case "help":
+    case "--help":
+    case "-h":
+      reproUsage(undefined);
+      return;
+    default:
+      console.error(`Unknown repro command: ${subcommand ?? ""}\n`);
+      reproUsage(undefined);
+      process.exit(1);
+  }
+}
+
+async function runReport(): Promise<void> {
+  const subcommand = args[1];
+  const json = args.includes("--json");
+
+  switch (subcommand) {
+    case "artifacts":
+      await runReportArtifacts(json);
+      return;
+    case "help":
+    case "--help":
+    case "-h":
+      reportUsage(undefined);
+      return;
+    default:
+      console.error(`Unknown report command: ${subcommand ?? ""}\n`);
+      reportUsage(undefined);
+      process.exit(1);
+  }
+}
+
 async function printWorkspaceCommandResult(result: WorkspaceStatus, json: boolean): Promise<void> {
   if (json) {
     console.log(JSON.stringify(result, null, 2));
@@ -391,6 +484,61 @@ async function runFindingsWorkflow(json: boolean): Promise<void> {
     return;
   }
   printWorkflowSummaries(findings);
+}
+
+async function runFindingsDoctor(json: boolean): Promise<void> {
+  const target = firstPositionalAfter("doctor");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await doctorFinding(target);
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.reportReady) {
+      process.exit(1);
+    }
+    return;
+  }
+  printFindingDoctor(result);
+  if (!result.reportReady) {
+    process.exit(1);
+  }
+}
+
+async function runReproInit(json: boolean): Promise<void> {
+  const id = firstPositionalAfter("init");
+  const force = args.includes("--force");
+  if (!id) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await initReproArtifacts(id, process.cwd(), { force });
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printReproInitResult(result);
+}
+
+async function runReportArtifacts(json: boolean): Promise<void> {
+  const id = firstPositionalAfter("artifacts");
+  if (!id) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await checkReportArtifacts(id);
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    if (result.errors.length > 0) {
+      process.exit(1);
+    }
+    return;
+  }
+  printReportArtifacts(result);
+  if (result.errors.length > 0) {
+    process.exit(1);
+  }
 }
 
 async function runFindingsShow(json: boolean): Promise<void> {
@@ -705,16 +853,24 @@ function printDashboard(
   } else {
     console.log(
       table(
-      ["id", "status", "evidence", "submission", "next action"],
+      ["id", "status", "evidence", "submission", "verdict", "blocker", "next action"],
       workflow.slice(0, 8).map((finding) => [
         truncate(finding.id, 30),
         statusBadge(finding.status),
         readiness(finding.evidenceScore),
         readiness(finding.submissionScore),
+        truncate(finding.verdict.exploitability, 14),
+        truncate(finding.blockers[0] ?? finding.priorityReason, 30),
         cmd(truncate(finding.nextAction, 54)),
       ]),
       ),
     );
+    const truncatedActions = workflow
+      .slice(0, 8)
+      .filter((finding) => finding.nextAction.length > 54);
+    if (truncatedActions.length > 0) {
+      console.log(panel("full next actions", truncatedActions.map((finding) => `${finding.id}: ${cmd(finding.nextAction)}`)));
+    }
   }
 
   if (activity.length > 0) {
@@ -823,6 +979,10 @@ function printFindingDetail(finding: FindingDetail): void {
   if (finding.missingFields.length > 0) {
     lines.push("", muted(`missing  ${finding.missingFields.join(", ")}`));
   }
+  if (finding.blockers.length > 0) {
+    lines.push("", muted("blockers"));
+    lines.push(...finding.blockers.slice(0, 5).map((item) => `  ${item}`));
+  }
   console.log(panel(finding.id, lines));
 }
 
@@ -863,6 +1023,74 @@ function printFindingValidation(result: FindingValidation): void {
     lines.push(...result.warnings.map((item) => `  ${item}`));
   }
   console.log(panel(result.id, lines));
+}
+
+function printFindingDoctor(result: FindingDoctorResult): void {
+  console.log(title(`finding doctor ${result.id}`));
+  const lines = kv([
+    ["status", statusBadge(result.status)],
+    ["evidence", readiness(result.evidenceScore)],
+    ["submission", readiness(result.submissionScore)],
+    ["threshold", String(result.submissionThreshold)],
+    ["validation", validationBadge(result.validationOk)],
+    ["report ready", result.reportReady ? outcomeBadge("pass") : outcomeBadge("fail")],
+    ["path", result.path],
+    ["next", cmd(result.nextAction)],
+  ]);
+  if (result.issues.length === 0) {
+    lines.push("", "No blocking issues found.");
+  } else {
+    lines.push("", tuiError("issues"));
+    lines.push(...result.issues.map((issue) => {
+      const fields = issue.fields.length > 0 ? ` [${issue.fields.join(", ")}]` : "";
+      return `  ${issue.severity}: ${issue.message}${fields} -> ${issue.nextAction}`;
+    }));
+  }
+  console.log(panel(result.id, lines));
+}
+
+function printReproInitResult(result: ReproInitResult): void {
+  console.log(
+    panel("repro artifacts", [
+      ...kv([
+        ["id", result.id],
+        ["path", result.path],
+        ["finding", result.findingPath],
+        ["written", String(result.written.length)],
+        ["skipped", String(result.skipped.length)],
+        ["evidence", result.updatedFinding ? "updated evidence.repro_artifacts" : "already listed"],
+        ["next", cmd(`/omv-repro ${result.id}`)],
+      ]),
+      "",
+      ...result.artifacts.map((path) => `  ${path}`),
+    ]),
+  );
+}
+
+function printReportArtifacts(result: ReportArtifactsResult): void {
+  const state = result.errors.length > 0 ? "fail" : result.warnings.length > 0 ? "warn" : "pass";
+  const lines = kv([
+    ["id", result.id],
+    ["status", statusBadge(result.status)],
+    ["state", outcomeBadge(state)],
+    ["reports", result.reportsDir],
+    ["report files", String(result.reportArtifactPaths.length)],
+    ["repro", result.reproDir],
+    ["repro refs", `${result.existingReproArtifacts.length}/${result.listedReproArtifacts.length}`],
+  ]);
+  if (result.reportArtifactPaths.length > 0) {
+    lines.push("", "report artifacts");
+    lines.push(...result.reportArtifactPaths.map((path) => `  ${path}`));
+  }
+  if (result.errors.length > 0) {
+    lines.push("", tuiError("errors"));
+    lines.push(...result.errors.map((item) => `  ${item}`));
+  }
+  if (result.warnings.length > 0) {
+    lines.push("", warn("warnings"));
+    lines.push(...result.warnings.map((item) => `  ${item}`));
+  }
+  console.log(panel("report artifacts", lines));
 }
 
 function printFindingTemplateResult(result: FindingTemplateResult): void {
@@ -992,6 +1220,18 @@ switch (command) {
     break;
   case "dashboard":
     runDashboard().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "repro":
+    runRepro().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "report":
+    runReport().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     });

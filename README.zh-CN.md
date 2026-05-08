@@ -55,10 +55,13 @@ npx -p oh-my-vul omv doctor
 
 omv findings init demo-traversal
 /omv-audit demo-traversal
+omv repro init demo-traversal
 /omv-repro demo-traversal
 omv findings validate demo-traversal
+omv findings doctor demo-traversal
 
 /omv-report demo-traversal
+omv report artifacts demo-traversal
 ```
 
 <details>
@@ -98,9 +101,12 @@ omv version --json
   -> 候选项目和源码入口
   -> .omv/findings/<id>.yaml
   -> /omv-audit
+  -> omv repro init <id>
   -> /omv-repro
   -> omv findings validate <id>
+  -> omv findings doctor <id>
   -> /omv-report
+  -> omv report artifacts <id>
   -> 提交前报告草稿
 ```
 

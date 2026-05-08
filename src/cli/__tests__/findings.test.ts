@@ -6,8 +6,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   archiveFinding,
+  checkReportArtifacts,
   createFindingTemplate,
+  doctorFinding,
   ensureFindingsDir,
+  initReproArtifacts,
   listArchivedFindings,
   listFindings,
   listFindingWorkflow,
@@ -17,7 +20,7 @@ import {
   validateFinding,
   validateFindings,
 } from "../findings.js";
-import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingsDir, workspaceIndexPath } from "../paths.js";
+import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, workspaceIndexPath } from "../paths.js";
 import { readWorkspaceActivity } from "../workspace.js";
 
 const BASE_FINDING = `schema_version: "1"
@@ -400,6 +403,127 @@ test("archive reported warns or blocks confirmed findings without report artifac
       reportArtifactPaths?: string[];
     };
     assert.deepEqual(metadata.reportArtifactPaths, [reportPath]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("initReproArtifacts creates standard files and records Evidence.v1 artifact paths", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "demo.yaml"), BASE_FINDING, "utf-8");
+
+    const result = await initReproArtifacts("demo", projectRoot);
+    assert.equal(result.id, "demo");
+    assert.equal(result.updatedFinding, true);
+    assert.equal(existsSync(join(findingReproDir("demo", projectRoot), "README.md")), true);
+    assert.equal(existsSync(join(findingReproDir("demo", projectRoot), "commands.sh")), true);
+    assert.equal(existsSync(join(findingReproDir("demo", projectRoot), "observed.txt")), true);
+    assert.equal(existsSync(join(findingReproDir("demo", projectRoot), "docker-compose.yml")), true);
+    assert.equal(existsSync(join(findingReproDir("demo", projectRoot), "screenshots")), true);
+
+    const text = await readFile(join(dir, "demo.yaml"), "utf-8");
+    assert.match(text, /\.omv\/repro\/demo\/commands\.sh/);
+    assert.match(text, /\.omv\/repro\/demo\/observed\.txt/);
+
+    const again = await initReproArtifacts("demo", projectRoot);
+    assert.equal(again.updatedFinding, false);
+    assert.ok(again.skipped.length >= 4);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("doctorFinding explains submission blockers without suggesting reports prematurely", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "needs-work.yaml"),
+      BASE_FINDING
+        .replace("observed_result: reads outside base directory", "observed_result: unknown")
+        .replace("affected_range: unknown", "affected_range: unknown")
+        .replace("unverified_fields: []", "unverified_fields: [evidence.observed_result, versions.affected_range]"),
+      "utf-8",
+    );
+
+    const result = await doctorFinding("needs-work", projectRoot);
+    assert.equal(result.reportReady, false);
+    assert.notEqual(result.nextAction, "/omv-report needs-work");
+    assert.match(result.issues.map((issue) => issue.message).join("\n"), /local observed result is missing/);
+    assert.match(result.issues.map((issue) => issue.message).join("\n"), /affected version range is unknown/);
+    assert.equal(result.submissionThreshold, 75);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("checkReportArtifacts validates report files and referenced reproduction artifacts", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "confirmed.yaml"),
+      BASE_FINDING.replace("status: candidate", "status: confirmed").replace(
+        "observed_result: reads outside base directory",
+        "observed_result: reads outside base directory\n  repro_artifacts:\n    - .omv/repro/confirmed/observed.txt",
+      ),
+      "utf-8",
+    );
+
+    let result = await checkReportArtifacts("confirmed", projectRoot);
+    assert.match(result.errors.join("\n"), /no report artifacts/);
+    assert.match(result.errors.join("\n"), /missing reproduction artifact/);
+
+    await initReproArtifacts("confirmed", projectRoot);
+    await mkdir(findingReportsDir("confirmed", projectRoot), { recursive: true });
+    await writeFile(join(findingReportsDir("confirmed", projectRoot), "empty.md"), "", "utf-8");
+    result = await checkReportArtifacts("confirmed", projectRoot);
+    assert.match(result.errors.join("\n"), /no non-empty report artifacts/);
+    assert.match(result.errors.join("\n"), /report artifact is empty/);
+
+    await writeFile(join(findingReportsDir("confirmed", projectRoot), "vuldb.md"), "# report\n", "utf-8");
+    result = await checkReportArtifacts("confirmed", projectRoot);
+    assert.deepEqual(result.reportArtifactPaths, [join(findingReportsDir("confirmed", projectRoot), "vuldb.md")]);
+    assert.match(result.errors.join("\n"), /report artifact is empty/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("end-to-end finding flow validates, promotes, checks artifacts, and archives reported work", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const template = await createFindingTemplate("e2e", { projectRoot });
+    await writeFile(template.path, BASE_FINDING, "utf-8");
+
+    const candidate = await validateFinding("e2e", projectRoot);
+    assert.equal(candidate.ok, true);
+    assert.equal(candidate.status, "candidate");
+
+    const promoted = await promoteFinding("e2e", "confirmed", projectRoot);
+    assert.equal(promoted.ok, true);
+    assert.equal(promoted.status, "confirmed");
+
+    await initReproArtifacts("e2e", projectRoot);
+    await mkdir(findingReportsDir("e2e", projectRoot), { recursive: true });
+    const reportPath = join(findingReportsDir("e2e", projectRoot), "vuldb.md");
+    await writeFile(reportPath, "# Demo report\n", "utf-8");
+
+    const artifacts = await checkReportArtifacts("e2e", projectRoot);
+    assert.deepEqual(artifacts.errors, []);
+    assert.deepEqual(artifacts.reportArtifactPaths, [reportPath]);
+
+    const archived = await archiveFinding("e2e", "reported", projectRoot, { strict: true });
+    assert.equal(archived.archiveReason, "reported");
+    assert.deepEqual(archived.reportArtifactPaths, [reportPath]);
+    assert.equal(existsSync(join(findingsDir(projectRoot), "e2e.yaml")), false);
+    assert.equal(existsSync(join(archivedFindingsDir(projectRoot), "e2e.yaml")), true);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
