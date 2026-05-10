@@ -42,6 +42,48 @@
           "text": "confirmed output must include complete traceable evidence"
         }
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "/omv-audit demo-guard-bypass",
+      "expected_output": "Audit confirms a finding where a guard exists but is bypassable, documenting the bypass technique in the guard field.",
+      "files": [
+        "evals/golden/guard-bypass.md"
+      ],
+      "assertions": [
+        {
+          "type": "guard_bypass_documented",
+          "text": "bypassable guard must document the bypass technique"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "/omv-audit demo-inaccessible-source",
+      "expected_output": "Audit blocks when source code is not publicly accessible, listing all evidence fields as unverified.",
+      "files": [
+        "evals/golden/inaccessible-source.md"
+      ],
+      "assertions": [
+        {
+          "type": "blocked_inaccessible_source",
+          "text": "inaccessible source must block with all fields unverified"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/omv-audit demo-critical-ssti",
+      "expected_output": "Audit confirms a critical SSTI with scope change, CVSS 10.0, and complete evidence chain.",
+      "files": [
+        "evals/golden/critical-ssti.md"
+      ],
+      "assertions": [
+        {
+          "type": "critical_scope_change",
+          "text": "scope-changed SSTI must have CVSS >= 9.0 and S:C in vector"
+        }
+      ]
     }
   ]
 }

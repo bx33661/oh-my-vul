@@ -50,6 +50,24 @@ def check(assertion_type: str, text: str) -> bool:
         )
     if assertion_type == "blocked_with_reason":
         return has_status(text, "blocked") and "blockers:" in text and re.search(r"-\s+\S.{12,}", text) is not None
+    if assertion_type == "artifacts_recorded":
+        return (
+            "observed_result:" in text
+            and "repro_artifacts:" in text
+            and re.search(r"\.omv/repro/", text) is not None
+        )
+    if assertion_type == "version_mismatch_warning":
+        return (
+            "mismatch" in lowered
+            and "versions.tested" in text
+            and re.search(r"install.*@[\d.]+", lowered) is not None
+        )
+    if assertion_type == "submission_readiness_check":
+        return (
+            "score:" in lowered
+            and "ready" in lowered
+            and all(f in text for f in ["evidence.source", "evidence.sink", "evidence.observed_result"])
+        )
     raise SystemExit(f"unknown assertion type: {assertion_type}")
 
 
