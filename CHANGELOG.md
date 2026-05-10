@@ -8,8 +8,11 @@
 - Improved dashboard workflow detail with verdict, top blocker, full next actions, and richer JSON fields.
 - Added an end-to-end finding lifecycle regression test from template creation through strict reported archive.
 - Added copyable candidate, blocked, and confirmed demo Evidence.v1 examples.
-- Split the CLI entrypoint into focused command modules and render helpers.
+- Extracted CLI usage/help functions into `usage.ts`, reducing `omv.ts` by ~280 lines.
 - Added a Python `zipfile` fallback for skill packaging when the system `zip` binary is unavailable.
+- Expanded pattern registries to 12 ecosystems (added php, csharp, swift, dart, elixir, perl).
+- Expanded `omv-audit` and `omv-repro` eval coverage to 6 scenarios each.
+- Added CONTRIBUTING.md with full skill development template and registration guide.
 
 ## v0.7.1 - Hardened evidence workflow
 
