@@ -36,7 +36,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     assert.equal(existsSync(join(claudeHome, "skills", "omv", "references", "registry.yaml")), true);
     assert.equal(existsSync(installManifestPath("user")), true);
 
-    let check = await doctor();
+    let check = await doctor({ scope: "user" });
     assert.equal(check.ok, true);
     assert.equal(check.checks.find((item) => item.name === "install manifest")?.status, "pass");
 
@@ -45,7 +45,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
       `${await readFile(join(claudeHome, "skills", "omv-find", "SKILL.md"), "utf-8")}\n# local edit\n`,
       "utf-8",
     );
-    check = await doctor();
+    check = await doctor({ scope: "user" });
     assert.equal(check.ok, true);
     assert.match(
       check.checks.find((item) => item.name === "modified installed files")?.message ?? "",
@@ -53,7 +53,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     );
 
     await rm(join(claudeHome, "skills", "omv-find", "contracts", "evidence.v1.yaml"));
-    check = await doctor();
+    check = await doctor({ scope: "user" });
     assert.equal(check.ok, false);
     assert.match(
       check.checks.find((item) => item.name === "skill: omv-find")?.message ?? "",
@@ -65,7 +65,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as { package_version: string };
     manifest.package_version = "0.0.0";
     await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf-8");
-    check = await doctor();
+    check = await doctor({ scope: "user" });
     assert.match(
       check.checks.find((item) => item.name === "install manifest")?.message ?? "",
       /stale version/,
@@ -75,7 +75,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     const installedOmv = join(claudeHome, "skills", "omv", "SKILL.md");
     const original = await readFile(installedOmv, "utf-8");
     await writeFile(installedOmv, `${original}\nBroken reference: \`../../registry.yaml\`\n`, "utf-8");
-    check = await doctor();
+    check = await doctor({ scope: "user" });
     assert.equal(check.ok, false);
     assert.match(
       check.checks.find((item) => item.name === "skill: omv")?.message ?? "",

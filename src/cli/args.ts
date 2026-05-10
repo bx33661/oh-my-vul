@@ -32,6 +32,16 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
+    case "uninstall":
+      return validateOptions(args.slice(1), {
+        command: "uninstall",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map([["--scope", VALID_SCOPES]]),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "config":
+      return validateConfigArgs(args.slice(1));
     case "doctor":
       return validateOptions(args.slice(1), {
         command: "doctor",
@@ -54,6 +64,8 @@ export function validateArgs(args: string[]): ArgsValidation {
       return validateFindingsArgs(args.slice(1));
     case "radar":
       return validateRadarArgs(args.slice(1));
+    case "request":
+      return validateRequestArgs(args.slice(1));
     case "dedup":
       return validateOptions(args.slice(1), {
         command: "dedup",
@@ -68,7 +80,37 @@ export function validateArgs(args: string[]): ArgsValidation {
     case "submissions":
       return validateSubmissionsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: version, setup, doctor, dashboard, workspace, findings, radar, dedup, disclose, submissions, help`);
+      return fail(`Unknown command: ${command}. Valid commands: version, setup, uninstall, config, doctor, dashboard, workspace, findings, radar, request, dedup, disclose, submissions, help`);
+  }
+}
+
+function validateRequestArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0] ?? "preflight";
+  const rest = args[0] ? args.slice(1) : args;
+  switch (subcommand) {
+    case "preflight":
+      return validateOptions(rest, {
+        command: "request preflight",
+        flags: new Set(["--json", "--refresh", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "fetch":
+      return validateOptions(rest, {
+        command: "request fetch",
+        flags: new Set(["--json", "--refresh", ...HELP_FLAGS]),
+        options: new Map(),
+        freeOptions: new Set(["--accept"]),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`request ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown request command: ${subcommand}. Valid commands: preflight, fetch, help`);
   }
 }
 
@@ -170,6 +212,13 @@ function validateWorkspaceArgs(args: string[]): ArgsValidation {
 
   switch (subcommand) {
     case "init":
+      return validateOptions(rest, {
+        command: `workspace ${subcommand}`,
+        flags: new Set(["--gitignore", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
     case "status":
       return validateOptions(rest, {
         command: `workspace ${subcommand}`,
@@ -192,6 +241,51 @@ function validateWorkspaceArgs(args: string[]): ArgsValidation {
       return rest.length === 0 ? ok() : fail(`workspace ${subcommand} accepts no arguments`);
     default:
       return fail(`Unknown workspace command: ${subcommand}. Valid commands: init, status, log, help`);
+  }
+}
+
+function validateConfigArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0] ?? "list";
+  const rest = args[0] ? args.slice(1) : args;
+  switch (subcommand) {
+    case "get":
+      return validateOptions(rest, {
+        command: "config get",
+        flags: new Set([...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "set":
+      return validateOptions(rest, {
+        command: "config set",
+        flags: new Set([...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 2,
+        maxPositionals: 2,
+      });
+    case "unset":
+      return validateOptions(rest, {
+        command: "config unset",
+        flags: new Set([...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "list":
+      return validateOptions(rest, {
+        command: "config list",
+        flags: new Set([...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`config ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown config command: ${subcommand}. Valid commands: get, set, unset, list, help`);
   }
 }
 
@@ -267,12 +361,20 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
         minPositionals: 1,
         maxPositionals: 1,
       });
+    case "delete":
+      return validateOptions(rest, {
+        command: "findings delete",
+        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
     case "help":
     case "--help":
     case "-h":
       return rest.length === 0 ? ok() : fail(`findings ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, workflow, show, open, init, validate, promote, archive, restore, help`);
+      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, workflow, show, open, init, validate, promote, archive, restore, delete, help`);
   }
 }
 

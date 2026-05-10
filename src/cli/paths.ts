@@ -109,6 +109,11 @@ export function radarEventsPath(projectRoot = process.cwd()): string {
   return join(radarDir(projectRoot), "events.jsonl");
 }
 
+/** .omv/cache/http/ — local HTTP request cache for passive metadata fetches. */
+export function httpCacheDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "cache", "http");
+}
+
 /** .omv/submissions/ — local submission tracking state. */
 export function submissionsDir(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "submissions");

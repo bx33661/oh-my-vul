@@ -25,6 +25,7 @@ REQUIRED_FILES = {
     "dist/index.js",
     "registry.yaml",
     "contracts/evidence.v1.yaml",
+    "contracts/candidate-list.v1.yaml",
     "contracts/submission.v1.yaml",
     "contracts/threat-map.v1.yaml",
     "docs/vulnerability-research-best-practices.zh-CN.md",
@@ -39,8 +40,11 @@ REQUIRED_FILES = {
     "skills/omv-critic/SKILL.md",
     "shared/scripts/collect_metadata.py",
     "shared/scripts/estimate_loc.sh",
+    "shared/scripts/http_client.py",
     "shared/scripts/resolve_source_path.py",
     "shared/references/patterns/npm.md",
+    "shared/references/research-radar.md",
+    "shared/references/pattern-packs.md",
 }
 
 REQUIRED_PREFIXES = {

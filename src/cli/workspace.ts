@@ -54,6 +54,7 @@ export interface WorkspaceActivityEntry {
     | "finding.promote"
     | "finding.archive"
     | "finding.restore"
+    | "finding.delete"
     | "radar.refresh"
     | "dedup.update"
     | "submission.record"
@@ -77,11 +78,54 @@ export interface ArchiveMetadata {
   reportArtifactPaths?: string[];
 }
 
-export async function initWorkspace(projectRoot = process.cwd()): Promise<WorkspaceStatus> {
+export interface InitWorkspaceOptions {
+  gitignore?: boolean;
+}
+
+export async function initWorkspace(
+  projectRoot = process.cwd(),
+  options: InitWorkspaceOptions = {},
+): Promise<WorkspaceStatus> {
   await ensureWorkspaceDirs(projectRoot);
   await rebuildWorkspaceIndex(projectRoot);
   await appendWorkspaceActivity({ action: "workspace.init" }, projectRoot);
-  return workspaceStatus(projectRoot);
+  const status = await workspaceStatus(projectRoot);
+  status.warnings.push(...(await initGitignoreAdvice(projectRoot, options.gitignore ?? false)));
+  return status;
+}
+
+async function initGitignoreAdvice(projectRoot: string, autoAdd: boolean): Promise<string[]> {
+  const gitignorePath = join(projectRoot, ".gitignore");
+  const wanted = [".omv/repro/", ".omv/reports/", ".omv/archive/"];
+  const keep = ".omv/findings/";
+  const warnings: string[] = [];
+
+  if (!existsSync(gitignorePath)) {
+    warnings.push(
+      `.gitignore not found. Suggested entries:\n  ${wanted.join("\n  ")}\nKeep tracked:\n  ${keep}`,
+    );
+    return warnings;
+  }
+
+  const content = await readFile(gitignorePath, "utf-8");
+  const lines = content.split(/\r?\n/);
+  const missing = wanted.filter((entry) => !lines.some((line) => line.trim() === entry));
+
+  if (missing.length === 0) {
+    return warnings;
+  }
+
+  if (autoAdd) {
+    const prefix = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
+    const append = prefix + missing.map((entry) => entry).join("\n") + "\n";
+    await appendFile(gitignorePath, append, "utf-8");
+    return warnings;
+  }
+
+  warnings.push(
+    `Suggested .gitignore entries (run omv workspace init --gitignore to auto-add):\n  ${missing.join("\n  ")}`,
+  );
+  return warnings;
 }
 
 export async function workspaceStatus(projectRoot = process.cwd()): Promise<WorkspaceStatus> {

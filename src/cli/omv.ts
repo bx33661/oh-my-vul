@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-import { setup } from "./setup.js";
+import { setup, uninstall, type UninstallResult } from "./setup.js";
 import { doctor, type Check, type DoctorResult } from "./doctor.js";
+import { readConfig } from "./config.js";
 import { validateArgs } from "./args.js";
 import { readCatalog } from "./catalog.js";
 import { packageRoot } from "./paths.js";
 import { readFile } from "fs/promises";
 import { planDedup, updateDedup, type DedupUpdateResult } from "./dedup.js";
 import { radarBrief, refreshRadar, type RadarBrief, type RadarRefreshResult } from "./radar.js";
+import { requestFetch, requestPreflight, type RequestFetchResult, type RequestPreflightResult } from "./request.js";
 import {
   closeSubmission,
   recordSubmission,
@@ -14,6 +16,7 @@ import {
   type FindingSubmissions,
 } from "./submissions.js";
 import type { SetupResult } from "./setup.js";
+import { configGet, configList, configSet, configUnset } from "./config.js";
 import {
   listFindings,
   validateFinding,
@@ -24,6 +27,7 @@ import {
   listArchivedFindings,
   listFindingWorkflow,
   restoreFinding,
+  deleteFinding,
   showFinding,
   type FindingTemplateResult,
   type EvidenceStatus,
@@ -34,6 +38,7 @@ import {
   type ArchivedFindingSummary,
   type FindingArchiveResult,
   type FindingRestoreResult,
+  type FindingDeleteResult,
 } from "./findings.js";
 import { initWorkspace, readWorkspaceActivity, workspaceStatus, type WorkspaceActivityEntry, type WorkspaceStatus } from "./workspace.js";
 import {
@@ -64,6 +69,8 @@ function usage(): void {
 Usage:
   omv setup [--scope user|project] [--force] [--dry-run]
                                      Install skills to ~/.claude/skills/ or ./.claude/skills/
+  omv uninstall [--scope user|project] [--json]
+                                     Remove installed skills and manifest
   omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
   omv dashboard [--json]            Show workspace, queue, and recent activity
@@ -91,6 +98,10 @@ Usage:
   omv radar refresh [--dry-run] [--json]
                                      Refresh passive watchlist intelligence
   omv radar brief [--json]           Summarize local radar events
+  omv request preflight [--refresh] [--json]
+                                     Check metadata source request health
+  omv request fetch <url> [--accept mime] [--refresh] [--json]
+                                     Fetch one public URL through the request broker
   omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]
                                      Plan or write Evidence.v1 dedup fields
   omv disclose timeline <id> [--days N] [--json]
@@ -101,6 +112,8 @@ Usage:
                                      Show submission status for one finding
   omv submissions close <id> --cve CVE-YYYY-NNNN [--json]
                                      Close submission records with a CVE id
+  omv config [get <key>|set <key> <value>|unset <key>|list]
+                                     Manage persistent config (scope, etc.)
   omv version [--json]               Show package and registry version
   omv help                           Show this message
 
@@ -119,7 +132,12 @@ Examples:
   omv findings show demo
   omv findings archive demo --reason reported
   omv radar refresh --dry-run
+  omv request preflight
+  omv request fetch https://registry.npmjs.org/markdown-it --json
   omv submissions track demo
+  omv uninstall --scope user
+  omv config set scope user
+  omv config list
 `);
 }
 
@@ -129,6 +147,12 @@ function commandUsage(topic: string | undefined): void {
       console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
 
 Install all registry-marked skills and write an install manifest.`);
+      return;
+    case "uninstall":
+      console.log(`Usage: omv uninstall [--scope user|project] [--json]
+
+Remove installed skills, install manifest, and setup-scope.json (project scope only).
+User data under .omv/ (findings, reports, repro, notes, submissions) is preserved.`);
       return;
     case "doctor":
       console.log(`Usage: omv doctor [--scope user|project] [--json] [--strict]
@@ -155,6 +179,9 @@ Show local workspace status, active workflow queue, and recent activity in one v
     case "radar":
       radarUsage(args[1]);
       return;
+    case "request":
+      requestUsage(args[1]);
+      return;
     case "dedup":
       console.log("Usage: omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]");
       return;
@@ -163,6 +190,9 @@ Show local workspace status, active workflow queue, and recent activity in one v
       return;
     case "submissions":
       submissionsUsage(args[1]);
+      return;
+    case "config":
+      configUsage(args[1]);
       return;
     default:
       usage();
@@ -173,7 +203,7 @@ Show local workspace status, active workflow queue, and recent activity in one v
 function workspaceUsage(subcommand: string | undefined): void {
   switch (subcommand) {
     case "init":
-      console.log("Usage: omv workspace init [--json]");
+      console.log("Usage: omv workspace init [--gitignore] [--json]");
       return;
     case "status":
       console.log("Usage: omv workspace status [--json]");
@@ -183,7 +213,7 @@ function workspaceUsage(subcommand: string | undefined): void {
       return;
     default:
       console.log(`Usage:
-  omv workspace init [--json]
+  omv workspace init [--gitignore] [--json]
   omv workspace status [--json]
   omv workspace log [--json]`);
       return;
@@ -206,6 +236,22 @@ function radarUsage(subcommand: string | undefined): void {
   }
 }
 
+function requestUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "preflight":
+      console.log("Usage: omv request preflight [--refresh] [--json]");
+      return;
+    case "fetch":
+      console.log("Usage: omv request fetch <url> [--accept mime] [--refresh] [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv request preflight [--refresh] [--json]
+  omv request fetch <url> [--accept mime] [--refresh] [--json]`);
+      return;
+  }
+}
+
 function submissionsUsage(subcommand: string | undefined): void {
   switch (subcommand) {
     case "record":
@@ -222,6 +268,30 @@ function submissionsUsage(subcommand: string | undefined): void {
   omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
   omv submissions track <id> [--json]
   omv submissions close <id> --cve CVE-YYYY-NNNN [--json]`);
+      return;
+  }
+}
+
+function configUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "get":
+      console.log("Usage: omv config get <key>");
+      return;
+    case "set":
+      console.log("Usage: omv config set <key> <value>");
+      return;
+    case "unset":
+      console.log("Usage: omv config unset <key>");
+      return;
+    case "list":
+      console.log("Usage: omv config list");
+      return;
+    default:
+      console.log(`Usage:
+  omv config get <key>
+  omv config set <key> <value>
+  omv config unset <key>
+  omv config list`);
       return;
   }
 }
@@ -283,9 +353,9 @@ async function runSetup(): Promise<void> {
   const force = args.includes("--force");
   const dryRun = args.includes("--dry-run");
   const json = args.includes("--json");
-  const scope = parseScope("user");
+  const scope = await resolveScope("user");
 
-  if (dryRun) {
+  if (dryRun && !json) {
     console.log("Dry run — no files will be written.\n");
   }
 
@@ -306,10 +376,31 @@ async function runSetup(): Promise<void> {
   }
 }
 
+async function runUninstall(): Promise<void> {
+  const json = args.includes("--json");
+  const scope = await resolveScope("user");
+
+  const result = await uninstall({ scope });
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    if (result.errors.length > 0) {
+      process.exit(1);
+    }
+    return;
+  }
+
+  printUninstallResult(result);
+
+  if (result.errors.length > 0) {
+    process.exit(1);
+  }
+}
+
 async function runDoctor(): Promise<void> {
   const json = args.includes("--json");
   const strict = args.includes("--strict");
-  const scope = parseOptionalScope();
+  const scope = await resolveOptionalScope();
   const result = await doctor({ scope });
   const ok = result.ok && (!strict || !result.warnings);
 
@@ -333,7 +424,7 @@ async function runWorkspace(): Promise<void> {
 
   switch (subcommand) {
     case "init":
-      await printWorkspaceCommandResult(await initWorkspace(), json);
+      await printWorkspaceCommandResult(await initWorkspace(process.cwd(), { gitignore: args.includes("--gitignore") }), json);
       return;
     case "status":
       await printWorkspaceCommandResult(await workspaceStatus(), json);
@@ -422,6 +513,9 @@ async function runFindings(): Promise<void> {
     case "restore":
       await runFindingsRestore(json);
       return;
+    case "delete":
+      await runFindingsDelete(json);
+      return;
     case "help":
     case "--help":
     case "-h":
@@ -463,8 +557,52 @@ async function runRadar(): Promise<void> {
   }
 }
 
+async function runRequest(): Promise<void> {
+  const subcommand = args[1] ?? "preflight";
+  const json = args.includes("--json");
+  const refresh = args.includes("--refresh");
+  switch (subcommand) {
+    case "preflight": {
+      const result = await requestPreflight({ refresh });
+      if (json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      printRequestPreflight(result);
+      if (result.checks.some((check) => check.status === "fail")) {
+        process.exit(1);
+      }
+      return;
+    }
+    case "fetch": {
+      const url = firstPositionalAfter("fetch");
+      if (!url) {
+        console.error("Missing URL.");
+        process.exit(1);
+      }
+      const result = await requestFetch(url, { accept: parseOption("--accept"), refresh });
+      if (json) {
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok) {
+          process.exit(1);
+        }
+        return;
+      }
+      printRequestFetch(result);
+      if (!result.ok) {
+        process.exit(1);
+      }
+      return;
+    }
+    default:
+      console.error(`Unknown request command: ${subcommand}\n`);
+      requestUsage(undefined);
+      process.exit(1);
+  }
+}
+
 async function runDedup(): Promise<void> {
-  const id = args[1];
+  const id = firstPositionalAfter("dedup");
   const json = args.includes("--json");
   if (!id) {
     console.error("Missing finding id.");
@@ -539,6 +677,63 @@ async function runSubmissions(): Promise<void> {
     return;
   }
   printSubmissions(result);
+}
+
+async function runConfig(): Promise<void> {
+  const subcommand = args[1] ?? "list";
+  switch (subcommand) {
+    case "get": {
+      const key = firstPositionalAfter("get");
+      if (!key) {
+        console.error("Missing config key.");
+        process.exit(1);
+      }
+      const value = await configGet(key);
+      if (value === undefined) {
+        console.error(`Config key "${key}" is not set.`);
+        process.exit(1);
+      }
+      console.log(`${key}=${value}`);
+      return;
+    }
+    case "set": {
+      const key = firstPositionalAfter("set");
+      const value = firstPositionalAfter(key ?? "");
+      if (!key || !value) {
+        console.error("Usage: omv config set <key> <value>");
+        process.exit(1);
+      }
+      await configSet(key, value);
+      console.log(`${key}=${value}`);
+      return;
+    }
+    case "unset": {
+      const key = firstPositionalAfter("unset");
+      if (!key) {
+        console.error("Missing config key.");
+        process.exit(1);
+      }
+      await configUnset(key);
+      console.log(`${key} unset`);
+      return;
+    }
+    case "list": {
+      const entries = await configList();
+      const keys = Object.keys(entries);
+      if (keys.length === 0) {
+        console.log("No config values set.");
+        return;
+      }
+      for (const key of keys.sort()) {
+        console.log(`${key}=${entries[key]}`);
+      }
+      return;
+    }
+    default:
+      console.error(`Unknown config command: ${subcommand}\n`);
+      configUsage(undefined);
+      process.exit(1);
+  }
 }
 
 async function printWorkspaceCommandResult(result: WorkspaceStatus, json: boolean): Promise<void> {
@@ -747,6 +942,21 @@ async function runFindingsRestore(json: boolean): Promise<void> {
   printRestoreResult(result);
 }
 
+async function runFindingsDelete(json: boolean): Promise<void> {
+  const target = firstPositionalAfter("delete");
+  const force = args.includes("--force");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await deleteFinding(target, process.cwd(), { force });
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printDeleteResult(result);
+}
+
 function printSetupResult(result: SetupResult): void {
   const total = result.installed.length + result.skipped.length + result.errors.length;
   const summary = result.errors.length > 0
@@ -775,6 +985,41 @@ function printSetupResult(result: SetupResult): void {
   const rows = [
     ...result.installed.map((name) => [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
     ...result.skipped.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "already installed; use --force to overwrite"]),
+    ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
+  ];
+  if (rows.length > 0) {
+    console.log(table(["", "skill", "state", "detail"], rows));
+  }
+}
+
+function printUninstallResult(result: UninstallResult): void {
+  const total = result.removed.length + result.notFound.length + result.errors.length;
+  const summary = result.errors.length > 0
+    ? `${result.errors.length} error(s), ${result.removed.length}/${total} removed`
+    : `${result.removed.length}/${Math.max(result.removed.length, result.notFound.length)} skill(s) removed`;
+  const next = result.errors.length > 0
+    ? "omv doctor"
+    : "omv setup";
+  const finalState = result.errors.length > 0 ? "error" : result.removed.length === 0 && result.notFound.length === 0 ? "skipped" : "pass";
+
+  console.log(title("oh-my-vul uninstall"));
+  console.log(
+    panel("uninstall summary", [
+      ...kv([
+        ["scope", result.scope],
+        ["skills dir", result.skillsDir],
+        ["result", outcomeBadge(finalState)],
+        ["skills", summary],
+        ["manifest", result.manifestRemoved ? "removed" : "not found"],
+        ...(result.scope === "project" ? [["setup scope", result.setupScopeRemoved ? "removed" : "not found"]] as [string, string][] : []),
+        ["next", cmd(next)],
+      ]),
+    ]),
+  );
+
+  const rows = [
+    ...result.removed.map((name) => [statusIcon("installed"), name, outcomeBadge("pass"), "removed from skills directory"]),
+    ...result.notFound.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "not found in skills directory"]),
     ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
   ];
   if (rows.length > 0) {
@@ -1119,6 +1364,74 @@ function printRadarBrief(result: RadarBrief): void {
   );
 }
 
+function printRequestPreflight(result: RequestPreflightResult): void {
+  console.log(title("request preflight"));
+  console.log(
+    panel("request broker", [
+      ...kv([
+        ["cache", result.cacheDir],
+        ["generated", result.generatedAt],
+        ["token", process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "GitHub token detected" : "GitHub token not detected"],
+      ]),
+    ]),
+  );
+  console.log(
+    table(
+      ["source", "state", "status", "cache", "detail"],
+      result.checks.map((check) => [
+        check.name,
+        outcomeBadge(check.status === "pass" ? "pass" : check.status === "warn" ? "warn" : "fail"),
+        check.result.status ? String(check.result.status) : "-",
+        check.result.cached ? "hit" : "miss",
+        truncate(preflightDetail(check.result), 72),
+      ]),
+    ),
+  );
+}
+
+function preflightDetail(result: RequestFetchResult): string {
+  if (result.failure) {
+    return `${result.failure.reason}: ${result.failure.message}`;
+  }
+  if (result.url.includes("api.github.com") && result.rateLimit?.remaining === 0) {
+    return `rate_limited: GitHub API remaining=0${result.rateLimit.reset ? ` reset=${result.rateLimit.reset}` : ""}`;
+  }
+  return result.url;
+}
+
+function printRequestFetch(result: RequestFetchResult): void {
+  const state = result.ok ? "pass" : "fail";
+  console.log(
+    panel("request fetch", [
+      ...kv([
+        ["url", result.url],
+        ["state", outcomeBadge(state)],
+        ["status", result.status ? String(result.status) : "-"],
+        ["cache", result.cached ? "hit" : "miss"],
+        ["bytes", String(result.bodyBytes)],
+        ["sha256", result.bodySha256 ?? "-"],
+        ["expires", result.expiresAt ?? "-"],
+        ["rate limit", formatRateLimit(result)],
+        ["cache path", result.cachePath],
+      ]),
+      ...(result.recommendation ? ["", muted("recommendation"), `  ${result.recommendation}`] : []),
+      ...(result.failure ? ["", tuiError("failure"), `  ${result.failure.reason}: ${result.failure.message}`] : []),
+      ...(result.bodyPreview ? ["", muted("body preview"), ...result.bodyPreview.split(/\r?\n/).slice(0, 12).map((line) => `  ${truncate(line, 100)}`)] : []),
+    ]),
+  );
+}
+
+function formatRateLimit(result: RequestFetchResult): string {
+  if (!result.rateLimit) {
+    return "-";
+  }
+  const remaining = result.rateLimit.remaining ?? "?";
+  const limit = result.rateLimit.limit ?? "?";
+  const reset = result.rateLimit.reset ? ` reset=${result.rateLimit.reset}` : "";
+  const resource = result.rateLimit.resource ? ` ${result.rateLimit.resource}` : "";
+  return `${remaining}/${limit}${resource}${reset}`;
+}
+
 function printDedupResult(result: DedupUpdateResult): void {
   console.log(
     panel("dedup", [
@@ -1196,6 +1509,36 @@ function printRestoreResult(result: FindingRestoreResult): void {
   );
 }
 
+function printDeleteResult(result: FindingDeleteResult): void {
+  if (!result.deleted) {
+    console.log(
+      panel("finding delete preview", [
+        ...kv([
+          ["id", result.id],
+          ["action", "preview only"],
+          ["next", cmd(`omv findings delete ${result.id} --force`)],
+        ]),
+        "",
+        muted("paths to delete"),
+        ...result.paths.map((p) => `  ${p}`),
+      ]),
+    );
+    return;
+  }
+
+  const finalState = result.errors.length > 0 ? "warn" : "pass";
+  console.log(
+    panel("finding deleted", [
+      ...kv([
+        ["id", result.id],
+        ["result", outcomeBadge(finalState)],
+        ["paths", `${result.paths.length} file(s) removed`],
+      ]),
+      ...(result.errors.length > 0 ? ["", warn("errors"), ...result.errors.map((e) => `  ${e}`)] : []),
+    ]),
+  );
+}
+
 function firstPositionalAfter(subcommand: string): string | undefined {
   const start = args.indexOf(subcommand) + 1;
   for (let index = start; index < args.length; index += 1) {
@@ -1210,7 +1553,7 @@ function firstPositionalAfter(subcommand: string): string | undefined {
 }
 
 function optionTakesValue(option: string): boolean {
-  return ["--scope", "--status", "--reason", "--existing-cve", "--notes", "--days", "--platform", "--submission-id", "--url", "--cve"].includes(option);
+  return ["--scope", "--status", "--reason", "--existing-cve", "--notes", "--days", "--platform", "--submission-id", "--url", "--cve", "--accept"].includes(option);
 }
 
 function parseStatus(): EvidenceStatus | undefined {
@@ -1242,17 +1585,21 @@ function requireOption(name: string): string {
   return value;
 }
 
-function parseOptionalScope(): "user" | "project" | undefined {
+async function resolveOptionalScope(): Promise<"user" | "project" | undefined> {
   const index = args.indexOf("--scope");
   if (index === -1) {
     return undefined;
   }
-  return parseScope("user");
+  return resolveScope("user");
 }
 
-function parseScope(defaultScope: "user" | "project"): "user" | "project" {
+async function resolveScope(defaultScope: "user" | "project"): Promise<"user" | "project"> {
   const index = args.indexOf("--scope");
-  const raw = index === -1 ? defaultScope : args[index + 1];
+  if (index === -1) {
+    const config = await readConfig();
+    return config.scope ?? defaultScope;
+  }
+  const raw = args[index + 1];
   if (raw === "user" || raw === "project") {
     return raw;
   }
@@ -1281,6 +1628,12 @@ switch (command) {
     break;
   case "setup":
     runSetup().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "uninstall":
+    runUninstall().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     });
@@ -1315,6 +1668,12 @@ switch (command) {
       process.exit(1);
     });
     break;
+  case "request":
+    runRequest().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
   case "dedup":
     runDedup().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));
@@ -1329,6 +1688,12 @@ switch (command) {
     break;
   case "submissions":
     runSubmissions().catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+    break;
+  case "config":
+    runConfig().catch((err) => {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     });

@@ -31,3 +31,6 @@ __pycache__/
 .idea/
 *.swp
 *.swo
+.omv/repro/
+.omv/reports/
+.omv/archive/

@@ -35,6 +35,7 @@
 | **Passive intelligence** | `/omv-radar` and `/omv-dedup` track watchlist changes and duplicate advisory risk. |
 | **Report drafting** | `/omv-report` generates review-friendly advisory drafts from validated findings. |
 | **Disclosure lifecycle** | `/omv-disclose`, `/omv-critic`, and `omv submissions ...` cover pre-submit review and post-submit tracking. |
+| **Request reliability** | `omv request ...` classifies rate limits, request refusals, source health, and cached metadata fetches. |
 | **CLI management** | `omv dashboard`, `omv doctor`, and `omv findings ...` keep local state inspectable. |
 
 ## Quick Start
@@ -42,6 +43,7 @@
 ```sh
 npx oh-my-vul setup
 omv doctor
+omv request preflight
 ```
 
 If `omv` is not on your `PATH`, use npx:
@@ -159,6 +161,23 @@ csrf xxe sql ssti sandbox redirect upload crypto infoleak
 
 `/omv-find` should return evidence-backed candidates: repository, registry identity, maintenance signal, code-size estimate, **source -> sink -> guard** notes, and local audit next steps.
 
+## Request Reliability
+
+`/omv-find` often needs public registry metadata, GitHub metadata, raw source files, and source archives. Those sources can be rate-limited, bot-blocked, missing, or temporarily unavailable. Use the TypeScript request broker before or during request-heavy research:
+
+```sh
+omv request preflight
+omv request preflight --json --refresh
+omv request fetch https://registry.npmjs.org/markdown-it --json
+omv request fetch https://api.github.com/repos/owner/repo --accept application/json --refresh
+```
+
+The broker writes cache entries under `.omv/cache/http/`, redacts sensitive response headers, and returns structured `failure.reason`, `rateLimit`, `expiresAt`, and `recommendation` fields. GitHub API requests automatically use `GITHUB_TOKEN` or `GH_TOKEN` when present.
+
+Common failure reasons are `rate_limited`, `auth_required`, `bot_blocked_or_forbidden`, `not_found`, `network_timeout`, `network_error`, `upstream_error`, and `invalid_url`. Treat these as research-state signals: keep affected fields unverified, prefer registry/source archive fallbacks, and avoid repeatedly retrying blocked URLs.
+
+See [docs/request-broker.md](docs/request-broker.md) for the full request broker behavior, JSON contract, cache policy, and Playwright evaluation.
+
 ## Evidence Ledger
 
 Project-local research state lives in `.omv/findings/`. These files are gitignored by default because they may contain private research notes.
@@ -268,6 +287,8 @@ omv dedup demo-traversal --confirm --existing-cve none --notes "searched NVD, GH
 | Document | Purpose |
 |---|---|
 | [README.zh-CN.md](README.zh-CN.md) | Chinese project guide. |
+| [docs/request-broker.md](docs/request-broker.md) | Request broker usage, failure classes, cache behavior, and Playwright evaluation. |
+| [docs/request-broker.zh-CN.md](docs/request-broker.zh-CN.md) | Chinese request broker guide. |
 | [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | Chinese best-practices guide for vulnerability research with this project. |
 | [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | Sanitized end-to-end finding workflow example. |
 | [docs/roadmap-0.8.md](docs/roadmap-0.8.md) | Planned `v0.8` CLI improvements. |

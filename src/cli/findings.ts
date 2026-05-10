@@ -14,6 +14,7 @@ import {
   touchWorkspaceFinding,
   writeArchiveMetadata,
 } from "./workspace.js";
+import { rm } from "fs/promises";
 
 export type EvidenceStatus = "candidate" | "confirmed" | "blocked";
 
@@ -80,6 +81,13 @@ export interface FindingRestoreResult {
   from: string;
   to: string;
   status: string;
+}
+
+export interface FindingDeleteResult {
+  id: string;
+  deleted: boolean;
+  paths: string[];
+  errors: string[];
 }
 
 export interface FindingTemplateResult {
@@ -505,6 +513,64 @@ export async function restoreFinding(
   await touchWorkspaceFinding(id, status, projectRoot);
   await appendWorkspaceActivity({ action: "finding.restore", id, status, archived: false, from, to }, projectRoot);
   return { id, from, to, status };
+}
+
+export async function deleteFinding(
+  target: string,
+  projectRoot = process.cwd(),
+  options: { force?: boolean } = {},
+): Promise<FindingDeleteResult> {
+  await ensureWorkspaceDirs(projectRoot);
+  const id = normalizeFindingId(target);
+
+  const activePath = join(findingsDir(projectRoot), `${id}.yaml`);
+  const archivedPath = join(archivedFindingsDir(projectRoot), `${id}.yaml`);
+
+  let yamlPath: string | undefined;
+  if (existsSync(activePath)) {
+    yamlPath = activePath;
+  } else if (existsSync(archivedPath)) {
+    yamlPath = archivedPath;
+  } else {
+    throw new Error(`Finding ${id} not found in active or archive`);
+  }
+
+  const pathsToDelete: string[] = [yamlPath];
+  const sidecars: string[] = [];
+
+  const repro = findingReproDir(id, projectRoot);
+  if (existsSync(repro)) sidecars.push(repro);
+  const reports = findingReportsDir(id, projectRoot);
+  if (existsSync(reports)) sidecars.push(reports);
+  const threatmap = threatMapPath(id, projectRoot);
+  if (existsSync(threatmap)) sidecars.push(threatmap);
+  const submission = join(projectRoot, ".omv", "submissions", `${id}.yaml`);
+  if (existsSync(submission)) sidecars.push(submission);
+  const note = join(projectRoot, ".omv", "notes", `${id}.md`);
+  if (existsSync(note)) sidecars.push(note);
+  const archiveMeta = join(projectRoot, ".omv", "archive", "metadata", `${id}.json`);
+  if (existsSync(archiveMeta)) sidecars.push(archiveMeta);
+
+  if (!options.force) {
+    return { id, deleted: false, paths: [...pathsToDelete, ...sidecars], errors: [] };
+  }
+
+  const errors: string[] = [];
+  for (const path of [...pathsToDelete, ...sidecars]) {
+    try {
+      await rm(path, { recursive: true, force: true });
+    } catch (err) {
+      errors.push(`${path}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (errors.length === 0) {
+    await removeWorkspaceFinding(id, yamlPath === archivedPath, projectRoot);
+    await rebuildWorkspaceIndex(projectRoot);
+    await appendWorkspaceActivity({ action: "finding.delete", id, path: yamlPath }, projectRoot);
+  }
+
+  return { id, deleted: errors.length === 0, paths: [...pathsToDelete, ...sidecars], errors };
 }
 
 export async function ensureFindingsDir(projectRoot = process.cwd()): Promise<string> {
