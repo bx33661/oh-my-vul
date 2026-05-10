@@ -4,13 +4,11 @@ export function usage(): void {
 Usage:
   omv setup [--scope user|project] [--force] [--dry-run]
                                      Install skills to ~/.claude/skills/ or ./.claude/skills/
+  omv uninstall [--scope user|project] [--json]
+                                     Remove installed skills and manifest
   omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
   omv dashboard [--json]            Show workspace, queue, and recent activity
-  omv repro init <id> [--force] [--json]
-                                     Create standard local reproduction artifacts
-  omv report artifacts <id> [--json]
-                                     Check report and reproduction artifacts
   omv workspace init [--json]        Initialize local .omv workspace
   omv workspace status [--json]      Show local .omv workspace status
   omv workspace log [--json]         Show local workspace activity log
@@ -33,6 +31,25 @@ Usage:
                                      List archived findings
   omv findings restore <id> [--force] [--json]
                                      Restore an archived finding
+  omv radar refresh [--dry-run] [--json]
+                                     Refresh passive watchlist intelligence
+  omv radar brief [--json]           Summarize local radar events
+  omv request preflight [--refresh] [--json]
+                                     Check metadata source request health
+  omv request fetch <url> [--accept mime] [--refresh] [--json]
+                                     Fetch one public URL through the request broker
+  omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]
+                                     Plan or write Evidence.v1 dedup fields
+  omv disclose timeline <id> [--days N] [--json]
+                                     Show disclosure timeline milestones
+  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
+                                     Record platform submission metadata
+  omv submissions track <id> [--json]
+                                     Show submission status for one finding
+  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]
+                                     Close submission records with a CVE id
+  omv config [get <key>|set <key> <value>|unset <key>|list]
+                                     Manage persistent config (scope, etc.)
   omv version [--json]               Show package and registry version
   omv help                           Show this message
 
@@ -43,9 +60,6 @@ Examples:
   omv doctor
   omv doctor --json
   omv dashboard
-  omv repro init demo
-  omv findings doctor demo
-  omv report artifacts demo
   omv findings list
   omv findings init demo
   omv findings validate
@@ -53,15 +67,28 @@ Examples:
   omv findings workflow
   omv findings show demo
   omv findings archive demo --reason reported
+  omv radar refresh --dry-run
+  omv request preflight
+  omv request fetch https://registry.npmjs.org/markdown-it --json
+  omv submissions track demo
+  omv uninstall --scope user
+  omv config set scope user
+  omv config list
 `);
 }
 
-export function commandUsage(topic: string | undefined, subcommand: string | undefined): void {
+export function commandUsage(args: string[], command: string | undefined, topic: string | undefined, subcommand: string | undefined): void {
   switch (topic) {
     case "setup":
       console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
 
 Install all registry-marked skills and write an install manifest.`);
+      return;
+    case "uninstall":
+      console.log(`Usage: omv uninstall [--scope user|project] [--json]
+
+Remove installed skills, install manifest, and setup-scope.json (project scope only).
+User data under .omv/ (findings, reports, repro, notes, submissions) is preserved.`);
       return;
     case "doctor":
       console.log(`Usage: omv doctor [--scope user|project] [--json] [--strict]
@@ -79,17 +106,29 @@ Show package version, registry version, platform, and registry update date.`);
 
 Show local workspace status, active workflow queue, and recent activity in one view.`);
       return;
-    case "repro":
-      reproUsage(subcommand);
-      return;
-    case "report":
-      reportUsage(subcommand);
-      return;
     case "workspace":
       workspaceUsage(subcommand);
       return;
     case "findings":
       findingsUsage(subcommand);
+      return;
+    case "radar":
+      radarUsage(subcommand);
+      return;
+    case "request":
+      requestUsage(subcommand);
+      return;
+    case "dedup":
+      console.log("Usage: omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]");
+      return;
+    case "disclose":
+      console.log("Usage: omv disclose timeline <id> [--days N] [--json]");
+      return;
+    case "submissions":
+      submissionsUsage(subcommand);
+      return;
+    case "config":
+      configUsage(subcommand);
       return;
     default:
       usage();
@@ -97,36 +136,10 @@ Show local workspace status, active workflow queue, and recent activity in one v
   }
 }
 
-export function reproUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "init":
-      console.log(`Usage: omv repro init <id> [--force] [--json]
-
-Create .omv/repro/<id>/ with README.md, commands.sh, observed.txt, docker-compose.yml, and screenshots/.`);
-      return;
-    default:
-      console.log("Usage: omv repro init <id> [--force] [--json]");
-      return;
-  }
-}
-
-export function reportUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "artifacts":
-      console.log(`Usage: omv report artifacts <id> [--json]
-
-Check .omv/reports/<id>/ and Evidence.v1 reproduction artifact references.`);
-      return;
-    default:
-      console.log("Usage: omv report artifacts <id> [--json]");
-      return;
-  }
-}
-
 export function workspaceUsage(subcommand: string | undefined): void {
   switch (subcommand) {
     case "init":
-      console.log("Usage: omv workspace init [--json]");
+      console.log("Usage: omv workspace init [--gitignore] [--json]");
       return;
     case "status":
       console.log("Usage: omv workspace status [--json]");
@@ -136,9 +149,85 @@ export function workspaceUsage(subcommand: string | undefined): void {
       return;
     default:
       console.log(`Usage:
-  omv workspace init [--json]
+  omv workspace init [--gitignore] [--json]
   omv workspace status [--json]
   omv workspace log [--json]`);
+      return;
+  }
+}
+
+export function radarUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "refresh":
+      console.log("Usage: omv radar refresh [--dry-run] [--json]");
+      return;
+    case "brief":
+      console.log("Usage: omv radar brief [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv radar refresh [--dry-run] [--json]
+  omv radar brief [--json]`);
+      return;
+  }
+}
+
+export function requestUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "preflight":
+      console.log("Usage: omv request preflight [--refresh] [--json]");
+      return;
+    case "fetch":
+      console.log("Usage: omv request fetch <url> [--accept mime] [--refresh] [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv request preflight [--refresh] [--json]
+  omv request fetch <url> [--accept mime] [--refresh] [--json]`);
+      return;
+  }
+}
+
+export function submissionsUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "record":
+      console.log("Usage: omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]");
+      return;
+    case "track":
+      console.log("Usage: omv submissions track <id> [--json]");
+      return;
+    case "close":
+      console.log("Usage: omv submissions close <id> --cve CVE-YYYY-NNNN [--json]");
+      return;
+    default:
+      console.log(`Usage:
+  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
+  omv submissions track <id> [--json]
+  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]`);
+      return;
+  }
+}
+
+export function configUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "get":
+      console.log("Usage: omv config get <key>");
+      return;
+    case "set":
+      console.log("Usage: omv config set <key> <value>");
+      return;
+    case "unset":
+      console.log("Usage: omv config unset <key>");
+      return;
+    case "list":
+      console.log("Usage: omv config list");
+      return;
+    default:
+      console.log(`Usage:
+  omv config get <key>
+  omv config set <key> <value>
+  omv config unset <key>
+  omv config list`);
       return;
   }
 }
