@@ -55,6 +55,27 @@ def check(assertion_type: str, text: str) -> bool:
             and CVSS_RE.search(text) is not None
             and contains_all(text, ["nvd_searched: true", "ghsa_searched: true", "ecosystem_db_searched: true"])
         )
+    if assertion_type == "guard_bypass_documented":
+        return (
+            has_status(text, "confirmed")
+            and "guard:" in text
+            and ("bypass" in text.lower() or "bypassable" in text.lower())
+            and len(FILE_LINE_RE.findall(text)) >= 2
+        )
+    if assertion_type == "blocked_inaccessible_source":
+        return (
+            has_status(text, "blocked")
+            and contains_all(text, ["blockers", "source code"])
+            and text.lower().count("unknown") >= 5
+            and "unverified_fields" in text
+        )
+    if assertion_type == "critical_scope_change":
+        return (
+            has_status(text, "confirmed")
+            and CVSS_RE.search(text) is not None
+            and "S:C" in text
+            and any(float(m) >= 9.0 for m in re.findall(r"score:\s*([\d.]+)", text))
+        )
     raise SystemExit(f"unknown assertion type: {assertion_type}")
 
 

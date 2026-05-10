@@ -42,6 +42,48 @@
           "text": "failed reproduction must include blockers"
         }
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "/omv-repro demo-artifacts",
+      "expected_output": "Repro records observed_result and lists repro artifacts with file paths.",
+      "files": [
+        "evals/golden/artifact-recording.md"
+      ],
+      "assertions": [
+        {
+          "type": "artifacts_recorded",
+          "text": "repro artifacts must list file paths"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "/omv-repro demo-version-mismatch",
+      "expected_output": "Repro warns when installed version differs from evidence.versions.tested and recommends installing the exact version.",
+      "files": [
+        "evals/golden/version-mismatch.md"
+      ],
+      "assertions": [
+        {
+          "type": "version_mismatch_warning",
+          "text": "version mismatch must warn and recommend exact version"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/omv-repro demo-ready",
+      "expected_output": "Repro validates submission readiness by checking all required fields and reporting a score.",
+      "files": [
+        "evals/golden/submission-ready.md"
+      ],
+      "assertions": [
+        {
+          "type": "submission_readiness_check",
+          "text": "readiness check must list required fields and score"
+        }
+      ]
     }
   ]
 }
