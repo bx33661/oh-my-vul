@@ -16,8 +16,8 @@ Challenge the finding before report submission.
 
 ## Workflow
 
-1. Read `.omv/findings/<id>.yaml`.
-2. If present, read `.omv/threatmaps/<id>.yaml`.
+1. Read `.omv/findings/<id>.yaml` using `contracts/evidence.v1.yaml` as the local schema reference.
+2. If present, read `.omv/threatmaps/<id>.yaml` using `contracts/threat-map.v1.yaml` as the local schema reference.
 3. Run or inspect `omv findings validate <id>` for deterministic structure status.
 4. Evaluate argument quality separately from structural validation.
 5. Output `reject_risk: low|medium|high`.

@@ -16,7 +16,7 @@ Assess duplicate disclosure risk for a local finding.
 
 ## Workflow
 
-1. Read `.omv/findings/<id>.yaml`.
+1. Read `.omv/findings/<id>.yaml` using `contracts/evidence.v1.yaml` as the local schema reference.
 2. Run `omv dedup <id>` to produce deterministic NVD, GHSA, OSV, and ecosystem advisory queries.
 3. Show the queries before conclusions.
 4. Compare package, ecosystem, affected range, vulnerability class, CWE, source, sink, guard, and fixed version signals.

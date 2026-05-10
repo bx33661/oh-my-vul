@@ -17,7 +17,7 @@ Prepare local responsible disclosure material after a finding is report-ready.
 
 ## Workflow
 
-1. Read `.omv/findings/<id>.yaml`.
+1. Read `.omv/findings/<id>.yaml` using `contracts/evidence.v1.yaml` as the local schema reference.
 2. Identify vendor type: individual maintainer, company, foundation, or unknown.
 3. Generate three templates: initial contact, follow-up, and disclosure deadline reminder.
 4. Use `omv disclose timeline <id>` for 90-day milestones or `--days N` for a custom window.
@@ -29,4 +29,4 @@ Include package name, affected versions, impact summary, reproduction summary, s
 
 ## Local State
 
-Submission bookkeeping belongs in `.omv/submissions/<id>.yaml` through `omv submissions`. Research notes belong in `.omv/notes/<id>.md`. Treat both as private local state until sanitized.
+Submission bookkeeping belongs in `.omv/submissions/<id>.yaml` through `omv submissions` and follows `contracts/submission.v1.yaml`. Research notes belong in `.omv/notes/<id>.md`. Treat both as private local state until sanitized.

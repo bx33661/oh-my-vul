@@ -283,6 +283,22 @@ def check(assertion_type: str, text: str, prompt: str, assertion_text: str = "")
         return bool(re.search(r"\d{1,3}/100", text)) and ("stars" in lowered or "最近维护" in text)
     if assertion_type in {"freshness_and_uncertainty_present"}:
         return "数据新鲜度" in text or "验证日期" in text or "未确认" in text
+    if assertion_type == "portfolio_lanes_present":
+        return contains_any(lowered, ["fast-win"]) and contains_any(lowered, ["deep-audit"]) and contains_any(lowered, ["underrated", "diff-alert"])
+    if assertion_type == "lane_summary_present":
+        return contains_any(lowered, ["lane summary", "lane", "组合", "分层"]) and contains_any(lowered, ["fast-win", "deep-audit", "diff-alert", "underrated"])
+    if assertion_type == "audit_readiness_present":
+        return contains_any(lowered, ["audit readiness", "审计准备", "审计就绪"]) and contains_any(lowered, ["local test", "harness", "unit test", "本地测试", "单元测试"])
+    if assertion_type == "duplicate_risk_present":
+        return contains_any(lowered, ["duplicate risk", "likely_duplicate", "可能重复", "重复风险"]) and contains_any(lowered, ["advisory", "ghsa", "cve", "osv", "release note", "issue", "公告"])
+    if assertion_type == "duplicate_deprioritized":
+        return contains_any(lowered, ["likely_duplicate", "可能重复", "blocked", "降分", "lower", "deprioritized"])
+    if assertion_type == "diff_signal_present":
+        return contains_any(lowered, ["diff-alert", "diff signal", "recent commit", "release", "changelog", "changed file", "近期提交", "变更"])
+    if assertion_type == "pattern_pack_present":
+        return contains_any(lowered, ["playbook", "pattern pack", "archive-extractor", "renderer-pipeline", "template-engine", "config-loader", "media-tool", "webhook-client", "upload-handler"])
+    if assertion_type == "sparse_result_behavior_present":
+        return rows <= 3 or contains_any(lowered, ["sparse", "不足", "没有硬凑", "few strong candidates"])
     if assertion_type in {"non_exploitative_guidance", "no_fabricated_data"}:
         return not contains_any(lowered, ["attack live", "攻击线上", "真实线上服务", "批量利用"])
     if assertion_type == "no_flagship_projects":
