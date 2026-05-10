@@ -862,6 +862,7 @@ function computeSubmissionScore(data: Record<string, unknown>, status: string, p
   for (const deduction of submissionDeductions(data, status, projectRoot)) {
     score -= deduction.points;
   }
+  score -= cvssConfidencePenalty(data);
   if (status === "blocked") score = 0;
   if (status === "confirmed" && score < SUBMISSION_READY_THRESHOLD) score -= SUBMISSION_DEDUCTIONS.confirmedBelowThreshold;
   return Math.max(0, Math.min(100, score));
