@@ -132,7 +132,7 @@ def validate_pattern_registry() -> None:
         "CWE:",
     ]
     root = REPO_ROOT / "shared" / "references" / "patterns"
-    for ecosystem in ["npm", "python", "go", "rust", "java", "ruby"]:
+    for ecosystem in ["npm", "python", "go", "rust", "java", "ruby", "php", "csharp", "swift", "dart", "elixir", "perl"]:
         path = root / f"{ecosystem}.md"
         if not path.exists():
             raise SystemExit(f"missing pattern registry: {path.relative_to(REPO_ROOT)}")

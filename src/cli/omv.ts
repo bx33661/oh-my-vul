@@ -41,6 +41,7 @@ import {
   type FindingDeleteResult,
 } from "./findings.js";
 import { initWorkspace, readWorkspaceActivity, workspaceStatus, type WorkspaceActivityEntry, type WorkspaceStatus } from "./workspace.js";
+import { usage, commandUsage, workspaceUsage, radarUsage, requestUsage, submissionsUsage, configUsage, findingsUsage } from "./usage.js";
 import {
   command as cmd,
   empty,
@@ -63,287 +64,6 @@ import {
 const args = process.argv.slice(2);
 const command = args[0];
 
-function usage(): void {
-  console.log(`oh-my-vul — vulnerability research skills for Claude Code
-
-Usage:
-  omv setup [--scope user|project] [--force] [--dry-run]
-                                     Install skills to ~/.claude/skills/ or ./.claude/skills/
-  omv uninstall [--scope user|project] [--json]
-                                     Remove installed skills and manifest
-  omv doctor [--scope user|project] [--json] [--strict]
-                                     Check installation health
-  omv dashboard [--json]            Show workspace, queue, and recent activity
-  omv workspace init [--json]        Initialize local .omv workspace
-  omv workspace status [--json]      Show local .omv workspace status
-  omv workspace log [--json]         Show local workspace activity log
-  omv findings list [--json]        List .omv/findings evidence files
-  omv findings workflow [--json]    Show active finding lifecycle next actions
-  omv findings show <id> [--archived] [--json]
-                                     Show one finding's details and next action
-  omv findings open <id> [--archived] [--json]
-                                     Print a finding YAML path for editing
-  omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
-                                     Create an Evidence.v1 finding template
-  omv findings validate [id|path] [--json] [--strict]
-                                     Validate one finding or the whole ledger
-  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]
-                                     Update a finding status and revalidate it
-  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
-                                     Move a finding out of the active queue
-  omv findings archive list [--json]
-                                     List archived findings
-  omv findings restore <id> [--force] [--json]
-                                     Restore an archived finding
-  omv radar refresh [--dry-run] [--json]
-                                     Refresh passive watchlist intelligence
-  omv radar brief [--json]           Summarize local radar events
-  omv request preflight [--refresh] [--json]
-                                     Check metadata source request health
-  omv request fetch <url> [--accept mime] [--refresh] [--json]
-                                     Fetch one public URL through the request broker
-  omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]
-                                     Plan or write Evidence.v1 dedup fields
-  omv disclose timeline <id> [--days N] [--json]
-                                     Show disclosure timeline milestones
-  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
-                                     Record platform submission metadata
-  omv submissions track <id> [--json]
-                                     Show submission status for one finding
-  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]
-                                     Close submission records with a CVE id
-  omv config [get <key>|set <key> <value>|unset <key>|list]
-                                     Manage persistent config (scope, etc.)
-  omv version [--json]               Show package and registry version
-  omv help                           Show this message
-
-Examples:
-  npx oh-my-vul setup
-  npx oh-my-vul setup --scope project
-  npx oh-my-vul setup --force
-  omv doctor
-  omv doctor --json
-  omv dashboard
-  omv findings list
-  omv findings init demo
-  omv findings validate
-  omv findings promote demo --status confirmed
-  omv findings workflow
-  omv findings show demo
-  omv findings archive demo --reason reported
-  omv radar refresh --dry-run
-  omv request preflight
-  omv request fetch https://registry.npmjs.org/markdown-it --json
-  omv submissions track demo
-  omv uninstall --scope user
-  omv config set scope user
-  omv config list
-`);
-}
-
-function commandUsage(topic: string | undefined): void {
-  switch (topic) {
-    case "setup":
-      console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
-
-Install all registry-marked skills and write an install manifest.`);
-      return;
-    case "uninstall":
-      console.log(`Usage: omv uninstall [--scope user|project] [--json]
-
-Remove installed skills, install manifest, and setup-scope.json (project scope only).
-User data under .omv/ (findings, reports, repro, notes, submissions) is preserved.`);
-      return;
-    case "doctor":
-      console.log(`Usage: omv doctor [--scope user|project] [--json] [--strict]
-
-Check installed skills, runtime assets, references, scripts, and install manifest.
---strict exits non-zero when warnings are present.`);
-      return;
-    case "version":
-      console.log(`Usage: omv version [--json]
-
-Show package version, registry version, platform, and registry update date.`);
-      return;
-    case "dashboard":
-      console.log(`Usage: omv dashboard [--json]
-
-Show local workspace status, active workflow queue, and recent activity in one view.`);
-      return;
-    case "workspace":
-      workspaceUsage(args[1]);
-      return;
-    case "findings":
-      findingsUsage(args[1]);
-      return;
-    case "radar":
-      radarUsage(args[1]);
-      return;
-    case "request":
-      requestUsage(args[1]);
-      return;
-    case "dedup":
-      console.log("Usage: omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]");
-      return;
-    case "disclose":
-      console.log("Usage: omv disclose timeline <id> [--days N] [--json]");
-      return;
-    case "submissions":
-      submissionsUsage(args[1]);
-      return;
-    case "config":
-      configUsage(args[1]);
-      return;
-    default:
-      usage();
-      return;
-  }
-}
-
-function workspaceUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "init":
-      console.log("Usage: omv workspace init [--gitignore] [--json]");
-      return;
-    case "status":
-      console.log("Usage: omv workspace status [--json]");
-      return;
-    case "log":
-      console.log("Usage: omv workspace log [--json]");
-      return;
-    default:
-      console.log(`Usage:
-  omv workspace init [--gitignore] [--json]
-  omv workspace status [--json]
-  omv workspace log [--json]`);
-      return;
-  }
-}
-
-function radarUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "refresh":
-      console.log("Usage: omv radar refresh [--dry-run] [--json]");
-      return;
-    case "brief":
-      console.log("Usage: omv radar brief [--json]");
-      return;
-    default:
-      console.log(`Usage:
-  omv radar refresh [--dry-run] [--json]
-  omv radar brief [--json]`);
-      return;
-  }
-}
-
-function requestUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "preflight":
-      console.log("Usage: omv request preflight [--refresh] [--json]");
-      return;
-    case "fetch":
-      console.log("Usage: omv request fetch <url> [--accept mime] [--refresh] [--json]");
-      return;
-    default:
-      console.log(`Usage:
-  omv request preflight [--refresh] [--json]
-  omv request fetch <url> [--accept mime] [--refresh] [--json]`);
-      return;
-  }
-}
-
-function submissionsUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "record":
-      console.log("Usage: omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]");
-      return;
-    case "track":
-      console.log("Usage: omv submissions track <id> [--json]");
-      return;
-    case "close":
-      console.log("Usage: omv submissions close <id> --cve CVE-YYYY-NNNN [--json]");
-      return;
-    default:
-      console.log(`Usage:
-  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
-  omv submissions track <id> [--json]
-  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]`);
-      return;
-  }
-}
-
-function configUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "get":
-      console.log("Usage: omv config get <key>");
-      return;
-    case "set":
-      console.log("Usage: omv config set <key> <value>");
-      return;
-    case "unset":
-      console.log("Usage: omv config unset <key>");
-      return;
-    case "list":
-      console.log("Usage: omv config list");
-      return;
-    default:
-      console.log(`Usage:
-  omv config get <key>
-  omv config set <key> <value>
-  omv config unset <key>
-  omv config list`);
-      return;
-  }
-}
-
-function findingsUsage(subcommand: string | undefined): void {
-  switch (subcommand) {
-    case "list":
-      console.log("Usage: omv findings list [--json]");
-      return;
-    case "workflow":
-      console.log("Usage: omv findings workflow [--json]");
-      return;
-    case "show":
-      console.log("Usage: omv findings show <id> [--archived] [--json]");
-      return;
-    case "open":
-      console.log("Usage: omv findings open <id> [--archived] [--json]");
-      return;
-    case "init":
-      console.log("Usage: omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]");
-      return;
-    case "validate":
-      console.log(`Usage: omv findings validate [id|path] [--json] [--strict]
-
-Validate Evidence.v1 files. --strict treats warnings as failures.`);
-      return;
-    case "promote":
-      console.log("Usage: omv findings promote <id|path> --status candidate|confirmed|blocked [--json]");
-      return;
-    case "archive":
-      console.log(`Usage:
-  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
-  omv findings archive list [--json]`);
-      return;
-    case "restore":
-      console.log("Usage: omv findings restore <id> [--force] [--json]");
-      return;
-    default:
-      console.log(`Usage:
-  omv findings list [--json]
-  omv findings workflow [--json]
-  omv findings show <id> [--archived] [--json]
-  omv findings open <id> [--archived] [--json]
-  omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
-  omv findings validate [id|path] [--json] [--strict]
-  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]
-  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
-  omv findings archive list [--json]
-  omv findings restore <id> [--force] [--json]`);
-      return;
-  }
-}
 
 function wantsHelp(): boolean {
   return args.includes("--help") || args.includes("-h") || command === "help";
@@ -628,7 +348,7 @@ async function runDisclose(): Promise<void> {
   const json = args.includes("--json");
   if (subcommand !== "timeline") {
     console.error(`Unknown disclose command: ${subcommand}\n`);
-    commandUsage("disclose");
+    commandUsage(args, command, "disclose", args[1]);
     process.exit(1);
   }
   const id = firstPositionalAfter("timeline");
@@ -1615,7 +1335,9 @@ if (!validation.ok) {
 }
 
 if (wantsHelp()) {
-  commandUsage(command === "help" ? args[1] : command);
+  const topic = command === "help" ? args[1] : command;
+  const subcommand = command === "help" ? args[2] : args[1];
+  commandUsage(args, command, topic, subcommand);
   process.exit(0);
 }
 
