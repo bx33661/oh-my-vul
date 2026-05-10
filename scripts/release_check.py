@@ -33,6 +33,9 @@ STABLE_EVAL_CHECKS = [
     ("skills/omv-critic/scripts/check_output.py", "0", "skills/omv-critic/evals/golden/high-risk.md"),
 ]
 
+RENDERER_FIXTURE = "skills/omv-report/evals/fixtures/confirmed-prototype-pollution.yaml"
+RENDERER_FORMATS = ["vuldb", "ghsa", "osv", "md"]
+
 
 def run(args: list[str]) -> None:
     subprocess.run(args, cwd=REPO_ROOT, check=True)
@@ -140,6 +143,39 @@ def validate_pattern_registry() -> None:
     print("OK: pattern registries", flush=True)
 
 
+def validate_renderer() -> None:
+    renderer = REPO_ROOT / "skills/omv-report/scripts/render_template.py"
+    fixture = REPO_ROOT / RENDERER_FIXTURE
+    golden_dir = REPO_ROOT / "skills/omv-report/evals/golden"
+
+    for fmt in RENDERER_FORMATS:
+        ext = "json" if fmt == "osv" else "md"
+        golden = golden_dir / f"render-{fmt}.{ext}"
+        if not golden.exists():
+            raise SystemExit(f"missing renderer golden: {golden}")
+
+        result = subprocess.run(
+            [sys.executable, str(renderer), "--finding", str(fixture), "--format", fmt],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        if result.returncode != 0:
+            raise SystemExit(
+                f"renderer failed for --format {fmt}:\n{result.stderr.strip()}"
+            )
+
+        actual = result.stdout
+        expected = golden.read_text(encoding="utf-8")
+        if actual != expected:
+            raise SystemExit(
+                f"renderer golden mismatch for --format {fmt}\n"
+                f"Re-run: python3 {renderer} --finding {fixture} --format {fmt}"
+            )
+
+    print(f"OK: renderer golden tests passed ({', '.join(RENDERER_FORMATS)})", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -165,6 +201,7 @@ def main() -> None:
     run([sys.executable, str(METHODOLOGY_SCRIPT)])
     run([sys.executable, str(VALIDATE_SCRIPT)])
     validate_stable_evals()
+    validate_renderer()
 
     artifacts: list[Path] = []
     if args.write_artifacts:

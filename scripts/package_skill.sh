@@ -32,7 +32,37 @@ done
 
 (
   cd "$skill_dir"
-  zip -qr "$out" "${entries[@]}" -x '*/__pycache__/*' '*.pyc' '*.pyo' '.git/*' '.claude/*'
+  if command -v zip >/dev/null 2>&1; then
+    zip -qr "$out" "${entries[@]}" -x '*/__pycache__/*' '*.pyc' '*.pyo' '.git/*' '.claude/*'
+  else
+    python3 - "$out" "${entries[@]}" <<'PY'
+import os
+import sys
+import zipfile
+
+out = sys.argv[1]
+entries = sys.argv[2:]
+
+def include(path: str) -> bool:
+    parts = path.split(os.sep)
+    if "__pycache__" in parts or ".git" in parts or ".claude" in parts:
+        return False
+    return not path.endswith((".pyc", ".pyo"))
+
+with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    for entry in entries:
+        if os.path.isfile(entry):
+            if include(entry):
+                archive.write(entry, entry)
+            continue
+        for root, dirs, files in os.walk(entry):
+            dirs[:] = [name for name in dirs if include(os.path.join(root, name))]
+            for name in files:
+                path = os.path.join(root, name)
+                if include(path):
+                    archive.write(path, path)
+PY
+  fi
 )
 
 python3 "$repo_root/scripts/validate_skill.py" "$skill_dir" --package "$out"

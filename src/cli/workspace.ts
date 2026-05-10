@@ -57,6 +57,7 @@ export interface WorkspaceActivityEntry {
     | "finding.delete"
     | "radar.refresh"
     | "dedup.update"
+    | "repro.init"
     | "submission.record"
     | "submission.close";
   id?: string;
@@ -330,15 +331,27 @@ async function isWorkspaceIndexStale(projectRoot: string): Promise<boolean> {
     return true;
   }
   const indexMtime = statSync(indexPath).mtimeMs;
+  const index = await readWorkspaceIndex(projectRoot);
+  const indexed = new Set(index.findings.map((entry) => entry.path));
+  const seen = new Set<string>();
   for (const dir of [findingsDir(projectRoot), archivedFindingsDir(projectRoot)]) {
     if (!existsSync(dir)) {
       continue;
     }
     const files = await readdir(dir, { withFileTypes: true });
     for (const file of files) {
-      if (file.isFile() && /\.ya?ml$/.test(file.name) && statSync(join(dir, file.name)).mtimeMs > indexMtime) {
-        return true;
+      if (file.isFile() && /\.ya?ml$/.test(file.name)) {
+        const path = join(dir, file.name);
+        seen.add(path);
+        if (!indexed.has(path) || statSync(path).mtimeMs > indexMtime) {
+          return true;
+        }
       }
+    }
+  }
+  for (const path of indexed) {
+    if (!seen.has(path)) {
+      return true;
     }
   }
   return false;

@@ -84,6 +84,12 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["doctor", "--strict"]).ok, true);
   assert.equal(validateArgs(["dashboard"]).ok, true);
   assert.equal(validateArgs(["dashboard", "--json"]).ok, true);
+  assert.equal(validateArgs(["repro", "init", "demo"]).ok, true);
+  assert.equal(validateArgs(["repro", "init", "demo", "--force", "--json"]).ok, true);
+  assert.equal(validateArgs(["report", "artifacts", "demo"]).ok, true);
+  assert.equal(validateArgs(["report", "artifacts", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["findings", "doctor", "demo"]).ok, true);
+  assert.equal(validateArgs(["findings", "doctor", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--strict"]).ok, true);
   assert.equal(validateArgs(["setup", "--help"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--help"]).ok, true);

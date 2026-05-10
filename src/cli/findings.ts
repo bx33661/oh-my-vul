@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, isAbsolute, join, relative } from "path";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, parseDocument } from "yaml";
 import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath } from "./paths.js";
 import { readSubmissions, type SubmissionRecord } from "./submissions.js";
 import {
@@ -47,6 +47,7 @@ export interface FindingValidation {
 export interface FindingWorkflowSummary extends FindingSummary {
   nextAction: string;
   missingFields: string[];
+  blockers: string[];
   priority: number;
   priorityReason: string;
 }
@@ -95,6 +96,53 @@ export interface FindingTemplateResult {
   path: string;
   status: EvidenceStatus;
   created: boolean;
+}
+
+export interface ReproInitResult {
+  id: string;
+  path: string;
+  findingPath: string;
+  artifacts: string[];
+  written: string[];
+  skipped: string[];
+  updatedFinding: boolean;
+}
+
+export interface ReportArtifactsResult {
+  id: string;
+  status: string;
+  reportsDir: string;
+  reproDir: string;
+  reportArtifactPaths: string[];
+  emptyReportArtifactPaths: string[];
+  listedReproArtifacts: string[];
+  existingReproArtifacts: string[];
+  missingReproArtifacts: string[];
+  errors: string[];
+  warnings: string[];
+}
+
+export interface FindingDoctorIssue {
+  id: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  fields: string[];
+  nextAction: string;
+}
+
+export interface FindingDoctorResult {
+  id: string;
+  path: string;
+  status: string;
+  evidenceScore: number;
+  submissionScore: number;
+  submissionThreshold: number;
+  validationOk: boolean;
+  reportReady: boolean;
+  nextAction: string;
+  issues: FindingDoctorIssue[];
+  validation: FindingValidation;
+  artifacts: ReportArtifactsResult;
 }
 
 export interface FindingVerdict {
@@ -175,6 +223,25 @@ const UNKNOWN_ACCOUNTING_FIELDS = [
   "verdict.confidence",
   "verdict.reason",
 ];
+const SUBMISSION_READY_THRESHOLD = 75;
+const SUBMISSION_DEDUCTIONS = {
+  missingObservedResult: 25,
+  unresolvedBlockers: 30,
+  unknownAffectedRange: 10,
+  incompleteDedup: 15,
+  blockedOrDisproven: 50,
+  plausibleExploitability: 10,
+  confirmedBelowThreshold: 10,
+  missingReproArtifacts: 10,
+} as const;
+
+interface SubmissionDeduction {
+  id: keyof typeof SUBMISSION_DEDUCTIONS;
+  points: number;
+  message: string;
+  fields: string[];
+  nextAction: string;
+}
 
 export async function listFindings(projectRoot = process.cwd()): Promise<FindingSummary[]> {
   const dir = findingsDir(projectRoot);
@@ -195,12 +262,14 @@ export async function listFindingWorkflow(projectRoot = process.cwd()): Promise<
     findings.map(async (finding) => {
       const validation = await validateFinding(finding.id, projectRoot);
       const missingFields = workflowMissingFields(validation);
+      const blockers = workflowBlockers(validation);
       const nextAction = workflowNextAction(finding, validation, missingFields);
       const priority = workflowPriority(finding, validation, missingFields, nextAction);
       return {
         ...finding,
         nextAction,
         missingFields,
+        blockers,
         priority,
         priorityReason: workflowPriorityReason(priority, nextAction),
       };
@@ -231,6 +300,7 @@ export async function showFinding(
     validation,
     threatMap,
     missingFields,
+    blockers: workflowBlockers(validation),
     nextAction: archived ? `omv findings restore ${id}` : workflowNextAction(summary, validation, missingFields),
     priority: archived ? 0 : workflowPriority(summary, validation, missingFields, workflowNextAction(summary, validation, missingFields)),
     priorityReason: archived ? "archived" : workflowPriorityReason(
@@ -358,6 +428,167 @@ export async function validateFindings(projectRoot = process.cwd()): Promise<Fin
   return Promise.all(files.map((file) => validateFinding(join(dir, file), projectRoot)));
 }
 
+export async function initReproArtifacts(
+  target: string,
+  projectRoot = process.cwd(),
+  options: { force?: boolean } = {},
+): Promise<ReproInitResult> {
+  const id = normalizeFindingId(target);
+  const findingPath = resolveFindingPath(id, projectRoot);
+  if (!existsSync(findingPath)) {
+    throw new Error(`${findingPath} does not exist`);
+  }
+
+  const dir = findingReproDir(id, projectRoot);
+  await mkdir(join(dir, "screenshots"), { recursive: true });
+  const templates = new Map<string, string>([
+    ["README.md", reproReadmeTemplate(id)],
+    ["commands.sh", "#!/usr/bin/env bash\nset -euo pipefail\n\n# Record the exact local reproduction commands here.\n"],
+    ["observed.txt", "Record observed local output here. Do not infer this from the reproducer text.\n"],
+    ["docker-compose.yml", "services: {}\n"],
+  ]);
+  const written: string[] = [];
+  const skipped: string[] = [];
+
+  for (const [name, content] of templates) {
+    const path = join(dir, name);
+    const shouldWrite = options.force || !existsSync(path) || (await stat(path)).size === 0;
+    if (shouldWrite) {
+      await writeFile(path, content, "utf-8");
+      written.push(path);
+    } else {
+      skipped.push(path);
+    }
+  }
+
+  const artifacts = [
+    `.omv/repro/${id}/README.md`,
+    `.omv/repro/${id}/commands.sh`,
+    `.omv/repro/${id}/observed.txt`,
+    `.omv/repro/${id}/docker-compose.yml`,
+    `.omv/repro/${id}/screenshots/`,
+  ];
+  const updatedFinding = await mergeReproArtifacts(findingPath, artifacts);
+  await appendWorkspaceActivity({ action: "repro.init", id, path: dir }, projectRoot);
+
+  return { id, path: dir, findingPath, artifacts, written, skipped, updatedFinding };
+}
+
+export async function doctorFinding(target: string, projectRoot = process.cwd()): Promise<FindingDoctorResult> {
+  const path = resolveFindingPath(target, projectRoot);
+  const id = findingIdFromFile(path);
+  const validation = await validateFinding(path, projectRoot);
+  const summary = await readFindingSummary(path, id);
+  const parsed = (await readEvidence(path)).data;
+  const artifacts = await checkReportArtifacts(id, projectRoot);
+  const missingFields = workflowMissingFields(validation);
+  const nextAction = workflowNextAction(summary, validation, missingFields);
+  const issues: FindingDoctorIssue[] = [];
+
+  issues.push(...validation.errors.map((message) => ({
+    id: "validation-error",
+    severity: "error" as const,
+    message,
+    fields: extractFieldRefs(message),
+    nextAction: `omv findings open ${id}`,
+  })));
+  issues.push(...validation.warnings.map((message) => ({
+    id: classifyWarning(message),
+    severity: "warning" as const,
+    message,
+    fields: extractFieldRefs(message),
+    nextAction: warningNextAction(message, id),
+  })));
+  issues.push(...submissionDeductions(parsed, validation.status, projectRoot).map((deduction) => ({
+    id: deduction.id,
+    severity: deduction.points >= 25 ? "error" as const : "warning" as const,
+    message: `${deduction.message} (-${deduction.points})`,
+    fields: deduction.fields,
+    nextAction: deduction.nextAction.replace("<id>", id),
+  })));
+  issues.push(...artifacts.errors.map((message) => ({
+    id: "report-artifact-error",
+    severity: "error" as const,
+    message,
+    fields: ["evidence.repro_artifacts"],
+    nextAction: `omv report artifacts ${id}`,
+  })));
+  issues.push(...artifacts.warnings.map((message) => ({
+    id: "report-artifact-warning",
+    severity: "warning" as const,
+    message,
+    fields: ["evidence.repro_artifacts"],
+    nextAction: `omv report artifacts ${id}`,
+  })));
+
+  const dedupedIssues = dedupeIssues(issues);
+  const reportReady = validation.ok && validation.status === "confirmed" && validation.submissionScore >= SUBMISSION_READY_THRESHOLD;
+  return {
+    id,
+    path,
+    status: validation.status,
+    evidenceScore: validation.evidenceScore,
+    submissionScore: validation.submissionScore,
+    submissionThreshold: SUBMISSION_READY_THRESHOLD,
+    validationOk: validation.ok,
+    reportReady,
+    nextAction: reportReady ? `/omv-report ${id}` : nextAction,
+    issues: dedupedIssues,
+    validation,
+    artifacts,
+  };
+}
+
+export async function checkReportArtifacts(id: string, projectRoot = process.cwd()): Promise<ReportArtifactsResult> {
+  const normalizedId = normalizeFindingId(id);
+  const findingPath = resolveFindingPath(normalizedId, projectRoot);
+  if (!existsSync(findingPath)) {
+    throw new Error(`${findingPath} does not exist`);
+  }
+  const parsed = (await readEvidence(findingPath)).data;
+  const status = getString(parsed, "status") || "unknown";
+  const reportsPath = findingReportsDir(normalizedId, projectRoot);
+  const reproPath = findingReproDir(normalizedId, projectRoot);
+  const listedReproArtifacts = getList(parsed, "evidence.repro_artifacts").map(String).filter((value) => value.trim() !== "");
+  const existingReproArtifacts = existingArtifactPaths(listedReproArtifacts, projectRoot);
+  const missingReproArtifacts = listedReproArtifacts.filter((value) => !artifactExists(value, projectRoot));
+  const reportArtifactPaths = await listReportArtifacts(normalizedId, projectRoot);
+  const emptyReportArtifactPaths = await listEmptyReportArtifacts(reportsPath);
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const strictMissing = status === "confirmed";
+  const addMissing = (message: string) => (strictMissing ? errors : warnings).push(message);
+
+  if (!existsSync(reportsPath)) {
+    addMissing(`no report artifacts found under ${reportsPath} (directory missing)`);
+  } else if (reportArtifactPaths.length === 0) {
+    addMissing(`no non-empty report artifacts found under ${reportsPath}`);
+  }
+  for (const path of emptyReportArtifactPaths) {
+    addMissing(`report artifact is empty: ${path}`);
+  }
+  if (listedReproArtifacts.length > 0 && !existsSync(reproPath)) {
+    addMissing(`reproduction artifact directory is missing: ${reproPath}`);
+  }
+  for (const path of missingReproArtifacts) {
+    addMissing(`Evidence.v1 references a missing reproduction artifact: ${path}`);
+  }
+
+  return {
+    id: normalizedId,
+    status,
+    reportsDir: reportsPath,
+    reproDir: reproPath,
+    reportArtifactPaths,
+    emptyReportArtifactPaths,
+    listedReproArtifacts,
+    existingReproArtifacts,
+    missingReproArtifacts,
+    errors,
+    warnings,
+  };
+}
+
 export async function createFindingTemplate(
   id: string,
   options: CreateFindingTemplateOptions = {},
@@ -444,15 +675,16 @@ export async function archiveFinding(
     throw new Error(`${to} already exists; use --force to overwrite`);
   }
   const status = getString(parseEvidenceYaml(await readFile(from, "utf-8")).data, "status") || "unknown";
-  const reportArtifactPaths = await listReportArtifacts(id, projectRoot);
+  const artifactCheck = await checkReportArtifacts(id, projectRoot);
+  const reportArtifactPaths = artifactCheck.reportArtifactPaths;
   const submissionRecords = (await readSubmissions(id, projectRoot)).records;
   const warnings: string[] = [];
-  if (trimmedReason === "reported" && status === "confirmed" && reportArtifactPaths.length === 0) {
-    const warning = `confirmed finding ${id} has no report artifacts under ${findingReportsDir(id, projectRoot)}`;
+  if (trimmedReason === "reported" && status === "confirmed" && artifactCheck.errors.length > 0) {
+    const warning = artifactCheck.errors.join("; ");
     if (options.strict) {
       throw new Error(`${warning}; create report artifacts or archive with a different reason`);
     }
-    warnings.push(warning);
+    warnings.push(...artifactCheck.errors);
   }
   await rename(from, to);
   const archivedAt = new Date().toISOString();
@@ -601,6 +833,10 @@ function parseEvidenceYaml(text: string): { data: Record<string, unknown>; error
   }
 }
 
+async function readEvidence(path: string): Promise<{ data: Record<string, unknown>; errors: string[] }> {
+  return parseEvidenceYaml(await readFile(path, "utf-8"));
+}
+
 function computeEvidenceScore(data: Record<string, unknown>): number {
   let score = 0;
   if (isKnown(getString(data, "versions.tested"))) score += 20;
@@ -623,22 +859,83 @@ function computeEvidenceScore(data: Record<string, unknown>): number {
 
 function computeSubmissionScore(data: Record<string, unknown>, status: string, projectRoot: string): number {
   let score = computeEvidenceScore(data);
-  if (!isKnown(getString(data, "evidence.observed_result"))) score -= 25;
-  if (getList(data, "blockers").length > 0) score -= 30;
-  if (isUnknownPath(data, "versions.affected_range")) score -= 10;
+  for (const deduction of submissionDeductions(data, status, projectRoot)) {
+    score -= deduction.points;
+  }
+  if (status === "blocked") score = 0;
+  if (status === "confirmed" && score < SUBMISSION_READY_THRESHOLD) score -= SUBMISSION_DEDUCTIONS.confirmedBelowThreshold;
+  return Math.max(0, Math.min(100, score));
+}
+
+function submissionDeductions(data: Record<string, unknown>, status: string, projectRoot: string): SubmissionDeduction[] {
+  const deductions: SubmissionDeduction[] = [];
+  if (!isKnown(getString(data, "evidence.observed_result"))) {
+    deductions.push({
+      id: "missingObservedResult",
+      points: SUBMISSION_DEDUCTIONS.missingObservedResult,
+      message: "local observed result is missing",
+      fields: ["evidence.observed_result"],
+      nextAction: "/omv-repro <id>",
+    });
+  }
+  if (getList(data, "blockers").length > 0) {
+    deductions.push({
+      id: "unresolvedBlockers",
+      points: SUBMISSION_DEDUCTIONS.unresolvedBlockers,
+      message: "unresolved blockers remain",
+      fields: ["blockers"],
+      nextAction: "/omv-audit <id>",
+    });
+  }
+  if (isUnknownPath(data, "versions.affected_range")) {
+    deductions.push({
+      id: "unknownAffectedRange",
+      points: SUBMISSION_DEDUCTIONS.unknownAffectedRange,
+      message: "affected version range is unknown",
+      fields: ["versions.affected_range"],
+      nextAction: "/omv-audit <id>",
+    });
+  }
   if (!getBoolean(data, "dedup.nvd_searched") || !getBoolean(data, "dedup.ghsa_searched") || !getBoolean(data, "dedup.ecosystem_db_searched")) {
-    score -= 15;
+    deductions.push({
+      id: "incompleteDedup",
+      points: SUBMISSION_DEDUCTIONS.incompleteDedup,
+      message: "dedup search is incomplete",
+      fields: ["dedup.nvd_searched", "dedup.ghsa_searched", "dedup.ecosystem_db_searched"],
+      nextAction: "/omv-audit <id>",
+    });
   }
   const exploitability = getString(data, "verdict.exploitability");
-  if (exploitability === "blocked" || exploitability === "disproven") score -= 50;
-  if (exploitability === "plausible") score -= 10;
-  if (status === "blocked") score = 0;
-  if (status === "confirmed" && score < 75) score -= 10;
-  score -= cvssConfidencePenalty(data);
+  if (exploitability === "blocked" || exploitability === "disproven") {
+    deductions.push({
+      id: "blockedOrDisproven",
+      points: SUBMISSION_DEDUCTIONS.blockedOrDisproven,
+      message: `verdict.exploitability is ${exploitability}`,
+      fields: ["verdict.exploitability"],
+      nextAction: "omv findings archive <id> --reason blocked",
+    });
+  }
+  if (exploitability === "plausible") {
+    deductions.push({
+      id: "plausibleExploitability",
+      points: SUBMISSION_DEDUCTIONS.plausibleExploitability,
+      message: "exploitability is plausible but not proven",
+      fields: ["verdict.exploitability"],
+      nextAction: "/omv-repro <id>",
+    });
+  }
   const artifacts = getReproArtifacts(data, projectRoot);
   const listedArtifacts = getList(data, "evidence.repro_artifacts");
-  if (listedArtifacts.length > 0 && artifacts.length === 0) score -= 10;
-  return Math.max(0, Math.min(100, score));
+  if (listedArtifacts.length > 0 && artifacts.length === 0) {
+    deductions.push({
+      id: "missingReproArtifacts",
+      points: SUBMISSION_DEDUCTIONS.missingReproArtifacts,
+      message: "listed reproduction artifacts were not found",
+      fields: ["evidence.repro_artifacts"],
+      nextAction: "omv repro init <id>",
+    });
+  }
+  return deductions;
 }
 
 async function readThreatMap(id: string, projectRoot: string): Promise<FindingThreatMap | undefined> {
@@ -719,6 +1016,21 @@ function workflowMissingFields(validation: FindingValidation): string[] {
     }
   }
   return Array.from(missing).sort();
+}
+
+function workflowBlockers(validation: FindingValidation): string[] {
+  const blockers = [
+    ...validation.errors,
+    ...validation.warnings.filter((warning) => (
+      warning.includes("blockers") ||
+      warning.includes("observed_result") ||
+      warning.includes("affected_range") ||
+      warning.includes("cvss.vector") ||
+      warning.includes("evidence.guard") ||
+      warning.includes("repro_artifacts")
+    )),
+  ];
+  return blockers.slice(0, 5);
 }
 
 function workflowNextAction(
@@ -808,10 +1120,116 @@ async function collectReportArtifacts(dir: string, paths: string[]): Promise<voi
       await collectReportArtifacts(path, paths);
       continue;
     }
-    if (dirent.isFile() && (await stat(path)).size >= 0) {
+    if (dirent.isFile() && (await stat(path)).size > 0) {
       paths.push(path);
     }
   }
+}
+
+async function listEmptyReportArtifacts(dir: string): Promise<string[]> {
+  if (!existsSync(dir)) {
+    return [];
+  }
+  const paths: string[] = [];
+  await collectEmptyReportArtifacts(dir, paths);
+  return paths.sort();
+}
+
+async function collectEmptyReportArtifacts(dir: string, paths: string[]): Promise<void> {
+  for (const dirent of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, dirent.name);
+    if (dirent.isDirectory()) {
+      await collectEmptyReportArtifacts(path, paths);
+      continue;
+    }
+    if (dirent.isFile() && (await stat(path)).size === 0) {
+      paths.push(path);
+    }
+  }
+}
+
+function reproReadmeTemplate(id: string): string {
+  return `# Reproduction: ${id}
+
+Use this directory for local, reviewer-safe reproduction evidence.
+
+- commands.sh: exact commands executed locally
+- observed.txt: copied local output or observation notes
+- docker-compose.yml: optional isolated service setup
+- screenshots/: optional screenshots or short recordings
+
+Do not place secrets, live target data, or private disclosure material here.
+`;
+}
+
+async function mergeReproArtifacts(findingPath: string, artifacts: string[]): Promise<boolean> {
+  const text = await readFile(findingPath, "utf-8");
+  const doc = parseDocument(text);
+  const values = getList(parseEvidenceYaml(text).data, "evidence.repro_artifacts").map(String);
+  const merged = [...values];
+  for (const artifact of artifacts) {
+    if (!merged.includes(artifact)) {
+      merged.push(artifact);
+    }
+  }
+  if (merged.length === values.length) {
+    return false;
+  }
+  doc.setIn(["evidence", "repro_artifacts"], merged);
+  await writeFile(findingPath, String(doc), "utf-8");
+  return true;
+}
+
+function existingArtifactPaths(paths: string[], projectRoot: string): string[] {
+  return paths.filter((path) => artifactExists(path, projectRoot)).map((path) => (isAbsolute(path) ? path : join(projectRoot, path)));
+}
+
+function artifactExists(path: string, projectRoot: string): boolean {
+  const resolved = isAbsolute(path) ? path : join(projectRoot, path);
+  return existsSync(resolved);
+}
+
+function extractFieldRefs(message: string): string[] {
+  const refs = new Set<string>();
+  for (const match of message.matchAll(/\b[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+\b/g)) {
+    refs.add(match[0]);
+  }
+  if (message.startsWith("blockers ")) {
+    refs.add("blockers");
+  }
+  return Array.from(refs);
+}
+
+function classifyWarning(message: string): string {
+  if (message.includes("observed_result")) return "missingObservedResult";
+  if (message.includes("affected_range")) return "unknownAffectedRange";
+  if (message.includes("dedup search")) return "incompleteDedup";
+  if (message.includes("cvss.vector")) return "suspiciousCvss";
+  if (message.includes("evidence.guard")) return "guardBlocksExploit";
+  if (message.includes("repro_artifacts")) return "missingReproArtifacts";
+  if (message.includes("blockers")) return "unresolvedBlockers";
+  return "validation-warning";
+}
+
+function warningNextAction(message: string, id: string): string {
+  if (message.includes("observed_result") || message.includes("repro_artifacts")) return `/omv-repro ${id}`;
+  if (message.includes("blockers")) return `/omv-audit ${id}`;
+  if (message.includes("dedup") || message.includes("cvss") || message.includes("guard") || message.includes("affected_range")) return `/omv-audit ${id}`;
+  return `omv findings open ${id}`;
+}
+
+function dedupeIssues(issues: FindingDoctorIssue[]): FindingDoctorIssue[] {
+  const seen = new Set<string>();
+  const result: FindingDoctorIssue[] = [];
+  for (const issue of issues) {
+    const key = `${issue.id}:${issue.message}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(issue);
+  }
+  return result;
 }
 
 function requireKnown(

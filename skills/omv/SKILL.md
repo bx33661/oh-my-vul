@@ -17,11 +17,14 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 /omv next                   — show active findings and recommended next actions
 /omv audit <id>             — deep-audit a candidate finding (delegates to omv-audit skill)
 /omv repro <id>             — guide local reproduction of a finding (delegates to omv-repro skill)
+/omv repro init <id>        — create .omv/repro/<id>/ artifact scaffold
+/omv report artifacts <id>  — check report and reproduction artifacts
 /omv archive <id> --reason <reason>
                             — archive an inactive finding (delegates to omv CLI)
 /omv restore <id>           — restore an archived finding (delegates to omv CLI)
 /omv findings list          — list .omv/findings evidence files (delegates to omv CLI)
 /omv findings workflow      — show lifecycle next actions (delegates to omv CLI)
+/omv findings doctor <id>   — explain what blocks submission readiness
 /omv findings show <id>     — show one finding's validation state and next action
 /omv findings open <id>     — print one finding YAML path for editing
 /omv findings init <id>     — create a finding template (delegates to omv CLI)
@@ -51,26 +54,19 @@ Collection metadata lives in `references/registry.yaml`. Read it to show current
 
 ## CLI Delegation
 
-When the user invokes workspace, lifecycle, archive, or restore commands, **run the matching shell command via `Bash` and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
+When the user invokes workspace, lifecycle, repro scaffold, artifact check, archive, or restore commands, **run the matching `omv` CLI command via `Bash` and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
 
-| Invocation | Run this shell command |
-|---|---|
-| `/omv dashboard` | `omv dashboard` |
-| `/omv status` | `omv workspace status` |
-| `/omv log` | `omv workspace log` |
-| `/omv next` | `omv findings workflow` |
-| `/omv archive <id> --reason <reason>` | `omv findings archive <id> --reason <reason>` |
-| `/omv restore <id>` | `omv findings restore <id>` |
-| `/omv findings list` | `omv findings list` |
-| `/omv findings workflow` | `omv findings workflow` |
-| `/omv findings show <id>` | `omv findings show <id>` |
-| `/omv findings open <id>` | `omv findings open <id>` |
-| `/omv findings init <id>` | `omv findings init <id>` |
-| `/omv findings init <id> --status confirmed` | `omv findings init <id> --status confirmed` |
-| `/omv findings validate` | `omv findings validate` |
-| `/omv findings validate <id>` | `omv findings validate <id>` |
-| `/omv findings promote <id> --status <s>` | `omv findings promote <id> --status <s>` |
-| `/omv findings archive list` | `omv findings archive list` |
+Use `omv help`, `omv help findings`, `omv help repro`, or `omv help report` as the source of truth for exact CLI signatures. For direct aliases:
+
+- `/omv dashboard` -> `omv dashboard`
+- `/omv status` -> `omv workspace status`
+- `/omv log` -> `omv workspace log`
+- `/omv next` -> `omv findings workflow`
+- `/omv repro init <id>` -> `omv repro init <id>`
+- `/omv report artifacts <id>` -> `omv report artifacts <id>`
+- `/omv archive <id> --reason <reason>` -> `omv findings archive <id> --reason <reason>`
+- `/omv restore <id>` -> `omv findings restore <id>`
+- `/omv findings ...` -> `omv findings ...`
 
 **If `omv` is not found on PATH**, output: "`omv` is not installed. Run: `npx oh-my-vul setup`"
 
@@ -82,11 +78,14 @@ When the user invokes workspace, lifecycle, archive, or restore commands, **run 
 - **init `<id>`** — creates `.omv/findings/<id>.yaml` from the Evidence.v1 template; default `--status candidate`. If file exists, CLI errors — suggest `--force`.
 - **list** — prints ID / STATUS / READY / PACKAGE / VULNERABILITY table for every `.yaml` in `.omv/findings/`.
 - **workflow** — prints active findings sorted by priority with NEXT ACTION recommendations such as `/omv-audit`, `/omv-repro`, `/omv-report`, promotion, or archive.
+- **doctor `<id>`** — explains why a finding is not submission-ready, including score deductions, unresolved blockers, suspicious CVSS/guard choices, and artifact gaps. JSON mode is available for CI.
 - **show `<id>`** — prints one finding's package, vulnerability, validation errors/warnings, missing fields, and next action. Use `--archived` to inspect archived findings.
 - **open `<id>`** — prints the Evidence.v1 YAML path and next action so the user can edit or inspect the local file.
 - **validate `[id|path]`** — checks required Evidence.v1 fields; exits non-zero on errors. No arg = validate whole ledger.
 - **promote `<id|path> --status <s>`** — updates the `status` field and re-validates. Valid statuses: `candidate`, `confirmed`, `blocked`.
-- **archive `<id> --reason <reason>`** — moves a finding to `.omv/archive/findings/` and removes it from active workflow views. For `--reason reported`, confirmed findings are checked for report artifacts under `.omv/reports/<id>/`; use `--strict` to block archive when those artifacts are missing.
+- **repro init `<id>`** — creates `.omv/repro/<id>/` with standard reproduction artifact files and records suggested `evidence.repro_artifacts`.
+- **report artifacts `<id>`** — checks `.omv/reports/<id>/` and Evidence.v1 reproduction artifact references before final archive.
+- **archive `<id> --reason <reason>`** — moves a finding to `.omv/archive/findings/` and removes it from active workflow views. For `--reason reported`, confirmed findings reuse `omv report artifacts <id>` checks; use `--strict` to block archive when artifacts are missing or empty.
 - **archive list** — lists archived findings and archive reasons.
 - **restore `<id>`** — moves an archived finding back to `.omv/findings/`.
 

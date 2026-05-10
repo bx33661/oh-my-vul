@@ -59,13 +59,16 @@ Run the core workflow inside Claude Code:
 
 omv findings init demo-traversal
 /omv-audit demo-traversal
+omv repro init demo-traversal
 /omv-repro demo-traversal
 omv findings validate demo-traversal
+omv findings doctor demo-traversal
 
 /omv-report demo-traversal
 /omv-critic demo-traversal
 /omv-disclose timeline demo-traversal
 omv submissions record demo-traversal --platform vuldb --submission-id 12345 --url https://example.test/submission/12345
+omv report artifacts demo-traversal
 ```
 
 <details>
@@ -105,11 +108,14 @@ Project-level setup writes `.omv/setup-scope.json` so `omv doctor` can resolve t
   -> candidate packages and code-reading entry points
   -> .omv/findings/<id>.yaml
   -> /omv-audit
+  -> omv repro init <id>
   -> /omv-repro when observed_result still needs local confirmation
   -> omv findings validate <id>
   -> /omv-critic
   -> /omv-report
   -> /omv-disclose and omv submissions ...
+  -> omv findings doctor <id>
+  -> omv report artifacts <id>
   -> advisory draft for VulDB, CVE, GHSA, OSV, or Markdown
 ```
 
