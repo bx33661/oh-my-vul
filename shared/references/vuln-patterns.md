@@ -2,6 +2,13 @@
 
 Use this reference after parsing `--vuln`. High-ranked candidates need source -> sink -> guard evidence, not just keyword hits.
 
+When the request is framed around a research playbook, load `research-radar.md` and `pattern-packs.md` as companions:
+
+- `pattern-packs.md` maps package types such as archive extractors, renderers, template engines, config loaders, media tools, webhook clients, and upload handlers to the vulnerability classes below.
+- `research-radar.md` explains portfolio lanes, diff signals, novelty checks, duplicate risk, and audit-readiness fields.
+
+Keep playbook tags separate from vulnerability aliases. For example, an `archive-extractor` candidate may carry `traversal`, `race`, and `overflow` directions, but the source -> sink -> guard evidence still decides the ranking.
+
 ## Alias Map
 
 | Alias | Meaning |

@@ -7,38 +7,11 @@ import argparse
 import html
 import json
 import re
-import sys
 from dataclasses import dataclass
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
-from urllib.request import Request, urlopen
 
-
-USER_AGENT = "omv-find-skill/1.0"
-
-
-def fetch_text(url: str, accept: str = "text/plain,text/html,*/*") -> tuple[str | None, str | None]:
-    request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": accept})
-    try:
-        with urlopen(request, timeout=20) as response:
-            charset = response.headers.get_content_charset() or "utf-8"
-            return response.read().decode(charset, errors="replace"), None
-    except HTTPError as exc:
-        return None, f"HTTP {exc.code}: {url}"
-    except (URLError, TimeoutError, UnicodeDecodeError) as exc:
-        return None, f"{type(exc).__name__}: {exc}"
-
-
-def fetch_json(url: str) -> tuple[dict[str, Any] | list[Any] | None, str | None]:
-    request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
-    try:
-        with urlopen(request, timeout=20) as response:
-            return json.loads(response.read().decode("utf-8")), None
-    except HTTPError as exc:
-        return None, f"HTTP {exc.code}: {url}"
-    except (URLError, TimeoutError, json.JSONDecodeError) as exc:
-        return None, f"{type(exc).__name__}: {exc}"
+from http_client import fetch_json, fetch_text
 
 
 def github_slug(repo_url: str) -> tuple[str, str] | None:
