@@ -20,7 +20,8 @@ import {
   validateFinding,
   validateFindings,
 } from "../findings.js";
-import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, workspaceIndexPath } from "../paths.js";
+import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, threatMapPath, workspaceIndexPath } from "../paths.js";
+import { recordSubmission } from "../submissions.js";
 import { readWorkspaceActivity } from "../workspace.js";
 
 const BASE_FINDING = `schema_version: "1"
@@ -311,12 +312,73 @@ test("workflow separates evidence completeness from submission readiness", async
     const validation = await validateFinding("blocked-candidate", projectRoot);
     assert.equal(validation.ok, true);
     assert.equal(validation.evidenceScore, 85);
-    assert.equal(validation.submissionScore, 20);
+    assert.equal(validation.submissionScore, 17);
     assert.match(validation.warnings.join("\n"), /blockers remain unresolved/);
 
     const workflow = await listFindingWorkflow(projectRoot);
     assert.equal(workflow[0].nextAction, "/omv-audit blocked-candidate");
     assert.equal(workflow[0].priorityReason, "audit evidence still missing");
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("showFinding renders optional ThreatMap.v1 sidecars", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "demo.yaml"), BASE_FINDING, "utf-8");
+    await mkdir(join(projectRoot, ".omv", "threatmaps"), { recursive: true });
+    await writeFile(
+      threatMapPath("demo", projectRoot),
+      `schema_version: "1"
+finding_id: demo
+paths:
+  - id: 1
+    source:
+      type: user_input
+      location: src/server.js:10
+      description: HTTP body
+    sink:
+      type: network_req
+      location: src/fetch.js:22
+      description: http.Get()
+    guard:
+      present: false
+      description: no-allowlist
+summary:
+  path_count: 1
+`,
+      "utf-8",
+    );
+
+    const detail = await showFinding("demo", projectRoot);
+    assert.equal(detail.threatMap?.path, threatMapPath("demo", projectRoot));
+    assert.deepEqual(detail.threatMap?.rendered, ["[HTTP body] -> [http.Get()] x no-allowlist"]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("submission score is confidence weighted", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(
+      join(dir, "low-confidence.yaml"),
+      `${BASE_FINDING}
+verdict:
+  exploitability: plausible
+  confidence: low
+  reason: source-to-sink evidence is incomplete
+`,
+      "utf-8",
+    );
+    const validation = await validateFinding("low-confidence", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.equal(validation.submissionScore, 60);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -396,9 +458,15 @@ test("archive reported warns or blocks confirmed findings without report artifac
     const reportPath = join(findingReportsDir("confirmed", projectRoot), "vuldb.md");
     await writeFile(reportPath, "# report\n", "utf-8");
 
+    await recordSubmission(
+      "confirmed",
+      { platform: "vuldb", submissionId: "12345", url: "https://example.test/submission/12345" },
+      projectRoot,
+    );
     const archived = await archiveFinding("confirmed", "reported", projectRoot, { strict: true });
     assert.deepEqual(archived.warnings, []);
     assert.deepEqual(archived.reportArtifactPaths, [reportPath]);
+    assert.equal(archived.submissionRecords.length, 1);
     const metadata = JSON.parse(await readFile(archiveMetadataPath("confirmed", projectRoot), "utf-8")) as {
       reportArtifactPaths?: string[];
     };

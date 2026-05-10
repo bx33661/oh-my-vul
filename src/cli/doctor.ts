@@ -19,6 +19,7 @@ import {
   type InstallManifest,
 } from "./install-manifest.js";
 import type { SetupScope } from "./setup.js";
+import { readConfig } from "./config.js";
 
 export interface DoctorResult {
   ok: boolean;
@@ -113,15 +114,16 @@ function check(name: string, status: Check["status"], message: string): Check {
 
 async function resolveDoctorScope(projectRoot: string): Promise<SetupScope> {
   const path = setupScopePath(projectRoot);
-  if (!existsSync(path)) {
-    return "user";
+  if (existsSync(path)) {
+    try {
+      const parsed = JSON.parse(await readFile(path, "utf-8")) as { scope?: string };
+      return parsed.scope === "project" ? "project" : "user";
+    } catch {
+      // fall through
+    }
   }
-  try {
-    const parsed = JSON.parse(await readFile(path, "utf-8")) as { scope?: string };
-    return parsed.scope === "project" ? "project" : "user";
-  } catch {
-    return "user";
-  }
+  const config = await readConfig();
+  return config.scope === "project" ? "project" : "user";
 }
 
 async function findUnexpectedInstalledSkills(skillsDir: string, expected: string[]): Promise<string[]> {

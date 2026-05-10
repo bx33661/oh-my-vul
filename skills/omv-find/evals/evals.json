@@ -1090,6 +1090,104 @@
           "type": "no_fabricated_data"
         }
       ]
+    },
+    {
+      "id": 28,
+      "prompt": "/omv-find --count 9 creative radar markdown renderer upload archive",
+      "expected_output": "输出保留 ranked table，同时加入 portfolio lane、playbook、diff/novelty、duplicate risk 和 audit readiness 字段。结果应至少覆盖 fast-win、deep-audit、underrated 或 diff-alert 中的三个 lane，并在表格后给出 lane summary、audit readiness 和数据新鲜度说明。",
+      "files": [
+        "evals/golden/portfolio-radar.md"
+      ],
+      "assertions": [
+        {
+          "text": "输出包含 fast-win、deep-audit，并包含 underrated 或 diff-alert lane",
+          "type": "portfolio_lanes_present"
+        },
+        {
+          "text": "表格后包含 lane summary 或同等分层总结",
+          "type": "lane_summary_present"
+        },
+        {
+          "text": "高排名候选包含 audit readiness、本地测试或 harness 建议",
+          "type": "audit_readiness_present"
+        },
+        {
+          "text": "输出包含 pattern pack/playbook 名称，且不把 playbook 和 vuln_direction 混为一列",
+          "type": "pattern_pack_present"
+        },
+        {
+          "text": "候选仍然包含 source -> sink -> guard 证据",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "审计建议是本地/被动研究步骤，没有要求攻击真实线上服务",
+          "type": "non_exploitative_guidance"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "prompt": "/omv-find --lang npm recent diff-alert archive extractor path traversal",
+      "expected_output": "输出一个以 diff-alert 为核心的候选列表，保留 source -> sink -> guard 证据，并明确近期公开 commit/release/file change 信号。无法验证 diff 时必须标为未确认，不能把拒绝请求当作候选失效。",
+      "files": [
+        "evals/golden/diff-alert.md"
+      ],
+      "assertions": [
+        {
+          "text": "输出包含 diff-alert 或 diff signal，并指向 recent commit/release/changed file",
+          "type": "diff_signal_present"
+        },
+        {
+          "text": "输出包含 archive-extractor playbook",
+          "type": "pattern_pack_present"
+        },
+        {
+          "text": "候选包含 source -> sink -> guard 证据",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "输出包含 audit readiness、本地测试或 harness 建议",
+          "type": "audit_readiness_present"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "prompt": "/omv-find --lang python --vuln yaml --count 8 duplicate advisory novelty check",
+      "expected_output": "输出应对重复公告风险做被动检查。若某个候选与公开 advisory 在包名、漏洞类型、sink 行为和版本范围上高度匹配，应标为 likely_duplicate、降分或阻断，而不是当作新候选推荐。",
+      "files": [
+        "evals/golden/duplicate-risk.md"
+      ],
+      "assertions": [
+        {
+          "text": "输出包含 duplicate risk 或 likely_duplicate，并说明 advisory/OSV/GHSA/CVE/release note 等来源",
+          "type": "duplicate_risk_present"
+        },
+        {
+          "text": "可能重复的候选被降分、阻断或排到低优先级",
+          "type": "duplicate_deprioritized"
+        },
+        {
+          "text": "候选包含 source -> sink -> guard 证据",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "没有编造任何项目、仓库链接或 stars 数据",
+          "type": "no_fabricated_data"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        }
+      ]
     }
   ]
 }

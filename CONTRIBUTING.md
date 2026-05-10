@@ -45,6 +45,8 @@ python3 scripts/release_check.py
 - Do not add credential theft, exfiltration, or abuse payloads.
 - Keep proof-of-concept examples local and minimal.
 - Preserve uncertainty and unverified fields in reports.
+- Keep bundled skills, references, walkthroughs, and golden outputs methodology-first. Use sanitized `demo-*`, `example-*`, or `fixture-*` names for examples.
+- Concrete real package names, CVEs, and advisory URLs are acceptable only when they are user-provided finding data, schema/format validation examples, or explicit primary-source research outputs with appropriate context.
 
 ## Pull Requests
 

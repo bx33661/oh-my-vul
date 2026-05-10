@@ -17,12 +17,28 @@ Column requirements:
 - **推荐切入**: first file, function, or test area to inspect.
 - **评分**: e.g. `78/100`.
 
+For radar or playbook requests, preserve the ranked table and add these optional columns after **评分**:
+
+| Portfolio lane | Playbooks | Diff/novelty | Duplicate risk | Audit readiness |
+|---|---|---|---|---|
+
+Column requirements:
+
+- **Portfolio lane**: `fast-win`, `deep-audit`, `diff-alert`, `underrated`, or `未确认`.
+- **Playbooks**: pattern-pack tags such as `archive-extractor`, `renderer-pipeline`, `template-engine`, `config-loader`, `media-tool`, `webhook-client`, or `upload-handler`.
+- **Diff/novelty**: exact commit/release/file signal, novelty rationale, or `未确认`.
+- **Duplicate risk**: `low`, `medium`, `likely_duplicate`, or `未确认`, with the concise reason.
+- **Audit readiness**: `high`, `medium`, or `low`, plus first local test/harness idea and blocker.
+
 ## Follow-up Sections
 
 After the table, add:
 
 1. **审计建议**: one short paragraph per project. Start from the evidence path, then suggest two passive/local next steps such as writing unit tests, building a local harness, checking sanitizer behavior, tracing path normalization, or fuzzing a parser locally.
-2. **数据新鲜度与限制**: state verification date, primary sources used, scripts used if any, rate-limit/network limitations, and any `未确认` fields.
+2. **Lane summary**: for radar requests only, summarize why each lane is present or absent. Do not force a lane when evidence is weak.
+3. **Audit readiness**: for radar requests only, list high-ranked candidates with entry file/function, local test or harness idea, expected guard, and blocker.
+4. **Duplicate and novelty notes**: for radar requests only, state likely duplicates, inconclusive checks, and what sources were checked.
+5. **数据新鲜度与限制**: state verification date, primary sources used, scripts used if any, rate-limit/network limitations, and any `未确认` fields.
 
 ## Confirmed Finding Handoff
 
@@ -52,6 +68,8 @@ Rules:
 - Use `status: candidate` for promising but unproven findings.
 - Use `status: blocked` when a duplicate CVE is likely, a tested version is missing, the source path is not attacker controlled, or the only trigger is developer-owned code/config.
 - Mark unknown fields as `unknown` or list them under `provenance.unverified_fields`; do not fill them from memory.
+
+Candidate-list outputs are hypotheses. They are not Evidence.v1 findings until source reachability, affected version, local reproducer, observed result, and impact are verified.
 
 ## Invalid Request Template
 

@@ -17,6 +17,7 @@ PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.sh"
 VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
 SYNC_METADATA_SCRIPT = REPO_ROOT / "scripts" / "sync_metadata.py"
+METHODOLOGY_SCRIPT = REPO_ROOT / "scripts" / "check_methodology_guidance.py"
 STABLE_EVAL_CHECKS = [
     ("skills/omv/scripts/check_output.py", "0", "skills/omv/evals/golden/next-workflow.md"),
     ("skills/omv/scripts/check_output.py", "1", "skills/omv/evals/golden/archive-delegation.md"),
@@ -26,6 +27,10 @@ STABLE_EVAL_CHECKS = [
     ("skills/omv-repro/scripts/check_output.py", "0", "skills/omv-repro/evals/golden/no-agent-execution.md"),
     ("skills/omv-repro/scripts/check_output.py", "1", "skills/omv-repro/evals/golden/read-only-reproducer.md"),
     ("skills/omv-repro/scripts/check_output.py", "2", "skills/omv-repro/evals/golden/blocked-repro-failure.md"),
+    ("skills/omv-radar/scripts/check_output.py", "0", "skills/omv-radar/evals/golden/radar-dry-run.md"),
+    ("skills/omv-dedup/scripts/check_output.py", "0", "skills/omv-dedup/evals/golden/known-duplicate.md"),
+    ("skills/omv-disclose/scripts/check_output.py", "0", "skills/omv-disclose/evals/golden/timeline.md"),
+    ("skills/omv-critic/scripts/check_output.py", "0", "skills/omv-critic/evals/golden/high-risk.md"),
 ]
 
 RENDERER_FIXTURE = "skills/omv-report/evals/fixtures/confirmed-prototype-pollution.yaml"
@@ -116,6 +121,28 @@ def validate_stable_evals() -> None:
         ])
 
 
+def validate_pattern_registry() -> None:
+    required = [
+        "Source pattern:",
+        "Sink signature:",
+        "Common misuse:",
+        "Expected guard:",
+        "Evidence criteria:",
+        "False-positive checks:",
+        "CWE:",
+    ]
+    root = REPO_ROOT / "shared" / "references" / "patterns"
+    for ecosystem in ["npm", "python", "go", "rust", "java", "ruby"]:
+        path = root / f"{ecosystem}.md"
+        if not path.exists():
+            raise SystemExit(f"missing pattern registry: {path.relative_to(REPO_ROOT)}")
+        text = path.read_text(encoding="utf-8")
+        for marker in required:
+            if marker not in text:
+                raise SystemExit(f"{path.relative_to(REPO_ROOT)} missing {marker}")
+    print("OK: pattern registries", flush=True)
+
+
 def validate_renderer() -> None:
     renderer = REPO_ROOT / "skills/omv-report/scripts/render_template.py"
     fixture = REPO_ROOT / RENDERER_FIXTURE
@@ -170,6 +197,8 @@ def main() -> None:
     run([sys.executable, str(SYNC_METADATA_SCRIPT), "--check"])
     run([sys.executable, str(SYNC_SCRIPT), "--check"])
     validate_versions()
+    validate_pattern_registry()
+    run([sys.executable, str(METHODOLOGY_SCRIPT)])
     run([sys.executable, str(VALIDATE_SCRIPT)])
     validate_stable_evals()
     validate_renderer()

@@ -33,6 +33,7 @@
 | **深度审计** | `/omv-audit` 用 source -> sink -> guard 证明或否定候选漏洞。 |
 | **本地复现** | `/omv-repro` 记录用户真实本地观测和复现材料。 |
 | **报告生成** | `/omv-report` 从 validated finding 生成审稿友好的报告草稿。 |
+| **请求可靠性** | `omv request ...` 识别限流、拒绝、来源健康和缓存元数据请求。 |
 | **CLI 管理** | `omv dashboard`、`omv doctor`、`omv findings ...` 管理本地状态。 |
 
 ## 快速开始
@@ -40,6 +41,7 @@
 ```sh
 npx oh-my-vul setup
 omv doctor
+omv request preflight
 ```
 
 如果没有全局安装 `omv`，用 npx 临时运行：
@@ -121,6 +123,10 @@ omv version --json
 | `omv-audit` | `/omv-audit` | 深入审计候选 finding，补齐 Evidence.v1 证据字段 |
 | `omv-repro` | `/omv-repro` | 引导本地复现，记录真实 observed_result |
 | `omv-report` | `/omv-report` | 从 confirmed finding 生成 VulDB/CVE/GHSA/OSV 报告草稿 |
+| `omv-radar` | `/omv-radar` | 被动 watchlist 情报，刷新 advisory/release 信号 |
+| `omv-dedup` | `/omv-dedup` | 去重分析，生成 NVD/GHSA/OSV/生态查询并更新 Evidence.v1 |
+| `omv-disclose` | `/omv-disclose` | 负责任披露生命周期辅助，包括时间线和沟通草稿 |
+| `omv-critic` | `/omv-critic` | 提交前反向审稿，找出可能被 CNA 或平台拒绝的原因 |
 
 ## 发现审计目标
 
@@ -149,6 +155,23 @@ csrf xxe sql ssti sandbox redirect upload crypto infoleak
 </details>
 
 `/omv-find` 应输出带证据的候选结果，包括仓库、注册表身份、维护活跃度、代码规模估计、**source -> sink -> guard** 笔记和下一步本地审计建议。
+
+## 请求可靠性
+
+`/omv-find` 经常要读取公开 registry 元数据、GitHub 元数据、raw 源码文件和源码归档。这些来源可能限流、拒绝、路径不存在或临时不可用。请求密集型研究前，先用 TypeScript request broker 检查来源健康：
+
+```sh
+omv request preflight
+omv request preflight --json --refresh
+omv request fetch https://registry.npmjs.org/markdown-it --json
+omv request fetch https://api.github.com/repos/owner/repo --accept application/json --refresh
+```
+
+broker 会把缓存写入 `.omv/cache/http/`，脱敏响应头，并输出结构化 `failure.reason`、`rateLimit`、`expiresAt` 和 `recommendation`。如果环境里有 `GITHUB_TOKEN` 或 `GH_TOKEN`，GitHub API 请求会自动使用 token。
+
+常见失败分类包括 `rate_limited`、`auth_required`、`bot_blocked_or_forbidden`、`not_found`、`network_timeout`、`network_error`、`upstream_error` 和 `invalid_url`。这些分类应作为研究状态信号：相关字段保持未确认，优先使用 registry/source archive fallback，不要反复重试已经被拒绝的 URL。
+
+完整行为、JSON 字段、缓存策略和 Playwright 评估见 [docs/request-broker.zh-CN.md](docs/request-broker.zh-CN.md)。
 
 ## Evidence 账本
 
@@ -224,6 +247,9 @@ omv findings promote demo-traversal --status blocked
 
 | 文档 | 用途 |
 |---|---|
+| [README.md](README.md) | 英文项目指南 |
+| [docs/request-broker.zh-CN.md](docs/request-broker.zh-CN.md) | 请求代理、失败分类、缓存和 Playwright 评估 |
+| [docs/request-broker.md](docs/request-broker.md) | 英文 request broker 指南 |
 | [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | 使用本项目做漏洞研究的最佳实践 |
 | [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | 脱敏的端到端 finding 工作流示例 |
 | [docs/roadmap-0.8.md](docs/roadmap-0.8.md) | `v0.8` CLI 改进计划 |

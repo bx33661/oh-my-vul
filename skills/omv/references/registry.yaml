@@ -63,6 +63,49 @@ skills:
     consumes:
       - Evidence.v1    # writes cvss and dedup subfields
 
+  - name: omv-radar
+    category: intelligence
+    path: skills/omv-radar
+    invocation: /omv-radar
+    status: active
+    description: Passive watchlist intelligence — refresh local advisory/release signals and summarize radar events
+    produces:
+      - RadarEvents.v1
+    consumes: []
+
+  - name: omv-dedup
+    category: intelligence
+    path: skills/omv-dedup
+    invocation: /omv-dedup
+    status: active
+    description: Duplicate advisory analysis — generate deterministic NVD/GHSA/OSV/ecosystem queries and update Evidence.v1 dedup fields
+    produces:
+      - Evidence.v1
+    consumes:
+      - Evidence.v1
+
+  - name: omv-disclose
+    category: disclosure
+    path: skills/omv-disclose
+    invocation: /omv-disclose
+    status: active
+    description: Responsible disclosure lifecycle helper — draft vendor emails, timelines, and local submission bookkeeping guidance
+    produces:
+      - Submission.v1
+    consumes:
+      - Evidence.v1
+
+  - name: omv-critic
+    category: reporting
+    path: skills/omv-critic
+    invocation: /omv-critic
+    status: active
+    description: Adversarial pre-submission review — identify likely CNA rejection reasons before report generation
+    produces: []
+    consumes:
+      - Evidence.v1
+      - ThreatMap.v1
+
 agents:
   - name: vuln-scanner
     path: agents/vuln-scanner.md
@@ -78,7 +121,7 @@ agents:
 
   - name: dedup-analyst
     path: agents/dedup-analyst.md
-    used_by: [omv-report]
+    used_by: [omv-report, omv-dedup, omv-critic]
 
   - name: report-writer
     path: agents/report-writer.md
@@ -95,13 +138,23 @@ contracts:
 
   - name: ThreatMap.v1
     path: contracts/threat-map.v1.yaml
-    description: Dataflow threat map sidecar (produced by omv-audit, planned M2+)
+    description: Optional dataflow threat map sidecar produced by omv-audit
+
+  - name: Submission.v1
+    path: contracts/submission.v1.yaml
+    description: Local submission tracking sidecar for report follow-up
 
 shared:
   references:
     - shared/references/ecosystems.md
     - shared/references/vuln-patterns.md
     - shared/references/cvss-builder.md
+    - shared/references/patterns/npm.md
+    - shared/references/patterns/python.md
+    - shared/references/patterns/go.md
+    - shared/references/patterns/rust.md
+    - shared/references/patterns/java.md
+    - shared/references/patterns/ruby.md
   scripts:
     - shared/scripts/collect_metadata.py
     - shared/scripts/estimate_loc.sh

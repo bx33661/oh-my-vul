@@ -1,0 +1,30 @@
+{
+  "skill_name": "omv-dedup",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/omv-dedup npm-demo-prototype-pollution using a sanitized duplicate advisory fixture",
+      "expected_output": "Shows NVD/GHSA/OSV/ecosystem queries and marks likely duplicate with High risk."
+    },
+    {
+      "id": 1,
+      "prompt": "/omv-dedup python-demo-redos using a sanitized duplicate identifier fixture",
+      "expected_output": "Recognizes likely duplicate from matching package, affected range, CWE, and sink behavior."
+    },
+    {
+      "id": 2,
+      "prompt": "/omv-dedup go-demo-ssrf with matching package only",
+      "expected_output": "Uses no higher than Medium risk because sink and affected range are not confirmed."
+    },
+    {
+      "id": 3,
+      "prompt": "/omv-dedup rust-new-finding with no advisory matches",
+      "expected_output": "Marks Low risk and writes no Evidence.v1 fields without confirmation."
+    },
+    {
+      "id": 4,
+      "prompt": "/omv-dedup java-xxe with user confirmation",
+      "expected_output": "Writes dedup.nvd_searched, ghsa_searched, ecosystem_db_searched, existing_cve, and notes."
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# Submission.v1 — local submission tracking sidecar
+# Stored at:
+#   .omv/submissions/<id>.yaml
+# This is bookkeeping state for reports after submission. It is local private
+# research state and is merged into archive metadata summaries when present.
+
+schema_version: "1"
+finding_id: ""
+records: []
+# Each record:
+#   - platform: vuldb | github | osv | other
+#     submissionId: "12345"
+#     url: "https://example.test/submission/12345"
+#     status: open        # open | closed
+#     recordedAt: "2026-05-06T00:00:00.000Z"
+#     closedAt: unknown
+#     cve: unknown

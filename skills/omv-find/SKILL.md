@@ -33,11 +33,19 @@ Load only the files needed for the request:
 
 - Ecosystem discovery, registry URLs, flagship exclusions: `references/shared/ecosystems.md`
 - Vulnerability source/sink/guard patterns: `references/shared/vuln-patterns.md`
+- Research-radar lanes, diff signals, novelty, duplicate risk, audit-readiness fields: `references/research-radar.md`
+- Pattern-pack discovery for archive extractors, renderers, template engines, config loaders, media tools, webhook clients, and upload handlers: `references/pattern-packs.md`
+- Ecosystem sink registry for core lanes: references under `references/patterns/npm.md`
 - Scoring, filtering, confidence rules: `references/scoring.md`
 - Required final table, audit tips, freshness notes, invalid-request template: `references/output-contract.md`
+- Candidate-list schema for structured finder outputs: `contracts/candidate-list.v1.yaml`
 - Confirmed finding evidence fields for `omv-report`: `contracts/evidence.v1.yaml`
 
 For narrow requests, use `rg` inside the relevant reference to read only the needed ecosystem or vulnerability section. For `--vuln all`, inspect the project type first, then load the most likely vulnerability sections.
+
+For npm, Python, Go, Rust, Java, and Ruby requests, load the matching file under `references/patterns/` when forming source -> sink -> guard hypotheses. Pattern files are methodology registries, not concrete vulnerability examples; do not load unrelated ecosystem registries.
+
+Load `references/research-radar.md` only when the user asks for creative/radar/portfolio ideas, recent changes, novelty, duplicate resistance, or audit readiness. Load `references/pattern-packs.md` only when the user describes package types or playbooks such as archive extractors, renderers, config loaders, media processors, webhook clients, or upload handlers.
 
 ## Workflow
 
@@ -56,11 +64,13 @@ For narrow requests, use `rg` inside the relevant reference to read only the nee
    - Prefer GitHub repository search plus package registry primary pages/APIs.
    - Avoid flagship or heavily audited framework cores unless the user explicitly asks for them.
    - Record project name, repo URL, ecosystem, registry URL/package name, short purpose, and discovery source.
+   - For playbook requests, map the request to one or more pattern packs and keep the pack tag separate from `vuln_direction`.
 
 4. **Verify metadata**
    - Use primary pages or APIs, not memory.
    - Collect GitHub URL, default branch, archived/fork status, stars, last commit date, registry identity, downloads/dependents/importers when visible, release recency, and code-size estimate.
    - Use `未确认` for unverified values and lower confidence.
+   - When the `omv` CLI is available, run `omv request preflight` if repeated requests are being rejected or rate-limited, and use `omv request fetch <url> --json` for one-off diagnostics through the cache-aware request broker.
    - Prefer deterministic helpers when available:
      - `python scripts/collect_metadata.py --repo <github-url> [--registry npm:pkg]`
      - `scripts/estimate_loc.sh <github-url-or-local-path>`
@@ -70,16 +80,23 @@ For narrow requests, use `rg` inside the relevant reference to read only the nee
    - Build a concise source -> sink -> guard note.
    - Keyword hits alone are low confidence.
    - High-ranked projects need at least one exact file/function path or link.
+   - For radar requests, run only bounded passive diff checks: at most 3 recent commits/releases and 5 changed file names per candidate, then stop or mark `diff_signal: 未确认`.
+   - Check duplicate risk through passive public advisory/release/issue sources. Mark likely duplicate only when package, vulnerability class, affected behavior, sink, and version context strongly match.
 
 6. **Score and filter**
    - Score out of 100 using `references/scoring.md`.
    - If `--vuln` is set, at least 70% of returned projects must be relevant to that class.
    - If a narrow ecosystem/vulnerability combination has too few strong candidates, say so and return fewer results instead of padding.
+   - If passive advisory evidence strongly matches the same package, vulnerability class, affected range, and sink behavior, mark the candidate as likely duplicate or lower its ranking. Do not treat package-name overlap alone as a duplicate.
+   - For radar requests, assign a primary portfolio lane: `fast-win`, `deep-audit`, `diff-alert`, `underrated`, or `未确认`.
+   - Add concise audit-readiness notes for high-ranked candidates: entry file/function, local test or harness idea, expected guard, and blocker.
+   - Use sanitized examples in explanations unless the user supplied a real target as the audit subject.
 
 7. **Output**
    - Use the table and follow-up sections in `references/output-contract.md`.
    - Sort by score descending.
    - Include data freshness, sources used, and uncertainty.
+   - For radar requests, preserve the ranked table and add lane summary, audit readiness, and duplicate/novelty notes. Do not replace the table with prose.
    - If the user asks to pass a confirmed finding to `omv-report`, create or output a `.omv/findings/<id>.yaml` Evidence.v1 handoff structured per `contracts/evidence.v1.yaml`. Do not emit a handoff packet for ordinary unconfirmed target lists.
    - When any `.omv/findings/<id>.yaml` candidate is created or updated, end by telling the user to run `omv findings workflow` or `/omv next` to choose the next audit target.
 
@@ -96,7 +113,7 @@ Before fetching any source file for a candidate, resolve the authoritative path 
 5. If `main` points to a `dist/`, `.min.js`, or bundled file, fall back in order:
    - `src/index.ts` → `src/index.js` → `index.js` at repo root.
 6. If `repository.url` is absent, derive the repo from `homepage` or `bugs.url`.
-7. Helper: `python shared/scripts/resolve_source_path.py --ecosystem npm --pkg <name>` prints the resolved URL as JSON.
+7. Helper: `python scripts/resolve_source_path.py --ecosystem npm --pkg <name>` prints the resolved URL as JSON.
 
 ### PyPI packages
 
@@ -138,8 +155,11 @@ Use `status: confirmed` only when tested version, source, sink, guard, local rep
 Use bundled scripts when they fit the task:
 
 - `scripts/collect_metadata.py`: fetches GitHub and selected registry metadata as JSON using only the Python standard library.
+- `scripts/resolve_source_path.py`: resolves npm and PyPI source paths with manifest-first metadata, GitHub default-branch lookup, archive fallbacks, and structured request-failure reasons.
+- `scripts/http_client.py`: shared stdlib-only request helper used by metadata scripts; it classifies 403/429/404/timeouts and uses `GITHUB_TOKEN` or `GH_TOKEN` for GitHub API calls when present.
 - `scripts/estimate_loc.sh`: shallow-clones or scans a local checkout and estimates source LOC with `tokei`, `cloc`, or `find`/`wc`.
 - `scripts/check_output.py`: runs heuristic eval assertions against a saved model output.
+- `omv request preflight` and `omv request fetch <url> --json`: CLI request broker commands for cache-aware diagnostics when raw metadata requests are rejected.
 
 If a script fails because network access, rate limits, or tools are unavailable, state that limitation and continue with primary-source manual verification.
 
@@ -150,3 +170,4 @@ If a script fails because network access, rate limits, or tools are unavailable,
 - Never fabricate stars, dates, downloads, dependents, or LOC.
 - Keep risky findings framed as research hypotheses, not confirmed vulnerabilities.
 - Keep recommendations local and passive: unit tests, harnesses, sanitizer checks, path normalization traces, fuzz inputs, and code review entry points.
+- Radar follow-ups must stay local and passive. Do not turn a promising lane, diff signal, or duplicate check into live exploitation guidance.

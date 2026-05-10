@@ -60,6 +60,23 @@ test("CLI argument validation covers workspace and archive workflow commands", (
   assert.match(extraWorkflowArg.error ?? "", /accepts at most 0 positional/);
 });
 
+test("CLI argument validation covers intelligence and disclosure commands", () => {
+  assert.equal(validateArgs(["radar", "refresh", "--dry-run"]).ok, true);
+  assert.equal(validateArgs(["radar", "brief", "--json"]).ok, true);
+  assert.equal(validateArgs(["request", "preflight", "--refresh"]).ok, true);
+  assert.equal(validateArgs(["request", "fetch", "https://example.test", "--accept", "application/json", "--json"]).ok, true);
+  assert.equal(validateArgs(["dedup", "demo", "--confirm", "--existing-cve", "none", "--notes", "searched"]).ok, true);
+  assert.equal(validateArgs(["disclose", "timeline", "demo", "--days", "45"]).ok, true);
+  assert.equal(validateArgs(["submissions", "record", "demo", "--platform", "vuldb", "--submission-id", "123", "--url", "https://example.test"]).ok, true);
+  assert.equal(validateArgs(["submissions", "track", "demo"]).ok, true);
+  assert.equal(validateArgs(["submissions", "close", "demo", "--cve", "CVE-2026-12345"]).ok, true);
+
+  assert.equal(validateArgs(["radar", "refresh", "extra"]).ok, false);
+  assert.equal(validateArgs(["request", "fetch"]).ok, false);
+  assert.equal(validateArgs(["request", "fetch", "https://example.test", "extra"]).ok, false);
+  assert.equal(validateArgs(["submissions", "record", "demo", "--platform", "vuldb"]).ok, false);
+});
+
 test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["version"]).ok, true);
   assert.equal(validateArgs(["version", "--json"]).ok, true);

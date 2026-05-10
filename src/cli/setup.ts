@@ -1,9 +1,10 @@
-import { mkdir, cp, writeFile } from "fs/promises";
+import { mkdir, cp, writeFile, rm } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { claudeSkillsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
-import { buildInstallManifest, installManifestPath, writeInstallManifest } from "./install-manifest.js";
+import { buildInstallManifest, installManifestPath, readInstallManifest, writeInstallManifest } from "./install-manifest.js";
+import { readConfig } from "./config.js";
 
 export type SetupScope = "user" | "project";
 
@@ -20,6 +21,79 @@ export interface SetupResult {
   installed: string[];
   skipped: string[];
   errors: string[];
+}
+
+export interface UninstallOptions {
+  scope?: SetupScope;
+  projectRoot?: string;
+  json?: boolean;
+}
+
+export interface UninstallResult {
+  scope: SetupScope;
+  skillsDir: string;
+  removed: string[];
+  notFound: string[];
+  errors: string[];
+  manifestRemoved: boolean;
+  setupScopeRemoved: boolean;
+}
+
+export async function uninstall(options: UninstallOptions = {}): Promise<UninstallResult> {
+  const { scope = "user", projectRoot = process.cwd() } = options;
+  const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
+  const result: UninstallResult = {
+    scope,
+    skillsDir,
+    removed: [],
+    notFound: [],
+    errors: [],
+    manifestRemoved: false,
+    setupScopeRemoved: false,
+  };
+
+  const manifest = await readInstallManifest(installManifestPath(scope, projectRoot));
+  const skillsToRemove = manifest?.skills.map((s) => s.name) ?? [];
+
+  for (const skill of skillsToRemove) {
+    const dest = join(skillsDir, skill);
+    if (!existsSync(dest)) {
+      result.notFound.push(skill);
+      continue;
+    }
+    try {
+      await rm(dest, { recursive: true, force: true });
+      result.removed.push(skill);
+    } catch (err) {
+      result.errors.push(`${skill}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Remove install manifest
+  const manifestPath = installManifestPath(scope, projectRoot);
+  if (existsSync(manifestPath)) {
+    try {
+      await rm(manifestPath, { force: true });
+      result.manifestRemoved = true;
+    } catch (err) {
+      result.errors.push(`manifest: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Remove setup-scope.json for project scope
+  if (scope === "project") {
+    const scopePath = setupScopePath(projectRoot);
+    if (existsSync(scopePath)) {
+      try {
+        await rm(scopePath, { force: true });
+        result.setupScopeRemoved = true;
+      } catch (err) {
+        result.errors.push(`setup-scope: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  return result;
 }
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
