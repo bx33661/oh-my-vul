@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, isAbsolute, join, relative } from "path";
 import { parse as parseYaml, parseDocument } from "yaml";
-import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath } from "./paths.js";
+import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath, threatMapsDir } from "./paths.js";
 import { readSubmissions, type SubmissionRecord } from "./submissions.js";
 import {
   appendWorkspaceActivity,
@@ -472,6 +472,95 @@ export async function initReproArtifacts(
   await appendWorkspaceActivity({ action: "repro.init", id, path: dir }, projectRoot);
 
   return { id, path: dir, findingPath, artifacts, written, skipped, updatedFinding };
+}
+
+export interface ThreatMapWriteResult {
+  id: string;
+  path: string;
+  findingPath: string;
+  written: boolean;
+  skipped: boolean;
+}
+
+export async function writeThreatMap(
+  target: string,
+  projectRoot = process.cwd(),
+  options: { force?: boolean } = {},
+): Promise<ThreatMapWriteResult> {
+  const id = normalizeFindingId(target);
+  const findingPath = resolveFindingPath(id, projectRoot);
+  if (!existsSync(findingPath)) {
+    throw new Error(`${findingPath} does not exist`);
+  }
+
+  const dir = threatMapsDir(projectRoot);
+  await mkdir(dir, { recursive: true });
+  const path = threatMapPath(id, projectRoot);
+
+  const shouldWrite = options.force || !existsSync(path) || (await stat(path)).size === 0;
+  if (shouldWrite) {
+    const { data } = await readEvidence(findingPath);
+    await writeFile(path, threatMapTemplate(id, data), "utf-8");
+    await appendWorkspaceActivity({ action: "threatmap.write", id, path }, projectRoot);
+    return { id, path, findingPath, written: true, skipped: false };
+  }
+
+  return { id, path, findingPath, written: false, skipped: true };
+}
+
+function threatMapTemplate(id: string, finding: Record<string, unknown>): string {
+  const ecosystem = getString(finding, "package.ecosystem") || "";
+  const registryName = getString(finding, "package.registry_name") || getString(finding, "package.product") || "";
+  const repositoryUrl = getString(finding, "package.repository_url") || "";
+  const versionAnalyzed = getString(finding, "versions.tested") || "";
+  return `# ThreatMap.v1 sidecar for ${id}
+# Produced by: omv threat-map init + omv-audit
+# Consumed by: omv findings show, omv-critic, omv-report
+# Schema: ../../contracts/threat-map.v1.yaml
+schema_version: "1"
+
+finding_id: "${id}"
+package:
+  ecosystem: "${ecosystem}"
+  registry_name: "${registryName}"
+  repository_url: "${repositoryUrl}"
+  version_analyzed: "${versionAnalyzed}"
+
+# One entry per discovered source-to-sink path.
+paths: []
+#   - id: 1
+#     source:
+#       type: user_input | file | network | env | config
+#       location: ""
+#       description: ""
+#     transforms:
+#       - type: parse | decode | normalize | validate | authorize | other
+#         location: ""
+#         description: ""
+#     sink:
+#       type: fs_write | exec | eval | html_render | sql | network_req
+#       location: ""
+#       description: ""
+#     guard:
+#       present: false
+#       description: ""
+#       bypassable: true
+#     confidence: high   # high | medium | low
+#     notes: ""
+
+summary:
+  path_count: 0
+  confirmed_paths: 0
+  highest_confidence: unknown
+  vuln_classes: []
+  notes: ""
+
+provenance:
+  analysis_date: ""
+  tool: manual
+  tool_version: unknown
+  analyst: ""
+`;
 }
 
 export async function doctorFinding(target: string, projectRoot = process.cwd()): Promise<FindingDoctorResult> {

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `omv threat-map init <id>` — the producer side of the ThreatMap.v1 pipeline. Scaffolds `.omv/threatmaps/<id>.yaml` (finding_id + package filled from the finding, `paths: []` ready to fill) so `omv-audit` records source → transform → sink dataflow instead of hand-authoring YAML. The read pipeline (`omv findings show` rendering, archive sidecar handling) was already in place; this connects it.
+
 ## v0.9.0 - CLI command split and local findings dedup
 
 - Split the `omv` CLI dispatcher (`omv.ts`, 1434 lines) into one module per command under `commands/`, plus a `commands/shared.ts` arg-helper module and a `commands/index.ts` registry replacing the dispatch `switch`. The 12 duplicated command error handlers collapse into one. `omv.ts` is now a 7-line entry.
