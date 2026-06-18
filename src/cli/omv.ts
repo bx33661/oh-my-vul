@@ -43,6 +43,16 @@ import {
 import { initWorkspace, readWorkspaceActivity, workspaceStatus, type WorkspaceActivityEntry, type WorkspaceStatus } from "./workspace.js";
 import { usage, commandUsage, workspaceUsage, radarUsage, requestUsage, submissionsUsage, configUsage, findingsUsage } from "./usage.js";
 import {
+  firstPositionalAfter,
+  parseStatus,
+  parseReason,
+  parseOption,
+  requireOption,
+  resolveScope,
+  resolveOptionalScope,
+  wantsHelp,
+} from "./commands/shared.js";
+import {
   command as cmd,
   empty,
   error as tuiError,
@@ -65,15 +75,11 @@ const args = process.argv.slice(2);
 const command = args[0];
 
 
-function wantsHelp(): boolean {
-  return args.includes("--help") || args.includes("-h") || command === "help";
-}
-
 async function runSetup(): Promise<void> {
   const force = args.includes("--force");
   const dryRun = args.includes("--dry-run");
   const json = args.includes("--json");
-  const scope = await resolveScope("user");
+  const scope = await resolveScope(args, "user");
 
   if (dryRun && !json) {
     console.log("Dry run — no files will be written.\n");
@@ -98,7 +104,7 @@ async function runSetup(): Promise<void> {
 
 async function runUninstall(): Promise<void> {
   const json = args.includes("--json");
-  const scope = await resolveScope("user");
+  const scope = await resolveScope(args, "user");
 
   const result = await uninstall({ scope });
 
@@ -120,7 +126,7 @@ async function runUninstall(): Promise<void> {
 async function runDoctor(): Promise<void> {
   const json = args.includes("--json");
   const strict = args.includes("--strict");
-  const scope = await resolveOptionalScope();
+  const scope = await resolveOptionalScope(args);
   const result = await doctor({ scope });
   const ok = result.ok && (!strict || !result.warnings);
 
@@ -295,12 +301,12 @@ async function runRequest(): Promise<void> {
       return;
     }
     case "fetch": {
-      const url = firstPositionalAfter("fetch");
+      const url = firstPositionalAfter(args, "fetch");
       if (!url) {
         console.error("Missing URL.");
         process.exit(1);
       }
-      const result = await requestFetch(url, { accept: parseOption("--accept"), refresh });
+      const result = await requestFetch(url, { accept: parseOption(args, "--accept"), refresh });
       if (json) {
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) {
@@ -322,7 +328,7 @@ async function runRequest(): Promise<void> {
 }
 
 async function runDedup(): Promise<void> {
-  const id = firstPositionalAfter("dedup");
+  const id = firstPositionalAfter(args, "dedup");
   const json = args.includes("--json");
   if (!id) {
     console.error("Missing finding id.");
@@ -331,8 +337,8 @@ async function runDedup(): Promise<void> {
   const detail = await showFinding(id);
   const result = args.includes("--confirm")
     ? await updateDedup(detail.path, detail.id, {
-      existingCve: parseOption("--existing-cve") ?? "none",
-      notes: parseOption("--notes") ?? "dedup searched with omv dedup",
+      existingCve: parseOption(args, "--existing-cve") ?? "none",
+      notes: parseOption(args, "--notes") ?? "dedup searched with omv dedup",
       confirmed: true,
     })
     : { ...(await planDedup(detail.path, detail.id)), updated: false };
@@ -351,12 +357,12 @@ async function runDisclose(): Promise<void> {
     commandUsage(args, command, "disclose", args[1]);
     process.exit(1);
   }
-  const id = firstPositionalAfter("timeline");
+  const id = firstPositionalAfter(args, "timeline");
   if (!id) {
     console.error("Missing finding id.");
     process.exit(1);
   }
-  const result = disclosureTimeline(id, Number(parseOption("--days") ?? "90"));
+  const result = disclosureTimeline(id, Number(parseOption(args, "--days") ?? "90"));
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -367,7 +373,7 @@ async function runDisclose(): Promise<void> {
 async function runSubmissions(): Promise<void> {
   const subcommand = args[1] ?? "track";
   const json = args.includes("--json");
-  const id = firstPositionalAfter(subcommand);
+  const id = firstPositionalAfter(args, subcommand);
   if (!id) {
     console.error("Missing finding id.");
     process.exit(1);
@@ -376,16 +382,16 @@ async function runSubmissions(): Promise<void> {
   switch (subcommand) {
     case "record":
       result = await recordSubmission(id, {
-        platform: requireOption("--platform"),
-        submissionId: requireOption("--submission-id"),
-        url: requireOption("--url"),
+        platform: requireOption(args, "--platform"),
+        submissionId: requireOption(args, "--submission-id"),
+        url: requireOption(args, "--url"),
       });
       break;
     case "track":
       result = await trackSubmissions(id);
       break;
     case "close":
-      result = await closeSubmission(id, requireOption("--cve"));
+      result = await closeSubmission(id, requireOption(args, "--cve"));
       break;
     default:
       console.error(`Unknown submissions command: ${subcommand}\n`);
@@ -403,7 +409,7 @@ async function runConfig(): Promise<void> {
   const subcommand = args[1] ?? "list";
   switch (subcommand) {
     case "get": {
-      const key = firstPositionalAfter("get");
+      const key = firstPositionalAfter(args, "get");
       if (!key) {
         console.error("Missing config key.");
         process.exit(1);
@@ -417,8 +423,8 @@ async function runConfig(): Promise<void> {
       return;
     }
     case "set": {
-      const key = firstPositionalAfter("set");
-      const value = firstPositionalAfter(key ?? "");
+      const key = firstPositionalAfter(args, "set");
+      const value = firstPositionalAfter(args, key ?? "");
       if (!key || !value) {
         console.error("Usage: omv config set <key> <value>");
         process.exit(1);
@@ -428,7 +434,7 @@ async function runConfig(): Promise<void> {
       return;
     }
     case "unset": {
-      const key = firstPositionalAfter("unset");
+      const key = firstPositionalAfter(args, "unset");
       if (!key) {
         console.error("Missing config key.");
         process.exit(1);
@@ -487,7 +493,7 @@ async function runFindingsWorkflow(json: boolean): Promise<void> {
 }
 
 async function runFindingsShow(json: boolean): Promise<void> {
-  const target = firstPositionalAfter("show");
+  const target = firstPositionalAfter(args, "show");
   if (!target) {
     console.error("Missing finding id.");
     process.exit(1);
@@ -501,7 +507,7 @@ async function runFindingsShow(json: boolean): Promise<void> {
 }
 
 async function runFindingsOpen(json: boolean): Promise<void> {
-  const target = firstPositionalAfter("open");
+  const target = firstPositionalAfter(args, "open");
   if (!target) {
     console.error("Missing finding id.");
     process.exit(1);
@@ -545,8 +551,8 @@ async function runFindingsList(json: boolean): Promise<void> {
 }
 
 async function runFindingsInit(json: boolean): Promise<void> {
-  const id = firstPositionalAfter("init");
-  const status = parseStatus() ?? "candidate";
+  const id = firstPositionalAfter(args, "init");
+  const status = parseStatus(args) ?? "candidate";
   const force = args.includes("--force");
 
   if (!id) {
@@ -565,7 +571,7 @@ async function runFindingsInit(json: boolean): Promise<void> {
 
 async function runFindingsValidate(json: boolean): Promise<void> {
   const strict = args.includes("--strict");
-  const target = firstPositionalAfter("validate");
+  const target = firstPositionalAfter(args, "validate");
   const results = target ? [await validateFinding(target)] : await validateFindings();
   const ok = results.every((result) => result.ok && (!strict || result.warnings.length === 0));
 
@@ -592,8 +598,8 @@ async function runFindingsValidate(json: boolean): Promise<void> {
 }
 
 async function runFindingsPromote(json: boolean): Promise<void> {
-  const target = firstPositionalAfter("promote");
-  const status = parseStatus();
+  const target = firstPositionalAfter(args, "promote");
+  const status = parseStatus(args);
 
   if (!target) {
     console.error("Missing finding id or path.");
@@ -616,7 +622,7 @@ async function runFindingsPromote(json: boolean): Promise<void> {
 }
 
 async function runFindingsArchive(json: boolean): Promise<void> {
-  const target = firstPositionalAfter("archive");
+  const target = firstPositionalAfter(args, "archive");
   if (target === "list") {
     const archived = await listArchivedFindings();
     if (json) {
@@ -627,7 +633,7 @@ async function runFindingsArchive(json: boolean): Promise<void> {
     return;
   }
 
-  const reason = parseReason();
+  const reason = parseReason(args);
   const force = args.includes("--force");
   const strict = args.includes("--strict");
   if (!target) {
@@ -648,7 +654,7 @@ async function runFindingsArchive(json: boolean): Promise<void> {
 }
 
 async function runFindingsRestore(json: boolean): Promise<void> {
-  const target = firstPositionalAfter("restore");
+  const target = firstPositionalAfter(args, "restore");
   const force = args.includes("--force");
   if (!target) {
     console.error("Missing finding id.");
@@ -663,7 +669,7 @@ async function runFindingsRestore(json: boolean): Promise<void> {
 }
 
 async function runFindingsDelete(json: boolean): Promise<void> {
-  const target = firstPositionalAfter("delete");
+  const target = firstPositionalAfter(args, "delete");
   const force = args.includes("--force");
   if (!target) {
     console.error("Missing finding id.");
@@ -1259,74 +1265,6 @@ function printDeleteResult(result: FindingDeleteResult): void {
   );
 }
 
-function firstPositionalAfter(subcommand: string): string | undefined {
-  const start = args.indexOf(subcommand) + 1;
-  for (let index = start; index < args.length; index += 1) {
-    const value = args[index];
-    if (value.startsWith("--")) {
-      index += optionTakesValue(value) ? 1 : 0;
-      continue;
-    }
-    return value;
-  }
-  return undefined;
-}
-
-function optionTakesValue(option: string): boolean {
-  return ["--scope", "--status", "--reason", "--existing-cve", "--notes", "--days", "--platform", "--submission-id", "--url", "--cve", "--accept"].includes(option);
-}
-
-function parseStatus(): EvidenceStatus | undefined {
-  const index = args.indexOf("--status");
-  const raw = index === -1 ? undefined : args[index + 1];
-  if (raw === "candidate" || raw === "confirmed" || raw === "blocked") {
-    return raw;
-  }
-  return undefined;
-}
-
-function parseReason(): string | undefined {
-  const index = args.indexOf("--reason");
-  const raw = index === -1 ? undefined : args[index + 1];
-  return raw && !raw.startsWith("--") ? raw : undefined;
-}
-
-function parseOption(name: string): string | undefined {
-  const index = args.indexOf(name);
-  const raw = index === -1 ? undefined : args[index + 1];
-  return raw && !raw.startsWith("--") ? raw : undefined;
-}
-
-function requireOption(name: string): string {
-  const value = parseOption(name);
-  if (!value) {
-    throw new Error(`${name} requires a value`);
-  }
-  return value;
-}
-
-async function resolveOptionalScope(): Promise<"user" | "project" | undefined> {
-  const index = args.indexOf("--scope");
-  if (index === -1) {
-    return undefined;
-  }
-  return resolveScope("user");
-}
-
-async function resolveScope(defaultScope: "user" | "project"): Promise<"user" | "project"> {
-  const index = args.indexOf("--scope");
-  if (index === -1) {
-    const config = await readConfig();
-    return config.scope ?? defaultScope;
-  }
-  const raw = args[index + 1];
-  if (raw === "user" || raw === "project") {
-    return raw;
-  }
-  console.error(`Invalid --scope: ${raw ?? ""}. Valid values: user, project`);
-  process.exit(1);
-}
-
 const validation = validateArgs(args);
 if (!validation.ok) {
   console.error(`${validation.error}\n`);
@@ -1334,7 +1272,7 @@ if (!validation.ok) {
   process.exit(1);
 }
 
-if (wantsHelp()) {
+if (wantsHelp(args)) {
   const topic = command === "help" ? args[1] : command;
   const subcommand = command === "help" ? args[2] : args[1];
   commandUsage(args, command, topic, subcommand);
