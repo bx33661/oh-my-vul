@@ -1038,28 +1038,51 @@ async function readThreatMap(id: string, projectRoot: string): Promise<FindingTh
 }
 
 function renderThreatMap(data: Record<string, unknown>): string[] {
-  return getList(data, "paths").map((item, index) => {
+  const lines: string[] = [];
+  const paths = getList(data, "paths");
+  paths.forEach((item, index) => {
     if (!isRecord(item)) {
-      return `[path ${index + 1}] -> invalid threat map path`;
+      lines.push(`path ${index + 1}: invalid threat map path`);
+      return;
     }
-    const source = describeThreatNode(item.source, "source");
-    const sink = describeThreatNode(item.sink, "sink");
+    const confidence = getRecordString(item, "confidence");
+    lines.push(`path ${index + 1}${confidence ? ` (${confidence} confidence)` : ""}`);
+    lines.push(`  source: ${describeThreatNode(item.source, "source")}`);
+    const transforms = getList(item, "transforms");
+    for (const transform of transforms) {
+      lines.push(`  transform: ${describeThreatNode(transform, "transform")}`);
+    }
+    lines.push(`  sink: ${describeThreatNode(item.sink, "sink")}`);
     const guard = isRecord(item.guard) ? item.guard : {};
     const present = guard.present === true;
-    const guardText = getRecordString(guard, "description") || (present ? "guard-present" : "no-guard");
-    return `${source} -> ${sink} ${present ? "guard:" : "x"} ${guardText}`;
+    const guardText = getRecordString(guard, "description") || (present ? "guard present" : "no guard");
+    const bypassable = guard.bypassable === true ? " (bypassable)" : "";
+    lines.push(`  ${present ? "guard" : "guard missing"}: ${guardText}${bypassable}`);
   });
+
+  const summary = isRecord(data.summary) ? data.summary : undefined;
+  if (summary) {
+    const pathCount = getRecordString(summary, "path_count");
+    const confirmed = getRecordString(summary, "confirmed_paths");
+    const highest = getRecordString(summary, "highest_confidence");
+    const parts: string[] = [];
+    if (pathCount) parts.push(`${pathCount} paths`);
+    if (confirmed) parts.push(`${confirmed} confirmed`);
+    if (highest) parts.push(`highest: ${highest}`);
+    if (parts.length > 0) lines.push(`summary: ${parts.join(", ")}`);
+  }
+  return lines;
 }
 
 function describeThreatNode(value: unknown, fallback: string): string {
   if (!isRecord(value)) {
-    return `[${fallback}]`;
+    return fallback;
   }
   const description = getRecordString(value, "description");
   const location = getRecordString(value, "location");
-  const type = getRecordString(value, "type") || fallback;
-  const label = description || location || type;
-  return `[${label}]`;
+  const type = getRecordString(value, "type");
+  const label = description || type || fallback;
+  return location ? `${label} — ${location}` : label;
 }
 
 function cvssConfidencePenalty(data: Record<string, unknown>): number {

@@ -356,7 +356,68 @@ summary:
 
     const detail = await showFinding("demo", projectRoot);
     assert.equal(detail.threatMap?.path, threatMapPath("demo", projectRoot));
-    assert.deepEqual(detail.threatMap?.rendered, ["[HTTP body] -> [http.Get()] x no-allowlist"]);
+    assert.deepEqual(detail.threatMap?.rendered, [
+      "path 1",
+      "  source: HTTP body — src/server.js:10",
+      "  sink: http.Get() — src/fetch.js:22",
+      "  guard missing: no-allowlist",
+      "summary: 1 paths",
+    ]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("showFinding renders transforms, confidence, and bypassable guards", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "demo.yaml"), BASE_FINDING, "utf-8");
+    await mkdir(join(projectRoot, ".omv", "threatmaps"), { recursive: true });
+    await writeFile(
+      threatMapPath("demo", projectRoot),
+      `schema_version: "1"
+finding_id: demo
+paths:
+  - id: 1
+    source:
+      type: file
+      location: lib/extract.js:42
+      description: zip entry name
+    transforms:
+      - type: normalize
+        location: lib/extract.js:60
+        description: entry joined without canonicalization
+      - type: parse
+        location: lib/extract.js:64
+    sink:
+      type: fs_write
+      location: lib/extract.js:88
+      description: createWriteStream outside base dir
+    guard:
+      present: true
+      description: path prefix check
+      bypassable: true
+    confidence: high
+summary:
+  path_count: 1
+  confirmed_paths: 1
+  highest_confidence: high
+`,
+      "utf-8",
+    );
+
+    const detail = await showFinding("demo", projectRoot);
+    assert.deepEqual(detail.threatMap?.rendered, [
+      "path 1 (high confidence)",
+      "  source: zip entry name — lib/extract.js:42",
+      "  transform: entry joined without canonicalization — lib/extract.js:60",
+      "  transform: parse — lib/extract.js:64",
+      "  sink: createWriteStream outside base dir — lib/extract.js:88",
+      "  guard: path prefix check (bypassable)",
+      "summary: 1 paths, 1 confirmed, highest: high",
+    ]);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
