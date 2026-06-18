@@ -1188,6 +1188,48 @@
           "type": "freshness_and_uncertainty_present"
         }
       ]
+    },
+    {
+      "id": 31,
+      "prompt": "/omv-find --lang npm --vuln traversal --count 10 已知工作区 .omv/findings 已含 npm 包 [synthetic-tar-safe, synthetic-zip-worker]",
+      "expected_output": "输出约 10 个 npm 生态的路径穿越/Zip Slip 候选项目，但工作区 .omv/findings 中已存在的包（synthetic-tar-safe、synthetic-zip-worker）应被默认排除，不出现在候选表格中。表格后应附一条本地去重提示，说明已排除若干本地已有 finding 的包，并提示可用 --include-known 取消排除。",
+      "files": [
+        "evals/golden/local-dedup.md"
+      ],
+      "assertions": [
+        {
+          "text": "输出数量在 8-12 个项目之间，尊重 --count 10",
+          "type": "count_matches_flag"
+        },
+        {
+          "text": "所有项目都是 npm/Node.js 生态",
+          "type": "ecosystem_correct"
+        },
+        {
+          "text": "至少 70% 的项目漏洞方向涉及 Path Traversal 或 Zip Slip",
+          "type": "vuln_focus_relevant"
+        },
+        {
+          "text": "每个高排名项目说明 source、sink 和 guard 是否缺失或待确认",
+          "type": "source_sink_guard_present"
+        },
+        {
+          "text": "输出包含本地去重提示，并提到 --include-known 可取消排除",
+          "type": "local_dedup_footer_present"
+        },
+        {
+          "text": "工作区已有的包（synthetic-tar-safe、synthetic-zip-worker）未出现在候选表格中",
+          "type": "excluded_package_not_listed"
+        },
+        {
+          "text": "包含数据新鲜度与限制说明",
+          "type": "freshness_and_uncertainty_present"
+        },
+        {
+          "text": "没有编造任何项目、仓库链接或 stars 数据",
+          "type": "no_fabricated_data"
+        }
+      ]
     }
   ]
 }

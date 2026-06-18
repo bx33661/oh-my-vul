@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `omv-find` now excludes packages that already exist in `.omv/findings/` or `.omv/archive/findings/`; pass `--include-known` to override. Added a behavior eval + golden output for local dedup.
+
 ## v0.8.0 - Workflow readiness gates
 
 - Added `omv repro init <id>` to scaffold local reproduction artifacts and merge `evidence.repro_artifacts` idempotently.
