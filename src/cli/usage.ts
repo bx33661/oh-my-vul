@@ -38,6 +38,8 @@ Usage:
                                      Scaffold .omv/repro/<id>/ reproduction artifacts
   omv report artifacts <id> [--json]
                                      Inspect report/repro artifacts and readiness
+  omv threat-map init <id> [--force] [--json]
+                                     Scaffold .omv/threatmaps/<id>.yaml ThreatMap.v1 sidecar
   omv request preflight [--refresh] [--json]
                                      Check metadata source request health
   omv request fetch <url> [--accept mime] [--refresh] [--json]
@@ -139,6 +141,9 @@ Show local workspace status, active workflow queue, and recent activity in one v
       return;
     case "report":
       reportUsage(subcommand);
+      return;
+    case "threat-map":
+      threatMapUsage(subcommand);
       return;
     default:
       usage();
@@ -322,6 +327,23 @@ listing empty and missing artifacts. Exits non-zero on errors.`);
     default:
       console.log(`Usage:
   omv report artifacts <id> [--json]`);
+      return;
+  }
+}
+
+export function threatMapUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "init":
+      console.log(`Usage: omv threat-map init <id> [--force] [--json]
+
+Scaffold .omv/threatmaps/<id>.yaml as a ThreatMap.v1 sidecar (finding_id and
+package block filled from .omv/findings/<id>.yaml, paths: [] awaiting one entry
+per source -> sink route). The sidecar is optional and does not modify the
+parent Evidence.v1 file. --force overwrites a non-empty threat map.`);
+      return;
+    default:
+      console.log(`Usage:
+  omv threat-map init <id> [--force] [--json]`);
       return;
   }
 }

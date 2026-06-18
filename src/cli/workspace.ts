@@ -58,6 +58,7 @@ export interface WorkspaceActivityEntry {
     | "radar.refresh"
     | "dedup.update"
     | "repro.init"
+    | "threatmap.write"
     | "submission.record"
     | "submission.close";
   id?: string;

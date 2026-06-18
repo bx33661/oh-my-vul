@@ -76,6 +76,13 @@ def check(assertion_type: str, text: str) -> bool:
             and "S:C" in text
             and any(float(m) >= 9.0 for m in re.findall(r"score:\s*([\d.]+)", text))
         )
+    if assertion_type == "threatmap_sidecar_present":
+        return (
+            "threat-map init" in text
+            and ".omv/threatmaps/" in text
+            and "paths:" in text
+            and contains_all(text, ["source:", "sink:", "guard:"])
+        )
     raise SystemExit(f"unknown assertion type: {assertion_type}")
 
 

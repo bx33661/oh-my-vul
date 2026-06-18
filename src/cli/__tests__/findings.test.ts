@@ -19,6 +19,7 @@ import {
   showFinding,
   validateFinding,
   validateFindings,
+  writeThreatMap,
 } from "../findings.js";
 import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, threatMapPath, workspaceIndexPath } from "../paths.js";
 import { recordSubmission } from "../submissions.js";
@@ -356,6 +357,44 @@ summary:
     const detail = await showFinding("demo", projectRoot);
     assert.equal(detail.threatMap?.path, threatMapPath("demo", projectRoot));
     assert.deepEqual(detail.threatMap?.rendered, ["[HTTP body] -> [http.Get()] x no-allowlist"]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("writeThreatMap scaffolds an idempotent ThreatMap.v1 sidecar", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "demo.yaml"), BASE_FINDING, "utf-8");
+
+    const path = threatMapPath("demo", projectRoot);
+
+    const first = await writeThreatMap("demo", projectRoot);
+    assert.equal(first.written, true);
+    assert.equal(first.skipped, false);
+    assert.equal(first.path, path);
+    assert.ok(existsSync(path));
+
+    const body = await readFile(path, "utf-8");
+    assert.match(body, /schema_version: "1"/);
+    assert.match(body, /finding_id: "demo"/);
+    assert.match(body, /paths: \[\]/);
+
+    // showFinding picks up the scaffolded sidecar
+    const detail = await showFinding("demo", projectRoot);
+    assert.equal(detail.threatMap?.path, path);
+
+    // non-empty sidecar is skipped without --force
+    const second = await writeThreatMap("demo", projectRoot);
+    assert.equal(second.written, false);
+    assert.equal(second.skipped, true);
+
+    // --force overwrites
+    const third = await writeThreatMap("demo", projectRoot, { force: true });
+    assert.equal(third.written, true);
+    assert.equal(third.skipped, false);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

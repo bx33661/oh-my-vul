@@ -47,13 +47,13 @@ Stay in passive research mode: read public source code only. Do not send request
 
 如果 finding 属于 npm、Python、Go、Rust、Java 或 Ruby，按需加载 `references/patterns/` 下对应生态文件，用其中的 source pattern、sink signature、expected guard、evidence criteria、false-positive checks 和 CWE 映射辅助判断。Pattern registry 是方法论，不是真实漏洞案例库；不要加载无关生态 registry。
 
-当证据链足够清楚时，额外生成可选 ThreatMap.v1 sidecar：
+当证据链足够清楚时，生成可选 ThreatMap.v1 sidecar，记录 source → transform → sink 的 dataflow 路径：
 
-```text
-.omv/threatmaps/<id>.yaml
+```bash
+omv threat-map init <id>
 ```
 
-ThreatMap 是 Evidence.v1 的补充，不替代 `evidence.source` / `evidence.sink` / `evidence.guard` 摘要字段。
+这会在 `.omv/threatmaps/<id>.yaml` 生成骨架（`finding_id` 和 `package` 块已从 finding 填好，`paths: []` 留待填写）。然后在每个已确认的 source → sink 路径下补一条 `paths[]` 条目：`source`（type/location/description）、`transforms[]`（中间每一步：parse/decode/normalize/validate/authorize）、`sink`、`guard`（present/bypassable）、`confidence`。Schema 见 `contracts/threat-map.v1.yaml`。ThreatMap 是 Evidence.v1 的补充，不替代 `evidence.source` / `evidence.sink` / `evidence.guard` 摘要字段；sidecar 不修改父 Evidence.v1 文件。
 
 解释审计结论时使用方法论语言：说明输入如何到达 sink、guard 为什么缺失或可绕过、哪些证据仍不充分。除非用户提供真实 finding 作为上下文，否则不要把真实包或真实 CVE 当作教程示例。
 
@@ -111,6 +111,7 @@ Use the CLI result for lifecycle handoff:
 
 - `omv findings validate <id>` — 校验字段完整性，输出 evidence/submission 分数
 - `omv findings promote <id> --status confirmed|blocked` — 更新 status 字段
+- `omv threat-map init <id>` — 生成 `.omv/threatmaps/<id>.yaml` ThreatMap.v1 dataflow 骨架
 - `omv findings workflow` — 显示 active findings 的下一步动作
 - `python3 shared/scripts/resolve_source_path.py --ecosystem npm --pkg <name>` — 获取源文件 raw URL
 - `python3 shared/scripts/collect_metadata.py --repo <github-url>` — 获取仓库元数据

@@ -84,6 +84,24 @@
           "text": "scope-changed SSTI must have CVSS >= 9.0 and S:C in vector"
         }
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "/omv-audit demo-threatmap-path-traversal",
+      "expected_output": "Confirmed audit that also scaffolds a ThreatMap.v1 sidecar at .omv/threatmaps/<id>.yaml via `omv threat-map init`, then fills one paths[] entry with source, transforms, sink, and a missing/bypassable guard for a path-traversal finding.",
+      "files": [
+        "evals/golden/threatmap-path-traversal.md"
+      ],
+      "assertions": [
+        {
+          "type": "confirmed_complete_evidence",
+          "text": "must still produce a complete confirmed Evidence.v1 block"
+        },
+        {
+          "type": "threatmap_sidecar_present",
+          "text": "must scaffold .omv/threatmaps/<id>.yaml and fill a paths[] source->sink->guard entry"
+        }
+      ]
     }
   ]
 }
