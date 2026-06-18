@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Split the `omv` CLI dispatcher (`omv.ts`) into one module per command under `commands/`, collapsing 12 duplicated error handlers into one.
+- Wired three commands that were validated and advertised but previously unreachable: `omv repro init`, `omv report artifacts`, and `omv findings doctor`. They now dispatch to the existing domain logic (`initReproArtifacts`, `checkReportArtifacts`, `doctorFinding`).
+
 ## v0.8.0 - Workflow readiness gates
 
 - Added `omv repro init <id>` to scaffold local reproduction artifacts and merge `evidence.repro_artifacts` idempotently.

@@ -14,6 +14,8 @@ import * as dedup from "./dedup.js";
 import * as disclose from "./disclose.js";
 import * as submissions from "./submissions.js";
 import * as config from "./config.js";
+import * as repro from "./repro.js";
+import * as report from "./report.js";
 
 const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
   version: version.run,
@@ -29,6 +31,8 @@ const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
   disclose: disclose.run,
   submissions: submissions.run,
   config: config.run,
+  repro: repro.run,
+  report: report.run,
 };
 
 export async function run(): Promise<void> {

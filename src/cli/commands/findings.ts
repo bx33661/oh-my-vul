@@ -10,11 +10,13 @@ import {
   restoreFinding,
   deleteFinding,
   showFinding,
+  doctorFinding,
   type FindingTemplateResult,
   type FindingSummary,
   type FindingWorkflowSummary,
   type FindingDetail,
   type FindingValidation,
+  type FindingDoctorResult,
   type ArchivedFindingSummary,
   type FindingArchiveResult,
   type FindingRestoreResult,
@@ -31,7 +33,9 @@ import {
   outcomeBadge,
   panel,
   readiness,
+  section,
   statusBadge,
+  statusIcon,
   table,
   title,
   truncate,
@@ -61,6 +65,9 @@ export async function run(args: string[]): Promise<void> {
       return;
     case "validate":
       await runFindingsValidate(args, json);
+      return;
+    case "doctor":
+      await runFindingsDoctor(args, json);
       return;
     case "promote":
       await runFindingsPromote(args, json);
@@ -202,6 +209,62 @@ async function runFindingsValidate(args: string[], json: boolean): Promise<void>
   if (!ok) {
     process.exit(1);
   }
+}
+
+async function runFindingsDoctor(args: string[], json: boolean): Promise<void> {
+  const target = firstPositionalAfter(args, "doctor");
+  if (!target) {
+    console.error("Missing finding id.");
+    process.exit(1);
+  }
+  const result = await doctorFinding(target);
+  const ok = result.issues.every((issue) => issue.severity !== "error");
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    if (!ok) {
+      process.exit(1);
+    }
+    return;
+  }
+  printFindingDoctor(result);
+  if (!ok) {
+    process.exit(1);
+  }
+}
+
+function printFindingDoctor(result: FindingDoctorResult): void {
+  console.log(title(`doctor ${result.id}`));
+  console.log(
+    panel("readiness", [
+      ...kv([
+        ["status", statusBadge(result.status as "candidate" | "confirmed" | "blocked")],
+        ["validation", validationBadge(result.validationOk)],
+        ["evidence", readiness(result.evidenceScore)],
+        ["submission", readiness(result.submissionScore)],
+        ["threshold", String(result.submissionThreshold)],
+        ["report ready", result.reportReady ? "yes" : "no"],
+        ["next", cmd(result.nextAction)],
+      ]),
+    ]),
+  );
+
+  if (result.issues.length === 0) {
+    console.log(empty("No readiness issues."));
+    return;
+  }
+
+  console.log(section("Issues"));
+  console.log(
+    table(
+      ["", "severity", "message", "next action"],
+      result.issues.map((issue) => [
+        statusIcon(issue.severity === "error" ? "fail" : issue.severity === "warning" ? "warn" : "pass"),
+        issue.severity,
+        truncate(issue.message, 64),
+        cmd(truncate(issue.nextAction, 40)),
+      ]),
+    ),
+  );
 }
 
 async function runFindingsPromote(args: string[], json: boolean): Promise<void> {
