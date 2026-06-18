@@ -13,7 +13,7 @@ Stay in passive research mode: inspect public metadata and public source code on
 ## Invocation
 
 ```text
-/omv-find [--lang npm|python|go|rust|java|ruby|php|csharp|swift|dart|elixir|perl|r|lua|all] [--vuln VULN_TYPE] [--count N] [keyword ...]
+/omv-find [--lang npm|python|go|rust|java|ruby|php|csharp|swift|dart|elixir|perl|r|lua|all] [--vuln VULN_TYPE] [--count N] [--include-known] [keyword ...]
 ```
 
 Defaults:
@@ -22,6 +22,7 @@ Defaults:
 - `--vuln all`
 - `--count 15`
 - maximum `--count 20`
+- `--include-known` off (local findings are excluded by default)
 
 Valid vulnerability aliases: `proto`, `traversal`, `ssrf`, `injection`, `xss`, `redos`, `yaml`, `unsafe`, `deser`, `race`, `overflow`, `auth`, `csrf`, `xxe`, `sql`, `ssti`, `sandbox`, `redirect`, `upload`, `crypto`, `infoleak`.
 
@@ -54,19 +55,26 @@ Load `references/research-radar.md` only when the user asks for creative/radar/p
    - Use the current date to compute freshness.
    - Repositories with no default-branch commit in the last 12 months are stale unless the user asks for abandoned targets.
 
-2. **Select maturity lane**
+2. **Exclude local findings (dedup)**
+   - Read `.omv/index.json` in the workspace root. If it exists, collect all `findings[].id` entries regardless of status (`candidate`, `confirmed`, `blocked`) or `archived` flag.
+   - Also scan `.omv/findings/*.yaml` and `.omv/archive/findings/*.yaml` — extract `package.registry_name` and `package.ecosystem` from each file.
+   - Build an exclusion set of `(ecosystem, registry_name)` pairs.
+   - During candidate discovery (step 4), silently skip any package whose `(ecosystem, registry_name)` matches the exclusion set. Do not mention excluded packages in the output unless the user passes `--include-known`.
+   - If `.omv/index.json` does not exist or is empty, proceed normally with no exclusions.
+
+3. **Select maturity lane**
    - Core lanes: npm, Python, Go, Rust, Java, Ruby.
    - Extended lanes: PHP, C#, Swift, Dart, Elixir, Perl, R, Lua.
    - Extended lanes are supported, but be more conservative: return fewer results when primary metadata or code evidence is weak.
 
-3. **Discover candidates**
+4. **Discover candidates**
    - Collect 20-40 raw candidates before deep inspection.
    - Prefer GitHub repository search plus package registry primary pages/APIs.
    - Avoid flagship or heavily audited framework cores unless the user explicitly asks for them.
    - Record project name, repo URL, ecosystem, registry URL/package name, short purpose, and discovery source.
    - For playbook requests, map the request to one or more pattern packs and keep the pack tag separate from `vuln_direction`.
 
-4. **Verify metadata**
+5. **Verify metadata**
    - Use primary pages or APIs, not memory.
    - Collect GitHub URL, default branch, archived/fork status, stars, last commit date, registry identity, downloads/dependents/importers when visible, release recency, and code-size estimate.
    - Use `未确认` for unverified values and lower confidence.
@@ -75,7 +83,7 @@ Load `references/research-radar.md` only when the user asks for creative/radar/p
      - `python scripts/collect_metadata.py --repo <github-url> [--registry npm:pkg]`
      - `scripts/estimate_loc.sh <github-url-or-local-path>`
 
-5. **Scan source risk** — see `## Source File Discovery` for how to locate files before fetching.
+6. **Scan source risk** — see `## Source File Discovery` for how to locate files before fetching.
    - Inspect 2-5 relevant source files per surviving candidate.
    - Build a concise source -> sink -> guard note.
    - Keyword hits alone are low confidence.
@@ -83,7 +91,7 @@ Load `references/research-radar.md` only when the user asks for creative/radar/p
    - For radar requests, run only bounded passive diff checks: at most 3 recent commits/releases and 5 changed file names per candidate, then stop or mark `diff_signal: 未确认`.
    - Check duplicate risk through passive public advisory/release/issue sources. Mark likely duplicate only when package, vulnerability class, affected behavior, sink, and version context strongly match.
 
-6. **Score and filter**
+7. **Score and filter**
    - Score out of 100 using `references/scoring.md`.
    - If `--vuln` is set, at least 70% of returned projects must be relevant to that class.
    - If a narrow ecosystem/vulnerability combination has too few strong candidates, say so and return fewer results instead of padding.
@@ -92,7 +100,7 @@ Load `references/research-radar.md` only when the user asks for creative/radar/p
    - Add concise audit-readiness notes for high-ranked candidates: entry file/function, local test or harness idea, expected guard, and blocker.
    - Use sanitized examples in explanations unless the user supplied a real target as the audit subject.
 
-7. **Output**
+8. **Output**
    - Use the table and follow-up sections in `references/output-contract.md`.
    - Sort by score descending.
    - Include data freshness, sources used, and uncertainty.

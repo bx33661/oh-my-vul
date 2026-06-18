@@ -101,3 +101,13 @@ Do not describe live exploitation. Phrase next steps as local review:
 - add fuzz cases for parser input
 - compare safe/unsafe loader options
 - review whether a guard applies before the sink
+
+## Local Dedup Footer
+
+When packages were excluded because they already exist in `.omv/findings/` or `.omv/archive/findings/`, append a one-line note after the table:
+
+```text
+已排除 N 个本地已有 finding 的包（使用 --include-known 可取消排除）。
+```
+
+If no packages were excluded, omit this line.
