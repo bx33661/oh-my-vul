@@ -34,6 +34,10 @@ Usage:
   omv radar refresh [--dry-run] [--json]
                                      Refresh passive watchlist intelligence
   omv radar brief [--json]           Summarize local radar events
+  omv repro init <id> [--force] [--json]
+                                     Scaffold .omv/repro/<id>/ reproduction artifacts
+  omv report artifacts <id> [--json]
+                                     Inspect report/repro artifacts and readiness
   omv request preflight [--refresh] [--json]
                                      Check metadata source request health
   omv request fetch <url> [--accept mime] [--refresh] [--json]
@@ -129,6 +133,12 @@ Show local workspace status, active workflow queue, and recent activity in one v
       return;
     case "config":
       configUsage(subcommand);
+      return;
+    case "repro":
+      reproUsage(subcommand);
+      return;
+    case "report":
+      reportUsage(subcommand);
       return;
     default:
       usage();
@@ -281,6 +291,37 @@ Validate Evidence.v1 files. --strict treats warnings as failures.`);
   omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
   omv findings archive list [--json]
   omv findings restore <id> [--force] [--json]`);
+      return;
+  }
+}
+
+export function reproUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "init":
+      console.log(`Usage: omv repro init <id> [--force] [--json]
+
+Scaffold .omv/repro/<id>/ (README, commands.sh, observed.txt, docker-compose.yml,
+screenshots/) and merge the artifact list into evidence.repro_artifacts.
+--force overwrites non-empty artifact files.`);
+      return;
+    default:
+      console.log(`Usage:
+  omv repro init <id> [--force] [--json]`);
+      return;
+  }
+}
+
+export function reportUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "artifacts":
+      console.log(`Usage: omv report artifacts <id> [--json]
+
+Inspect declared report artifacts under .omv/reports/<id>/ and .omv/repro/<id>/,
+listing empty and missing artifacts. Exits non-zero on errors.`);
+      return;
+    default:
+      console.log(`Usage:
+  omv report artifacts <id> [--json]`);
       return;
   }
 }
