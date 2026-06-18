@@ -182,6 +182,15 @@ def count_from_prompt(prompt: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def excluded_packages_from_prompt(prompt: str) -> list[str]:
+    """Package names listed in `[a, b, c]` inside the prompt are local findings
+    that should be excluded from the candidate table."""
+    match = re.search(r"\[([^\]]+)\]", prompt)
+    if not match:
+        return []
+    return [p.strip() for p in match.group(1).split(",") if p.strip()]
+
+
 def expected_range(prompt: str) -> tuple[int, int] | None:
     count = count_from_prompt(prompt)
     if count is None:
@@ -297,6 +306,14 @@ def check(assertion_type: str, text: str, prompt: str, assertion_text: str = "")
         return contains_any(lowered, ["diff-alert", "diff signal", "recent commit", "release", "changelog", "changed file", "近期提交", "变更"])
     if assertion_type == "pattern_pack_present":
         return contains_any(lowered, ["playbook", "pattern pack", "archive-extractor", "renderer-pipeline", "template-engine", "config-loader", "media-tool", "webhook-client", "upload-handler"])
+    if assertion_type == "local_dedup_footer_present":
+        return contains_any(lowered, ["已排除", "本地已有"]) and "--include-known" in lowered
+    if assertion_type == "excluded_package_not_listed":
+        rows_text = "\n".join(table_row_lines(text)).lower()
+        excluded = excluded_packages_from_prompt(prompt)
+        if not excluded:
+            return True
+        return all(pkg.lower() not in rows_text for pkg in excluded)
     if assertion_type == "sparse_result_behavior_present":
         return rows <= 3 or contains_any(lowered, ["sparse", "不足", "没有硬凑", "few strong candidates"])
     if assertion_type in {"non_exploitative_guidance", "no_fabricated_data"}:
