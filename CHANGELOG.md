@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added `omv threat-map init <id>` — the producer side of the ThreatMap.v1 pipeline. Scaffolds `.omv/threatmaps/<id>.yaml` (finding_id + package filled from the finding, `paths: []` ready to fill) so `omv-audit` records source → transform → sink dataflow instead of hand-authoring YAML. The read pipeline (`omv findings show` rendering, archive sidecar handling) was already in place; this connects it.
+- Richer ThreatMap.v1 rendering: `omv findings show` now displays the full `source → transforms → sink` dataflow per path with per-path confidence, bypassable guards, and a summary line. Previously the renderer collapsed each path to a single `[source] -> [sink]` line, discarding transforms, confidence, and the summary block that the producer now writes.
 
 ## v0.9.0 - CLI command split and local findings dedup
 
