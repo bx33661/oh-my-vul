@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.9.0 - CLI command split and local findings dedup
 
-- Split the `omv` CLI dispatcher (`omv.ts`) into one module per command under `commands/`, collapsing 12 duplicated error handlers into one.
+- Split the `omv` CLI dispatcher (`omv.ts`, 1434 lines) into one module per command under `commands/`, plus a `commands/shared.ts` arg-helper module and a `commands/index.ts` registry replacing the dispatch `switch`. The 12 duplicated command error handlers collapse into one. `omv.ts` is now a 7-line entry.
 - Wired three commands that were validated and advertised but previously unreachable: `omv repro init`, `omv report artifacts`, and `omv findings doctor`. They now dispatch to the existing domain logic (`initReproArtifacts`, `checkReportArtifacts`, `doctorFinding`).
 - `omv-find` now excludes packages that already exist in `.omv/findings/` or `.omv/archive/findings/`; pass `--include-known` to override. Added a behavior eval + golden output for local dedup.
+- Updated `@types/node` and `yaml` dependencies.
 
 ## v0.8.0 - Workflow readiness gates
 

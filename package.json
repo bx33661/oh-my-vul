@@ -1,6 +1,6 @@
 {
   "name": "oh-my-vul",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "LLM-friendly vulnerability research skills for Claude Code",
   "type": "module",
   "main": "dist/index.js",
