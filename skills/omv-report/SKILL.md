@@ -55,7 +55,7 @@ Use the validation result to choose output mode:
 - Validation errors: lead with the errors and blockers; do not produce a submission-ready VulDB/CVE/GHSA/OSV report.
 - `status: blocked`: explain blockers and minimum evidence needed.
 - `status: candidate`: produce only triage notes or a draft outline clearly marked not ready for submission.
-- `status: confirmed`: proceed only if required evidence is present and submission score is at least 75/100; include validation warnings in the pre-submission checklist.
+- `status: confirmed`: proceed only if required evidence is present and submission score is at least 75/100 (`submissionScore` = `submission_score` in contract — the gating score after deducting blockers/unverified fields/confidence penalties); include validation warnings in the pre-submission checklist.
 - `submissionScore` below 75 or `verdict.exploitability` not `proven`: do not produce a submission-ready report; explain what evidence or reproduction artifact is missing.
 - `evidence.repro_artifacts` present: reference the artifacts as local reviewer evidence. If absent, warn that the report depends only on inline reproducer text.
 
