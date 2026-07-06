@@ -2,6 +2,7 @@ import type { Check, DoctorResult } from "./doctor.js";
 import type {
   ArchivedFindingSummary,
   FindingArchiveResult,
+  FindingDeleteResult,
   FindingDetail,
   FindingDoctorResult,
   FindingRestoreResult,
@@ -445,6 +446,36 @@ export function printRestoreResult(result: FindingRestoreResult): void {
         ["to", result.to],
         ["next", cmd("omv findings workflow")],
       ]),
+    ]),
+  );
+}
+
+export function printDeleteResult(result: FindingDeleteResult): void {
+  if (!result.deleted) {
+    console.log(
+      panel("finding delete preview", [
+        ...kv([
+          ["id", result.id],
+          ["action", "preview only"],
+          ["next", cmd(`omv findings delete ${result.id} --force`)],
+        ]),
+        "",
+        muted("paths to delete"),
+        ...result.paths.map((p) => `  ${p}`),
+      ]),
+    );
+    return;
+  }
+
+  const finalState = result.errors.length > 0 ? "warn" : "pass";
+  console.log(
+    panel("finding deleted", [
+      ...kv([
+        ["id", result.id],
+        ["result", outcomeBadge(finalState)],
+        ["paths", `${result.paths.length} file(s) removed`],
+      ]),
+      ...(result.errors.length > 0 ? ["", warn("errors"), ...result.errors.map((e) => `  ${e}`)] : []),
     ]),
   );
 }
