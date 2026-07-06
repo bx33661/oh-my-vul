@@ -120,6 +120,7 @@ class Finding:
     # Provenance
     verification_date: str = ""
     researcher: str = ""
+    unverified_fields: list[str] = field(default_factory=list)
     # Scores (computed)
     evidence_score: int = 0
     submission_score: int = 0
@@ -194,13 +195,22 @@ def load_finding(path: Path) -> Finding:
     prov = data.get("provenance") or {}
     f.verification_date = str(prov.get("verification_date", ""))
     f.researcher = str(prov.get("researcher", ""))
+    uf = prov.get("unverified_fields")
+    if isinstance(uf, list):
+        f.unverified_fields = [str(x) for x in uf]
 
     f.evidence_score, f.submission_score = _compute_scores(f)
     return f
 
 
 def _compute_scores(f: Finding) -> tuple[int, int]:
-    """Mirror contracts/evidence.v1.yaml scoring guide."""
+    """Evidence and submission scores. MUST mirror src/cli/findings.ts computeSubmissionScore exactly.
+
+    evidence_score = field completeness only, 0-100, never penalized or clamped.
+    submission_score = max(0, min(100, evidence_score - deductions - cvss_penalty)).
+    Blocked findings have submission_score = 0.
+    """
+    # evidence_score — sum of known non-"unknown" fields
     ev = 0
     if is_set(f.tested):
         ev += 20
@@ -221,21 +231,53 @@ def _compute_scores(f: Finding) -> tuple[int, int]:
     if f.vendor_contacted:
         ev += 5
 
+    # submission_score — starts from evidence_score, subtracts deductions
     sub = ev
-    if f.blockers:
-        sub -= min(30, len(f.blockers) * 15)
     if not is_set(f.observed_result):
-        sub -= 20
-    if not is_set(f.affected_range):
-        sub -= 15
-    if not (f.nvd_searched and f.ghsa_searched and f.ecosystem_db_searched):
-        sub -= 10
-    if f.exploitability in ("blocked", "disproven"):
+        sub -= 25
+    if f.blockers:
         sub -= 30
-    if not is_set(f.tested):
-        sub -= 20
+    if not is_set(f.affected_range) or f.affected_range.strip().lower() == "unknown":
+        sub -= 10
+    if not (f.nvd_searched and f.ghsa_searched and f.ecosystem_db_searched):
+        sub -= 15
+    if f.exploitability in ("blocked", "disproven"):
+        sub -= 50
+    if f.exploitability == "plausible":
+        sub -= 10
+    if f.repro_artifacts and not _any_repro_artifact_exists(f):
+        sub -= 10
+
+    # cvss confidence penalty
+    unverified_count = len(getattr(f, 'unverified_fields', []))
+    penalty = min(20, unverified_count * 3)
+    if f.confidence == "medium":
+        penalty += 5
+    elif f.confidence == "low":
+        penalty += 15
+    elif f.confidence == "unknown":
+        penalty += 20
+    sub -= penalty
+
+    # blocked → 0
+    if f.exploitability in ("blocked", "disproven"):
+        sub = 0
+    elif f.status == "blocked":
+        sub = 0
+
+    # extra -10 for confirmed findings still below threshold
+    if f.status == "confirmed" and sub < 75:
+        sub -= 10
 
     return ev, max(0, min(100, sub))
+
+
+def _any_repro_artifact_exists(f: Finding) -> bool:
+    """Check if any listed repro_artifact file path exists on disk (CLI's existingArtifactPaths logic)."""
+    for ap in f.repro_artifacts:
+        if ap and Path(ap).exists():
+            return True
+    return False
 
 
 def _score_line(f: Finding) -> str:
