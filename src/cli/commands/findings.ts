@@ -22,6 +22,18 @@ import {
   type FindingRestoreResult,
   type FindingDeleteResult,
 } from "../findings.js";
+import {
+  printArchivedSummaries,
+  printArchiveResult,
+  printDeleteResult,
+  printFindingDetail,
+  printFindingDoctor,
+  printFindingSummaries,
+  printFindingTemplateResult,
+  printFindingValidation,
+  printRestoreResult,
+  printWorkflowSummaries,
+} from "../render.js";
 import { usage } from "../usage.js";
 import { firstPositionalAfter, parseStatus, parseReason, wantsJson } from "./shared.js";
 import {
@@ -232,41 +244,6 @@ async function runFindingsDoctor(args: string[], json: boolean): Promise<void> {
   }
 }
 
-function printFindingDoctor(result: FindingDoctorResult): void {
-  console.log(title(`doctor ${result.id}`));
-  console.log(
-    panel("readiness", [
-      ...kv([
-        ["status", statusBadge(result.status as "candidate" | "confirmed" | "blocked")],
-        ["validation", validationBadge(result.validationOk)],
-        ["evidence", readiness(result.evidenceScore)],
-        ["submission", readiness(result.submissionScore)],
-        ["threshold", String(result.submissionThreshold)],
-        ["report ready", result.reportReady ? "yes" : "no"],
-        ["next", cmd(result.nextAction)],
-      ]),
-    ]),
-  );
-
-  if (result.issues.length === 0) {
-    console.log(empty("No readiness issues."));
-    return;
-  }
-
-  console.log(section("Issues"));
-  console.log(
-    table(
-      ["", "severity", "message", "next action"],
-      result.issues.map((issue) => [
-        statusIcon(issue.severity === "error" ? "fail" : issue.severity === "warning" ? "warn" : "pass"),
-        issue.severity,
-        truncate(issue.message, 64),
-        cmd(truncate(issue.nextAction, 40)),
-      ]),
-    ),
-  );
-}
-
 async function runFindingsPromote(args: string[], json: boolean): Promise<void> {
   const target = firstPositionalAfter(args, "promote");
   const status = parseStatus(args);
@@ -351,199 +328,4 @@ async function runFindingsDelete(args: string[], json: boolean): Promise<void> {
     return;
   }
   printDeleteResult(result);
-}
-
-function printFindingSummaries(findings: FindingSummary[]): void {
-  console.log(title("active findings"));
-  console.log(
-    table(
-      ["id", "status", "evidence", "submission", "package", "vulnerability"],
-      findings.map((finding) => [
-        truncate(finding.id, 36),
-        statusBadge(finding.status),
-        readiness(finding.evidenceScore),
-        readiness(finding.submissionScore),
-        truncate(`${finding.ecosystem}:${finding.package}`, 42),
-        truncate(finding.vulnerability, 36),
-      ]),
-    ),
-  );
-}
-
-function printWorkflowSummaries(findings: FindingWorkflowSummary[]): void {
-  console.log(title("workflow queue"));
-  console.log(
-    table(
-      ["id", "priority", "status", "evidence", "submission", "next action", "package", "vulnerability"],
-      findings.map((finding) => [
-        truncate(finding.id, 30),
-        String(finding.priority),
-        statusBadge(finding.status),
-        readiness(finding.evidenceScore),
-        readiness(finding.submissionScore),
-        cmd(truncate(finding.nextAction, 46)),
-        truncate(`${finding.ecosystem}:${finding.package}`, 34),
-        truncate(finding.vulnerability, 30),
-      ]),
-    ),
-  );
-}
-
-function printFindingDetail(finding: FindingDetail): void {
-  console.log(title(`finding ${finding.id}`));
-  const lines = kv([
-    ["status", statusBadge(finding.status)],
-    ["evidence", readiness(finding.evidenceScore)],
-    ["submission", readiness(finding.submissionScore)],
-    ["verdict", `${finding.verdict.exploitability}/${finding.verdict.confidence}`],
-    ["validation", validationBadge(finding.validation.ok)],
-    ["priority", `${finding.priority} (${finding.priorityReason})`],
-    ["path", finding.path],
-    ["package", `${finding.ecosystem}:${finding.package}`],
-    ["vulnerability", finding.vulnerability],
-  ]);
-  if (finding.reproArtifacts.length > 0) {
-    lines.push(...kv([["repro artifacts", String(finding.reproArtifacts.length)]]));
-  }
-  if (finding.threatMap) {
-    lines.push(...kv([["threat map", finding.threatMap.path]]));
-    lines.push("", muted("threat map"));
-    lines.push(...finding.threatMap.rendered.map((item) => `  ${item}`));
-  }
-  if (finding.archived) {
-    lines.push(...kv([
-      ["archived", finding.archivedAt ?? "unknown"],
-      ["reason", finding.archiveReason ?? "unknown"],
-    ]));
-  }
-  lines.push(...kv([["next", cmd(finding.nextAction)]]));
-  if (finding.validation.errors.length > 0) {
-    lines.push("", tuiError("errors"));
-    lines.push(...finding.validation.errors.map((item) => `  ${item}`));
-  }
-  if (finding.validation.warnings.length > 0) {
-    lines.push("", warn("warnings"));
-    lines.push(...finding.validation.warnings.slice(0, 8).map((item) => `  ${item}`));
-    if (finding.validation.warnings.length > 8) {
-      lines.push(muted(`  ... ${finding.validation.warnings.length - 8} more warning(s)`));
-    }
-  }
-  if (finding.missingFields.length > 0) {
-    lines.push("", muted(`missing  ${finding.missingFields.join(", ")}`));
-  }
-  console.log(panel(finding.id, lines));
-}
-
-function printArchivedSummaries(findings: ArchivedFindingSummary[]): void {
-  if (findings.length === 0) {
-    console.log(empty("No archived findings."));
-    return;
-  }
-  console.log(title("archive"));
-  console.log(
-    table(
-      ["id", "status", "archived", "reason", "package"],
-      findings.map((finding) => [
-        truncate(finding.id, 34),
-        statusBadge(finding.status),
-        truncate(finding.archivedAt, 27),
-        truncate(finding.archiveReason, 26),
-        truncate(`${finding.ecosystem}:${finding.package}`, 40),
-      ]),
-    ),
-  );
-}
-
-function printFindingValidation(result: FindingValidation): void {
-  const lines = kv([
-    ["status", statusBadge(result.status)],
-    ["evidence", readiness(result.evidenceScore)],
-    ["submission", readiness(result.submissionScore)],
-    ["validation", validationBadge(result.ok)],
-    ["path", result.path],
-  ]);
-  if (result.errors.length > 0) {
-    lines.push("", tuiError("errors"));
-    lines.push(...result.errors.map((item) => `  ${item}`));
-  }
-  if (result.warnings.length > 0) {
-    lines.push("", warn("warnings"));
-    lines.push(...result.warnings.map((item) => `  ${item}`));
-  }
-  console.log(panel(result.id, lines));
-}
-
-function printFindingTemplateResult(result: FindingTemplateResult): void {
-  console.log(
-    panel("finding created", [
-      ...kv([
-        ["id", result.id],
-        ["path", result.path],
-        ["status", statusBadge(result.status)],
-        ["next", cmd(`omv findings show ${result.id}`)],
-      ]),
-    ]),
-  );
-}
-
-function printArchiveResult(result: FindingArchiveResult): void {
-  console.log(
-    panel("finding archived", [
-      ...kv([
-        ["id", result.id],
-        ["status", statusBadge(result.status)],
-        ["from", result.from],
-        ["to", result.to],
-        ["reason", result.archiveReason],
-        ["reports", result.reportArtifactPaths.length > 0 ? `${result.reportArtifactPaths.length} artifact(s)` : "none"],
-        ["submissions", result.submissionRecords.length > 0 ? `${result.submissionRecords.length} record(s)` : "none"],
-        ["next", cmd(`omv findings show ${result.id} --archived`)],
-      ]),
-      ...result.warnings.map((item) => warn(`warning  ${item}`)),
-    ]),
-  );
-}
-
-function printRestoreResult(result: FindingRestoreResult): void {
-  console.log(
-    panel("finding restored", [
-      ...kv([
-        ["id", result.id],
-        ["status", statusBadge(result.status)],
-        ["from", result.from],
-        ["to", result.to],
-        ["next", cmd("omv findings workflow")],
-      ]),
-    ]),
-  );
-}
-
-function printDeleteResult(result: FindingDeleteResult): void {
-  if (!result.deleted) {
-    console.log(
-      panel("finding delete preview", [
-        ...kv([
-          ["id", result.id],
-          ["action", "preview only"],
-          ["next", cmd(`omv findings delete ${result.id} --force`)],
-        ]),
-        "",
-        muted("paths to delete"),
-        ...result.paths.map((p) => `  ${p}`),
-      ]),
-    );
-    return;
-  }
-
-  const finalState = result.errors.length > 0 ? "warn" : "pass";
-  console.log(
-    panel("finding deleted", [
-      ...kv([
-        ["id", result.id],
-        ["result", outcomeBadge(finalState)],
-        ["paths", `${result.paths.length} file(s) removed`],
-      ]),
-      ...(result.errors.length > 0 ? ["", warn("errors"), ...result.errors.map((e) => `  ${e}`)] : []),
-    ]),
-  );
 }

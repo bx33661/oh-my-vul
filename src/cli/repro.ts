@@ -86,11 +86,11 @@ export async function checkReportArtifacts(id: string, projectRoot = process.cwd
   if (!existsSync(findingPath)) {
     throw new Error(`${findingPath} does not exist`);
   }
-  const parsed = (await readEvidence(findingPath)).data;
-  const status = getString(parsed, "status") || "unknown";
+  const { data } = await readEvidence(findingPath);
+  const status = getString(data, "status") || "unknown";
   const reportsPath = findingReportsDir(normalizedId, projectRoot);
   const reproPath = findingReproDir(normalizedId, projectRoot);
-  const listedReproArtifacts = getList(parsed, "evidence.repro_artifacts").map(String).filter((value) => value.trim() !== "");
+  const listedReproArtifacts = getList(data, "evidence.repro_artifacts").map(String).filter((value) => value.trim() !== "");
   const existingReproArtifacts = existingArtifactPaths(listedReproArtifacts, projectRoot);
   const missingReproArtifacts = listedReproArtifacts.filter((value) => !artifactExists(value, projectRoot));
   const reportArtifactPaths = await listReportArtifacts(normalizedId, projectRoot);
@@ -149,7 +149,7 @@ Do not place secrets, live target data, or private disclosure material here.
 async function mergeReproArtifacts(findingPath: string, artifacts: string[]): Promise<boolean> {
   const text = await readFile(findingPath, "utf-8");
   const doc = parseDocument(text);
-  const values = getList(parseEvidenceYaml(text).data, "evidence.repro_artifacts").map(String);
+  const values = getList((await parseEvidenceYaml(text)).data, "evidence.repro_artifacts").map(String);
   const merged = [...values];
   for (const artifact of artifacts) {
     if (!merged.includes(artifact)) {
@@ -258,8 +258,8 @@ function getValue(data: Record<string, unknown>, path: string): unknown {
   return current;
 }
 
-function parseEvidenceYaml(text: string): { data: Record<string, unknown>; errors: string[] } {
-  const { parse: parseYaml } = requireModule("yaml");
+async function parseEvidenceYaml(text: string): Promise<{ data: Record<string, unknown>; errors: string[] }> {
+  const { parse: parseYaml } = await import("yaml");
   try {
     const parsed = parseYaml(text);
     if (!isRecord(parsed)) {
@@ -281,6 +281,3 @@ async function readEvidence(path: string): Promise<{ data: Record<string, unknow
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
-
-import { createRequire } from "module";
-const requireModule = createRequire(import.meta.url);
