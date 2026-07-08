@@ -13,6 +13,7 @@ import type {
   ReportArtifactsResult,
   ReproInitResult,
 } from "./findings.js";
+import type { FindingReview } from "./review.js";
 import type { SetupResult } from "./setup.js";
 import type { WorkspaceActivityEntry, WorkspaceStatus } from "./workspace.js";
 import {
@@ -61,6 +62,7 @@ export function printSetupResult(result: SetupResult): void {
 
   const rows = [
     ...result.installed.map((name) => [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
+    ...result.installedAgents.map((name) => [statusIcon("installed"), `agent:${name}`, outcomeBadge("installed"), "copied into agents directory"]),
     ...result.skipped.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "already installed; use --force to overwrite"]),
     ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
   ];
@@ -296,6 +298,23 @@ export function printFindingDetail(finding: FindingDetail): void {
     lines.push("", muted("blockers"));
     lines.push(...finding.blockers.slice(0, 5).map((item) => `  ${item}`));
   }
+  if (finding.threatMap) {
+    lines.push("", muted("threat map"));
+    if (finding.threatMap.rendered.length > 0) {
+      lines.push(...finding.threatMap.rendered.slice(0, 8).map((item) => `  ${item}`));
+      if (finding.threatMap.rendered.length > 8) {
+        lines.push(muted(`  ... ${finding.threatMap.rendered.length - 8} more graph line(s)`));
+      }
+    } else {
+      lines.push("  no graph paths rendered");
+    }
+    for (const item of finding.threatMap.validation.errors.slice(0, 4)) {
+      lines.push(`  ${tuiError(`error: ${item}`)}`);
+    }
+    for (const item of finding.threatMap.validation.warnings.slice(0, 4)) {
+      lines.push(`  ${warn(`warning: ${item}`)}`);
+    }
+  }
   console.log(panel(finding.id, lines));
 }
 
@@ -347,6 +366,8 @@ export function printFindingDoctor(result: FindingDoctorResult): void {
     ["threshold", String(result.submissionThreshold)],
     ["validation", validationBadge(result.validationOk)],
     ["report ready", result.reportReady ? outcomeBadge("pass") : outcomeBadge("fail")],
+    ["strict verification", result.strictVerification ? "enabled" : "disabled"],
+    ["verification", result.verification ? `${result.verification.status}${result.verification.stale ? " (stale)" : ""}` : "not checked"],
     ["path", result.path],
     ["next", cmd(result.nextAction)],
   ]);
@@ -358,6 +379,35 @@ export function printFindingDoctor(result: FindingDoctorResult): void {
       const fields = issue.fields.length > 0 ? ` [${issue.fields.join(", ")}]` : "";
       return `  ${issue.severity}: ${issue.message}${fields} -> ${issue.nextAction}`;
     }));
+  }
+  console.log(panel(result.id, lines));
+}
+
+export function printFindingReview(result: FindingReview): void {
+  console.log(title(`finding review ${result.id}`));
+  const state = result.verdict === "ready" ? "pass" : result.verdict === "blocked" ? "fail" : "warn";
+  const lines = kv([
+    ["verdict", outcomeBadge(state)],
+    ["reason", result.verdict],
+    ["summary", result.summary],
+    ["status", statusBadge(result.doctor.status)],
+    ["evidence", readiness(result.doctor.evidenceScore)],
+    ["submission", readiness(result.doctor.submissionScore)],
+    ["strict", result.strict ? "enabled" : "disabled"],
+    ["verification", result.doctor.verification ? `${result.doctor.verification.status}${result.doctor.verification.stale ? " (stale)" : ""}` : "not checked"],
+    ["report ready", result.reportReady ? outcomeBadge("pass") : outcomeBadge("fail")],
+    ["next", cmd(result.nextAction)],
+  ]);
+  if (result.blockers.length > 0) {
+    lines.push("", tuiError("blockers"));
+    lines.push(...result.blockers.map((item) => `  ${item}`));
+  }
+  if (result.warnings.length > 0) {
+    lines.push("", warn("warnings"));
+    lines.push(...result.warnings.slice(0, 8).map((item) => `  ${item}`));
+    if (result.warnings.length > 8) {
+      lines.push(muted(`  ... ${result.warnings.length - 8} more warning(s)`));
+    }
   }
   console.log(panel(result.id, lines));
 }

@@ -11,7 +11,11 @@
 #   - Use "unknown" for unverified fields; never fill from memory.
 #   - List unverified fields under provenance.unverified_fields.
 #   - omv-report must preserve all unverified markers; never silently upgrade them.
-#   - CVE readiness score 0-100 based on field completeness; threshold >=75 is necessary but not sufficient.
+#   - submission_score (computed, 0-100) = evidence_score minus penalties (blockers,
+#     missing observed_result, weak version boundaries, incomplete dedup, blocked/disproven
+#     verdict, missing repro artifacts, unverified fields, low confidence in verdict).
+#     Threshold: submission_score >= 75 plus validation ok and status confirmed is required
+#     before suggesting promotion to /omv-report.
 #   - CLI validation is the machine gate for status transitions; confirmed findings must satisfy field-level checks.
 #   - Unknown values in important fields must be listed in provenance.unverified_fields until verified.
 
@@ -104,26 +108,11 @@ provenance:
   unverified_fields: []    # list field paths that carry "unknown" or unconfirmed data; checked by CLI validation
   tool_versions: {}        # e.g. {omv-find: "1.0"}
 
-# ── Evidence and Submission Scores (computed, not stored) ─────────────────────
-# omv computes evidence_score from field completeness.
-# omv computes submission_score by penalizing unresolved blockers, unknown
-# observed_result, unknown affected range, incomplete dedup, and blocked/disproven
-# verdicts. A high evidence_score is not enough for submission-ready output.
+# ── Evidence Score (evidence_score) ──────────────────────────────────
+# evidence_score = sum of weights below; field-completeness measure, 0-100.
+# Never penalized, never clamped. Computed by CLI src/cli/findings.ts computeEvidenceScore.
 #
-# Evidence scoring guide (total 100):
-#   tested version present          +20
-#   source identified               +10
-#   sink identified                 +10
-#   guard missing confirmed         +10
-#   local reproducer written        +15
-#   observed result documented      +10
-#   cvss vector present             +10
-#   dedup search completed          +10
-#   vendor contacted                +5
-#
-# Threshold: submission_score >= 75 plus validation OK is required before
-# suggesting promotion to confirmed.
-cve_readiness_scoring:
+evidence_score_weights:
   tested_version: 20
   source_identified: 10
   sink_identified: 10
@@ -134,4 +123,24 @@ cve_readiness_scoring:
   dedup_searched: 10
   vendor_contacted: 5
   total: 100
-  threshold: 75
+
+# ── Submission Score (submission_score) ────────────────────────────────
+# submission_score = max(0, min(100, evidence_score - Σdeductions - cvss_confidence_penalty)).
+# Blocked findings: submission_score = 0.
+# Computed by CLI src/cli/findings.ts computeSubmissionScore. Must mirror findings.ts exactly.
+submission_score:
+  threshold: 75            # confirmed + validation.ok + submission_score >= 75 → report-ready
+  cvss_confidence_penalty:
+    per_unverified_field: 3   # capped at 20
+    confidence_medium: 5
+    confidence_low: 15
+    confidence_unknown: 20
+  deductions:
+    missingObservedResult: 25
+    unresolvedBlockers: 30
+    unknownAffectedRange: 10
+    incompleteDedup: 15
+    blockedOrDisproven: 50
+    plausibleExploitability: 10
+    confirmedBelowThreshold: 10
+    missingReproArtifacts: 10

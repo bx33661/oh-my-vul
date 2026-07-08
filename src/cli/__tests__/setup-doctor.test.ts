@@ -36,9 +36,24 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     assert.equal(existsSync(join(claudeHome, "skills", "omv", "references", "registry.yaml")), true);
     assert.equal(existsSync(installManifestPath("user")), true);
 
+    // Bundled subagents should be installed into ~/.claude/agents/.
+    assert.equal(existsSync(join(claudeHome, "agents", "dataflow-tracer.md")), true);
+    assert.equal(existsSync(join(claudeHome, "agents", "verifier.md")), true);
+    assert.equal(existsSync(join(claudeHome, "agents", "guard-checker.md")), true);
+    assert.deepEqual(result.installedAgents.sort(), [
+      "cvss-analyst",
+      "dataflow-tracer",
+      "dedup-analyst",
+      "guard-checker",
+      "report-writer",
+      "verifier",
+      "vuln-scanner",
+    ]);
+
     let check = await doctor({ scope: "user" });
     assert.equal(check.ok, true);
     assert.equal(check.checks.find((item) => item.name === "install manifest")?.status, "pass");
+    assert.equal(check.checks.find((item) => item.name === "agents")?.status, "pass");
 
     await writeFile(
       join(claudeHome, "skills", "omv-find", "SKILL.md"),

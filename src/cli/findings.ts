@@ -2,8 +2,10 @@ import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, isAbsolute, join, relative } from "path";
 import { parse as parseYaml, parseDocument } from "yaml";
-import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath, threatMapsDir } from "./paths.js";
+import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath, verificationPath } from "./paths.js";
 import { readSubmissions, type SubmissionRecord } from "./submissions.js";
+import { readThreatMap, validateThreatMap, writeThreatMap, type FindingThreatMap, type ThreatMapValidation, type ThreatMapWriteResult } from "./threatmap.js";
+import { validateVerification, verificationPasses, type VerificationValidation } from "./verification.js";
 import {
   appendWorkspaceActivity,
   ensureWorkspaceDirs,
@@ -154,6 +156,9 @@ export interface FindingDoctorResult {
   issues: FindingDoctorIssue[];
   validation: FindingValidation;
   artifacts: ReportArtifactsResult;
+  threatMap?: ThreatMapValidation;
+  verification?: VerificationValidation;
+  strictVerification: boolean;
 }
 
 export interface FindingVerdict {
@@ -162,16 +167,13 @@ export interface FindingVerdict {
   reason: string;
 }
 
-export interface FindingThreatMap {
-  path: string;
-  rendered: string[];
-}
-
 export interface CreateFindingTemplateOptions {
   status?: EvidenceStatus;
   force?: boolean;
   projectRoot?: string;
 }
+
+export { writeThreatMap, type ThreatMapWriteResult };
 
 const VALID_STATUSES = new Set<EvidenceStatus>(["candidate", "confirmed", "blocked"]);
 const FINDING_EXTENSIONS = new Set([".yaml", ".yml"]);
@@ -485,102 +487,24 @@ export async function initReproArtifacts(
   return { id, path: dir, findingPath, artifacts, written, skipped, updatedFinding };
 }
 
-export interface ThreatMapWriteResult {
-  id: string;
-  path: string;
-  findingPath: string;
-  written: boolean;
-  skipped: boolean;
-}
-
-export async function writeThreatMap(
+export async function doctorFinding(
   target: string,
   projectRoot = process.cwd(),
-  options: { force?: boolean } = {},
-): Promise<ThreatMapWriteResult> {
-  const id = normalizeFindingId(target);
-  const findingPath = resolveFindingPath(id, projectRoot);
-  if (!existsSync(findingPath)) {
-    throw new Error(`${findingPath} does not exist`);
-  }
-
-  const dir = threatMapsDir(projectRoot);
-  await mkdir(dir, { recursive: true });
-  const path = threatMapPath(id, projectRoot);
-
-  const shouldWrite = options.force || !existsSync(path) || (await stat(path)).size === 0;
-  if (shouldWrite) {
-    const { data } = await readEvidence(findingPath);
-    await writeFile(path, threatMapTemplate(id, data), "utf-8");
-    await appendWorkspaceActivity({ action: "threatmap.write", id, path }, projectRoot);
-    return { id, path, findingPath, written: true, skipped: false };
-  }
-
-  return { id, path, findingPath, written: false, skipped: true };
-}
-
-function threatMapTemplate(id: string, finding: Record<string, unknown>): string {
-  const ecosystem = getString(finding, "package.ecosystem") || "";
-  const registryName = getString(finding, "package.registry_name") || getString(finding, "package.product") || "";
-  const repositoryUrl = getString(finding, "package.repository_url") || "";
-  const versionAnalyzed = getString(finding, "versions.tested") || "";
-  return `# ThreatMap.v1 sidecar for ${id}
-# Produced by: omv threat-map init + omv-audit
-# Consumed by: omv findings show, omv-critic, omv-report
-# Schema: ../../contracts/threat-map.v1.yaml
-schema_version: "1"
-
-finding_id: "${id}"
-package:
-  ecosystem: "${ecosystem}"
-  registry_name: "${registryName}"
-  repository_url: "${repositoryUrl}"
-  version_analyzed: "${versionAnalyzed}"
-
-# One entry per discovered source-to-sink path.
-paths: []
-#   - id: 1
-#     source:
-#       type: user_input | file | network | env | config
-#       location: ""
-#       description: ""
-#     transforms:
-#       - type: parse | decode | normalize | validate | authorize | other
-#         location: ""
-#         description: ""
-#     sink:
-#       type: fs_write | exec | eval | html_render | sql | network_req
-#       location: ""
-#       description: ""
-#     guard:
-#       present: false
-#       description: ""
-#       bypassable: true
-#     confidence: high   # high | medium | low
-#     notes: ""
-
-summary:
-  path_count: 0
-  confirmed_paths: 0
-  highest_confidence: unknown
-  vuln_classes: []
-  notes: ""
-
-provenance:
-  analysis_date: ""
-  tool: manual
-  tool_version: unknown
-  analyst: ""
-`;
-}
-
-export async function doctorFinding(target: string, projectRoot = process.cwd()): Promise<FindingDoctorResult> {
+  options: { strictVerification?: boolean } = {},
+): Promise<FindingDoctorResult> {
   const path = resolveFindingPath(target, projectRoot);
   const id = findingIdFromFile(path);
   const validation = await validateFinding(path, projectRoot);
   const summary = await readFindingSummary(path, id);
   const parsed = (await readEvidence(path)).data;
   const artifacts = await checkReportArtifacts(id, projectRoot);
+  const threatMap = existsSync(threatMapPath(id, projectRoot))
+    ? await validateThreatMap(id, projectRoot, { evidence: parsed })
+    : undefined;
+  const strictVerification = options.strictVerification ?? false;
+  const verification = strictVerification || existsSync(verificationPath(id, projectRoot))
+    ? await validateVerification(id, projectRoot, { requireExisting: strictVerification })
+    : undefined;
   const missingFields = workflowMissingFields(validation);
   const nextAction = workflowNextAction(summary, validation, missingFields);
   const issues: FindingDoctorIssue[] = [];
@@ -620,9 +544,60 @@ export async function doctorFinding(target: string, projectRoot = process.cwd())
     fields: ["evidence.repro_artifacts"],
     nextAction: `omv report artifacts ${id}`,
   })));
+  if (threatMap) {
+    issues.push(...threatMap.errors.map((message) => ({
+      id: "threatmap-error",
+      severity: "error" as const,
+      message,
+      fields: ["threatmap"],
+      nextAction: `omv threat-map validate ${id}`,
+    })));
+    issues.push(...threatMap.warnings.map((message) => ({
+      id: "threatmap-warning",
+      severity: "warning" as const,
+      message,
+      fields: ["threatmap"],
+      nextAction: `omv threat-map validate ${id}`,
+    })));
+  }
+  if (verification) {
+    const verificationSeverity = strictVerification ? "error" as const : "warning" as const;
+    issues.push(...verification.errors.map((message) => ({
+      id: "verification-error",
+      severity: verificationSeverity,
+      message,
+      fields: ["verification"],
+      nextAction: `omv verification init ${id}`,
+    })));
+    issues.push(...verification.warnings.map((message) => ({
+      id: "verification-warning",
+      severity: "warning" as const,
+      message,
+      fields: ["verification"],
+      nextAction: `omv verification validate ${id}`,
+    })));
+    if (strictVerification && !verificationPasses(verification) && verification.errors.length === 0) {
+      issues.push({
+        id: "verification-not-passing",
+        severity: "error" as const,
+        message: `strict verification requires decision.status pass; current status is ${verification.status}`,
+        fields: ["verification.decision.status"],
+        nextAction: `omv verification show ${id}`,
+      });
+    }
+  }
 
   const dedupedIssues = dedupeIssues(issues);
-  const reportReady = validation.ok && validation.status === "confirmed" && validation.submissionScore >= SUBMISSION_READY_THRESHOLD;
+  const threatMapReady = !threatMap || threatMap.ok;
+  const verificationReady = !strictVerification || verificationPasses(verification);
+  const reportReady = validation.ok && threatMapReady && verificationReady && validation.status === "confirmed" && validation.submissionScore >= SUBMISSION_READY_THRESHOLD;
+  const doctorNextAction = reportReady
+    ? `/omv-report ${id}`
+    : strictVerification && !verificationReady
+      ? existsSync(verificationPath(id, projectRoot))
+        ? `omv verification validate ${id}`
+        : `omv verification init ${id}`
+      : nextAction;
   return {
     id,
     path,
@@ -632,10 +607,13 @@ export async function doctorFinding(target: string, projectRoot = process.cwd())
     submissionThreshold: SUBMISSION_READY_THRESHOLD,
     validationOk: validation.ok,
     reportReady,
-    nextAction: reportReady ? `/omv-report ${id}` : nextAction,
+    nextAction: doctorNextAction,
     issues: dedupedIssues,
     validation,
     artifacts,
+    threatMap,
+    verification,
+    strictVerification,
   };
 }
 
@@ -876,6 +854,8 @@ export async function deleteFinding(
   if (existsSync(reports)) sidecars.push(reports);
   const threatmap = threatMapPath(id, projectRoot);
   if (existsSync(threatmap)) sidecars.push(threatmap);
+  const verification = verificationPath(id, projectRoot);
+  if (existsSync(verification)) sidecars.push(verification);
   const submission = join(projectRoot, ".omv", "submissions", `${id}.yaml`);
   if (existsSync(submission)) sidecars.push(submission);
   const note = join(projectRoot, ".omv", "notes", `${id}.md`);
@@ -1039,63 +1019,6 @@ function submissionDeductions(data: Record<string, unknown>, status: string, pro
   return deductions;
 }
 
-async function readThreatMap(id: string, projectRoot: string): Promise<FindingThreatMap | undefined> {
-  const path = threatMapPath(id, projectRoot);
-  if (!existsSync(path)) {
-    return undefined;
-  }
-  const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
-  return { path, rendered: renderThreatMap(parsed) };
-}
-
-function renderThreatMap(data: Record<string, unknown>): string[] {
-  const lines: string[] = [];
-  const paths = getList(data, "paths");
-  paths.forEach((item, index) => {
-    if (!isRecord(item)) {
-      lines.push(`path ${index + 1}: invalid threat map path`);
-      return;
-    }
-    const confidence = getRecordString(item, "confidence");
-    lines.push(`path ${index + 1}${confidence ? ` (${confidence} confidence)` : ""}`);
-    lines.push(`  source: ${describeThreatNode(item.source, "source")}`);
-    const transforms = getList(item, "transforms");
-    for (const transform of transforms) {
-      lines.push(`  transform: ${describeThreatNode(transform, "transform")}`);
-    }
-    lines.push(`  sink: ${describeThreatNode(item.sink, "sink")}`);
-    const guard = isRecord(item.guard) ? item.guard : {};
-    const present = guard.present === true;
-    const guardText = getRecordString(guard, "description") || (present ? "guard present" : "no guard");
-    const bypassable = guard.bypassable === true ? " (bypassable)" : "";
-    lines.push(`  ${present ? "guard" : "guard missing"}: ${guardText}${bypassable}`);
-  });
-
-  const summary = isRecord(data.summary) ? data.summary : undefined;
-  if (summary) {
-    const pathCount = getRecordString(summary, "path_count");
-    const confirmed = getRecordString(summary, "confirmed_paths");
-    const highest = getRecordString(summary, "highest_confidence");
-    const parts: string[] = [];
-    if (pathCount) parts.push(`${pathCount} paths`);
-    if (confirmed) parts.push(`${confirmed} confirmed`);
-    if (highest) parts.push(`highest: ${highest}`);
-    if (parts.length > 0) lines.push(`summary: ${parts.join(", ")}`);
-  }
-  return lines;
-}
-
-function describeThreatNode(value: unknown, fallback: string): string {
-  if (!isRecord(value)) {
-    return fallback;
-  }
-  const description = getRecordString(value, "description");
-  const location = getRecordString(value, "location");
-  const type = getRecordString(value, "type");
-  const label = description || type || fallback;
-  return location ? `${label} — ${location}` : label;
-}
-
 function cvssConfidencePenalty(data: Record<string, unknown>): number {
   const confidence = getString(data, "verdict.confidence");
   const unverifiedCount = getList(data, "provenance.unverified_fields").length;
@@ -1123,12 +1046,6 @@ async function readFindingSummary(path: string, id: string): Promise<FindingSumm
     verdict: getVerdict(parsed),
     reproArtifacts: getReproArtifacts(parsed, projectRoot),
   };
-}
-
-// ── Workflow helpers (delegating to workflow.ts) ───────────────────────
-
-function getListFromWarnings(warnings: string[], field: string): string[] {
-  return warnings.filter((warning) => warning.startsWith(`${field} `));
 }
 
 async function listReportArtifacts(id: string, projectRoot: string): Promise<string[]> {
