@@ -18,13 +18,18 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 /omv audit <id>             — deep-audit a candidate finding (delegates to omv-audit skill)
 /omv repro <id>             — guide local reproduction of a finding (delegates to omv-repro skill)
 /omv repro init <id>        — create .omv/repro/<id>/ artifact scaffold
+/omv review <id>            — review report readiness and recommend the next step
 /omv report artifacts <id>  — check report and reproduction artifacts
+/omv verification init <id> — create .omv/verifications/<id>.yaml adversarial review scaffold
+/omv verification show <id> — show adversarial verification status
+/omv verification validate <id>
+                            — validate Verification.v1 and stale Evidence hash
 /omv archive <id> --reason <reason>
                             — archive an inactive finding (delegates to omv CLI)
 /omv restore <id>           — restore an archived finding (delegates to omv CLI)
 /omv findings list          — list .omv/findings evidence files (delegates to omv CLI)
 /omv findings workflow      — show lifecycle next actions (delegates to omv CLI)
-/omv findings doctor <id>   — explain what blocks submission readiness
+/omv findings doctor <id>   — advanced readiness diagnostics
 /omv findings show <id>     — show one finding's validation state and next action
 /omv findings open <id>     — print one finding YAML path for editing
 /omv findings init <id>     — create a finding template (delegates to omv CLI)
@@ -56,14 +61,18 @@ Collection metadata lives in `references/registry.yaml`. Read it to show current
 
 When the user invokes workspace, lifecycle, repro scaffold, artifact check, archive, or restore commands, **run the matching `omv` CLI command via `Bash` and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
 
-Use `omv help`, `omv help findings`, `omv help repro`, or `omv help report` as the source of truth for exact CLI signatures. For direct aliases:
+Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `omv help report` as the source of truth for exact CLI signatures. For direct aliases:
 
 - `/omv dashboard` -> `omv dashboard`
 - `/omv status` -> `omv workspace status`
 - `/omv log` -> `omv workspace log`
 - `/omv next` -> `omv findings workflow`
 - `/omv repro init <id>` -> `omv repro init <id>`
+- `/omv review <id>` -> `omv review <id>`
 - `/omv report artifacts <id>` -> `omv report artifacts <id>`
+- `/omv verification init <id>` -> `omv verification init <id>`
+- `/omv verification show <id>` -> `omv verification show <id>`
+- `/omv verification validate <id>` -> `omv verification validate <id>`
 - `/omv archive <id> --reason <reason>` -> `omv findings archive <id> --reason <reason>`
 - `/omv restore <id>` -> `omv findings restore <id>`
 - `/omv findings ...` -> `omv findings ...`
@@ -78,13 +87,17 @@ Use `omv help`, `omv help findings`, `omv help repro`, or `omv help report` as t
 - **init `<id>`** — creates `.omv/findings/<id>.yaml` from the Evidence.v1 template; default `--status candidate`. If file exists, CLI errors — suggest `--force`.
 - **list** — prints ID / STATUS / READY / PACKAGE / VULNERABILITY table for every `.yaml` in `.omv/findings/`.
 - **workflow** — prints active findings sorted by priority with NEXT ACTION recommendations such as `/omv-audit`, `/omv-repro`, `/omv-report`, promotion, or archive.
-- **doctor `<id>`** — explains why a finding is not submission-ready, including score deductions, unresolved blockers, suspicious CVSS/guard choices, and artifact gaps. JSON mode is available for CI.
+- **review `<id>`** — runs the unified pre-report readiness review and returns one verdict: `ready`, `needs-repro`, `needs-audit`, `needs-verification`, or `blocked`. Use `--strict` when adversarial Verification.v1 must pass before reporting.
+- **doctor `<id>`** — advanced diagnostics for score deductions, unresolved blockers, suspicious CVSS/guard choices, sidecar validation, and artifact gaps. JSON mode is available for CI.
 - **show `<id>`** — prints one finding's package, vulnerability, validation errors/warnings, missing fields, and next action. Use `--archived` to inspect archived findings.
 - **open `<id>`** — prints the Evidence.v1 YAML path and next action so the user can edit or inspect the local file.
 - **validate `[id|path]`** — checks required Evidence.v1 fields; exits non-zero on errors. No arg = validate whole ledger.
 - **promote `<id|path> --status <s>`** — updates the `status` field and re-validates. Valid statuses: `candidate`, `confirmed`, `blocked`.
 - **repro init `<id>`** — creates `.omv/repro/<id>/` with standard reproduction artifact files and records suggested `evidence.repro_artifacts`.
 - **report artifacts `<id>`** — checks `.omv/reports/<id>/` and Evidence.v1 reproduction artifact references before final archive.
+- **verification init `<id>`** — creates `.omv/verifications/<id>.yaml` with the current Evidence.v1 SHA-256 for adversarial verifier review.
+- **verification show `<id>`** — summarizes Verification.v1 decision, disagreements, required changes, and stale-hash state.
+- **verification validate `<id>`** — validates Verification.v1 structure and warns when Evidence.v1 changed after review.
 - **archive `<id> --reason <reason>`** — moves a finding to `.omv/archive/findings/` and removes it from active workflow views. For `--reason reported`, confirmed findings reuse `omv report artifacts <id>` checks; use `--strict` to block archive when artifacts are missing or empty.
 - **archive list** — lists archived findings and archive reasons.
 - **restore `<id>`** — moves an archived finding back to `.omv/findings/`.
@@ -103,10 +116,13 @@ Use `omv help`, `omv help findings`, `omv help repro`, or `omv help report` as t
               walks user through execution, records observed_result
               updates .omv/findings/<id>.yaml  (status: confirmed | blocked)
                         ↓
+/omv review → checks Evidence.v1 plus available ThreatMap.v1 / Verification.v1
+              returns ready | needs-repro | needs-audit | needs-verification | blocked
+                        ↓
 /omv-report → reads confirmed finding, generates VulDB/CVE/GHSA/OSV report
                         ↓
 archive    → omv findings archive <id> --reason reported
 ```
 
 Each finding uses one of three Evidence.v1 statuses: `candidate`, `confirmed`, or `blocked`.
-Use `omv dashboard`, `omv findings workflow`, or `/omv next` as the canonical active queue view after each stage. When the CLI prints a priority value, follow the highest-priority row first unless the user names a specific finding.
+Use `omv dashboard`, `omv findings workflow`, or `/omv next` as the canonical active queue view after each stage. When the user asks whether a specific finding can be reported, run `omv review <id>` first and follow its verdict. When the CLI prints a priority value, follow the highest-priority row first unless the user names a specific finding.

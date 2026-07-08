@@ -58,12 +58,22 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
+    case "review":
+      return validateOptions(args.slice(1), {
+        command: "review",
+        flags: new Set(["--strict", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
     case "repro":
       return validateReproArgs(args.slice(1));
     case "report":
       return validateReportArgs(args.slice(1));
     case "threat-map":
       return validateThreatMapArgs(args.slice(1));
+    case "verification":
+      return validateVerificationArgs(args.slice(1));
     case "workspace":
       return validateWorkspaceArgs(args.slice(1));
     case "findings":
@@ -86,7 +96,7 @@ export function validateArgs(args: string[]): ArgsValidation {
     case "submissions":
       return validateSubmissionsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: version, setup, uninstall, config, doctor, dashboard, workspace, findings, radar, request, dedup, disclose, submissions, repro, report, threat-map, help`);
+      return fail(`Unknown command: ${command}. Valid commands: version, setup, uninstall, config, doctor, dashboard, review, workspace, findings, radar, request, dedup, disclose, submissions, repro, report, threat-map, verification, help`);
   }
 }
 
@@ -203,12 +213,50 @@ function validateThreatMapArgs(args: string[]): ArgsValidation {
         minPositionals: 1,
         maxPositionals: 1,
       });
+    case "validate":
+      return validateOptions(rest, {
+        command: "threat-map validate",
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
     case "help":
     case "--help":
     case "-h":
       return rest.length === 0 ? ok() : fail(`threat-map ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown threat-map command: ${subcommand ?? ""}. Valid commands: init, help`);
+      return fail(`Unknown threat-map command: ${subcommand ?? ""}. Valid commands: init, validate, help`);
+  }
+}
+
+function validateVerificationArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0];
+  const rest = args.slice(1);
+  switch (subcommand) {
+    case "init":
+      return validateOptions(rest, {
+        command: "verification init",
+        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "show":
+    case "validate":
+      return validateOptions(rest, {
+        command: `verification ${subcommand}`,
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`verification ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown verification command: ${subcommand ?? ""}. Valid commands: init, show, validate, help`);
   }
 }
 
@@ -382,7 +430,7 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
     case "doctor":
       return validateOptions(rest, {
         command: "findings doctor",
-        flags: new Set(["--json", ...HELP_FLAGS]),
+        flags: new Set(["--json", "--strict-verification", ...HELP_FLAGS]),
         options: new Map(),
         minPositionals: 1,
         maxPositionals: 1,

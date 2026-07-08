@@ -179,3 +179,15 @@ If a script fails because network access, rate limits, or tools are unavailable,
 - Keep risky findings framed as research hypotheses, not confirmed vulnerabilities.
 - Keep recommendations local and passive: unit tests, harnesses, sanitizer checks, path normalization traces, fuzz inputs, and code review entry points.
 - Radar follow-ups must stay local and passive. Do not turn a promising lane, diff signal, or duplicate check into live exploitation guidance.
+
+## Subagent Team Orchestration
+
+这个 skill 支持委托给专门的 subagent 进行候选发现和元数据收集：
+
+- **`dataflow-tracer`** — 对候选包做 2–5 文件的 source→sink→guard 静态分析。在有强候选但不想读代码充满 context 时委托：
+  ```
+  Use the dataflow-tracer subagent to analyze: <package_url>, <vuln_class>, <hints>
+  ```
+- **`vuln-scanner`** — 被动 GitHub + registry 元数据扫描，返回原始候选列表，不 clone、不执行代码。
+
+Subagent 是可选优化。单 context 完成所有步骤在大部分场景已经足够——只有在 finding 数量多或分析深时才需要用 subagent 隔离 context。

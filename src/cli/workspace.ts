@@ -13,6 +13,7 @@ import {
   reproDir,
   submissionsDir,
   threatMapsDir,
+  verificationsDir,
   workspaceActivityLogPath,
   workspaceIndexPath,
 } from "./paths.js";
@@ -60,7 +61,8 @@ export interface WorkspaceActivityEntry {
     | "repro.init"
     | "threatmap.write"
     | "submission.record"
-    | "submission.close";
+    | "submission.close"
+    | "verification.write";
   id?: string;
   status?: string;
   archived?: boolean;
@@ -159,6 +161,7 @@ export async function ensureWorkspaceDirs(projectRoot = process.cwd()): Promise<
   await mkdir(findingsDir(projectRoot), { recursive: true });
   await mkdir(reproDir(projectRoot), { recursive: true });
   await mkdir(threatMapsDir(projectRoot), { recursive: true });
+  await mkdir(verificationsDir(projectRoot), { recursive: true });
   await mkdir(radarDir(projectRoot), { recursive: true });
   await mkdir(submissionsDir(projectRoot), { recursive: true });
   await mkdir(notesDir(projectRoot), { recursive: true });

@@ -27,6 +27,8 @@ Stay in passive research mode: read public source code only. Do not send request
 - CVSS v3.1 度量决策表：`references/shared/cvss-builder.md`
 - 生态系统 sink registry（npm/Python/Go/Rust/Java/Ruby）：`references/patterns/npm.md` 等同目录文件
 - Evidence.v1 字段定义与 evidence/submission 评分规则：`contracts/evidence.v1.yaml`
+- ThreatMap.v1 图证据字段：`contracts/threat-map.v1.yaml`
+- Verification.v1 对抗复核 sidecar：`contracts/verification.v1.yaml`
 
 ## 审计目标
 
@@ -53,11 +55,60 @@ Stay in passive research mode: read public source code only. Do not send request
 omv threat-map init <id>
 ```
 
-这会在 `.omv/threatmaps/<id>.yaml` 生成骨架（`finding_id` 和 `package` 块已从 finding 填好，`paths: []` 留待填写）。然后在每个已确认的 source → sink 路径下补一条 `paths[]` 条目：`source`（type/location/description）、`transforms[]`（中间每一步：parse/decode/normalize/validate/authorize）、`sink`、`guard`（present/bypassable）、`confidence`。Schema 见 `contracts/threat-map.v1.yaml`。ThreatMap 是 Evidence.v1 的补充，不替代 `evidence.source` / `evidence.sink` / `evidence.guard` 摘要字段；sidecar 不修改父 Evidence.v1 文件。
+这会在 `.omv/threatmaps/<id>.yaml` 生成骨架（`finding_id` 和 `package` 块已从 finding 填好，`paths: []` 留待填写）。然后在每个已确认的 source → sink 路径下补一条 `paths[]` 条目：`source`（type/location/description）、`transforms[]`（中间每一步：parse/decode/normalize/validate/authorize）、`sink`、`guard`（present/bypassable）、`confidence`。Schema 见 `contracts/threat-map.v1.yaml`。ThreatMap 是 Evidence.v1 的补充，不替代 `evidence.source` / `evidence.sink` / `evidence.guard` 摘要字段；sidecar 不修改父 Evidence.v1 文件。填写后运行 `omv threat-map validate <id>`。
+
+如果进行了 verifier 对抗复核，先运行 `omv verification init <id>`，再把 verifier 的结论写入 `.omv/verifications/<id>.yaml`：同意则 `decision.status: pass`；找到反证则 `decision.status: fail` 并填写 `disagreements` / `required_changes`。写完运行 `omv verification validate <id>`。不要只把 verifier 结论留在聊天记录里。
 
 解释审计结论时使用方法论语言：说明输入如何到达 sink、guard 为什么缺失或可绕过、哪些证据仍不充分。除非用户提供真实 finding 作为上下文，否则不要把真实包或真实 CVE 当作教程示例。
 
 ## 约束边界
+
+以下是硬约束，不可逾越：
+
+1. **不攻击线上服务** — 所有分析基于公开源代码和本地环境
+2. **不自动执行 PoC** — `evidence.reproducer` 只写步骤描述，不自动运行
+3. **submission score < 75 时不得升为 confirmed** — 低分时保留 `candidate` 状态并列出缺失项
+4. **blocked 必须填写 `blockers` 列表** — 每条 blocker 说明具体原因
+5. **不伪造证据** — 无法验证的字段保留 `unknown`，在 `provenance.unverified_fields` 中列出
+6. **CLI validation 是硬门槛** — 只有 `omv findings validate <id>` 返回 OK 时，才允许把结论作为 confirmed 交给 `/omv-report`
+
+## Subagent Team Orchestration
+
+本 skill 支持 Claude Code subagent 编排。你在审计流程中可以显式委托给专门的 subagent 角色，让它们在独立的 context 里并行或串行完成子任务：
+
+```text
+# 数据流分析 → 交给 dataflow-tracer subagent（2-5 个文件静态分析）
+Use the dataflow-tracer subagent to analyze: [finding_id], [package_url], [vuln_class]
+
+# Guard 可绕过性评估 → 交给 guard-checker subagent（独立 context + bypass-bias）
+Use the guard-checker subagent to evaluate whether the guard at [file:line] is bypassable
+
+# CVSS 评分 → 交给 cvss-analyst subagent（纯推理，无网络访问）
+Use the cvss-analyst subagent to compute CVSS for: [vuln_class], [impact_fields]
+
+# 去重检索 → 交给 dedup-analyst subagent（WebSearch + WebFetch）
+Use the dedup-analyst subagent to check duplicates for: [ecosystem], [package], [vuln_class]
+
+# 对抗复核 → 交给 verifier subagent（默认反驳 bias），并写入 Verification.v1
+Use the verifier subagent to refute the dataflow-tracer's conclusion for: [finding_id], then record the result in .omv/verifications/<id>.yaml
+```
+
+### 推荐编排序列（全量审计）
+
+```
+stage 1: dataflow-tracer    → {source, sink, guard_note}
+stage 2: guard-checker      → {bypassable, method}（仅在 guard 存在时调）
+stage 3: dedup-analyst      → {dedup 状态}（与 stage 1 并行）
+stage 4: cvss-analyst       → {vector, score, severity}
+stage 5: verifier           → 对抗复核 source→sink 链，输出 Verification.v1 review
+stage 6: synthesize         → 汇聚后写 Evidence.v1 + ThreatMap.v1 + Verification.v1
+```
+
+**编排决策规则**：已知的字段跳过对应阶段（例如 dedup 已 searched 则跳过 stage 3；cvss 已填则跳过 stage 4）。Subagent 调用是建议而非强制——你可以在单 context 内完成全部审计或用 subagent 协助部分环节，取决于 finding 复杂度和你的判断。无论是否使用 subagent，只要做了对抗复核，结论都必须记录到 Verification.v1 sidecar。
+
+### Subagent 定义位置
+
+每个 subagent 的定义文件在 `.claude/agents/` 目录，frontmatter 声明了 tools 白名单、model、以及行为描述。Claude Code 根据描述自动将自然语言委托请求路由到正确的 subagent。
 
 以下是硬约束，不可逾越：
 
@@ -112,6 +163,9 @@ Use the CLI result for lifecycle handoff:
 - `omv findings validate <id>` — 校验字段完整性，输出 evidence/submission 分数
 - `omv findings promote <id> --status confirmed|blocked` — 更新 status 字段
 - `omv threat-map init <id>` — 生成 `.omv/threatmaps/<id>.yaml` ThreatMap.v1 dataflow 骨架
+- `omv threat-map validate <id>` — 校验 ThreatMap.v1 图证据和 Evidence 摘要一致性
+- `omv verification init <id>` — 生成 `.omv/verifications/<id>.yaml` Verification.v1 对抗复核骨架
+- `omv verification validate <id>` — 校验 Verification.v1 和 Evidence hash 是否过期
 - `omv findings workflow` — 显示 active findings 的下一步动作
 - `python3 shared/scripts/resolve_source_path.py --ecosystem npm --pkg <name>` — 获取源文件 raw URL
 - `python3 shared/scripts/collect_metadata.py --repo <github-url>` — 获取仓库元数据

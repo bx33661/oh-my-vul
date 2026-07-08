@@ -9,12 +9,15 @@ Usage:
   omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
   omv dashboard [--json]            Show workspace, queue, and recent activity
+  omv review <id> [--strict] [--json]
+                                     Review a finding and recommend report readiness
   omv workspace init [--json]        Initialize local .omv workspace
   omv workspace status [--json]      Show local .omv workspace status
   omv workspace log [--json]         Show local workspace activity log
   omv findings list [--json]        List .omv/findings evidence files
   omv findings workflow [--json]    Show active finding lifecycle next actions
-  omv findings doctor <id> [--json] Explain what blocks submission readiness
+  omv findings doctor <id> [--json] [--strict-verification]
+                                     Explain what blocks submission readiness
   omv findings show <id> [--archived] [--json]
                                      Show one finding's details and next action
   omv findings open <id> [--archived] [--json]
@@ -40,6 +43,14 @@ Usage:
                                      Inspect report/repro artifacts and readiness
   omv threat-map init <id> [--force] [--json]
                                      Scaffold .omv/threatmaps/<id>.yaml ThreatMap.v1 sidecar
+  omv threat-map validate <id> [--json]
+                                     Validate a ThreatMap.v1 sidecar
+  omv verification init <id> [--force] [--json]
+                                     Scaffold .omv/verifications/<id>.yaml Verification.v1 sidecar
+  omv verification show <id> [--json]
+                                     Show adversarial verification status
+  omv verification validate <id> [--json]
+                                     Validate Verification.v1 and stale evidence hash
   omv request preflight [--refresh] [--json]
                                      Check metadata source request health
   omv request fetch <url> [--accept mime] [--refresh] [--json]
@@ -66,6 +77,7 @@ Examples:
   omv doctor
   omv doctor --json
   omv dashboard
+  omv review demo --strict
   omv findings list
   omv findings init demo
   omv findings validate
@@ -112,6 +124,14 @@ Show package version, registry version, platform, and registry update date.`);
 
 Show local workspace status, active workflow queue, and recent activity in one view.`);
       return;
+    case "review":
+      console.log(`Usage: omv review <id> [--strict] [--json]
+
+Review Evidence.v1 plus available ThreatMap.v1 and Verification.v1 sidecars and
+return one verdict: ready, needs-repro, needs-audit, needs-verification, or
+blocked. With --strict, readiness requires a passing, non-stale Verification.v1
+sidecar.`);
+      return;
     case "workspace":
       workspaceUsage(subcommand);
       return;
@@ -144,6 +164,9 @@ Show local workspace status, active workflow queue, and recent activity in one v
       return;
     case "threat-map":
       threatMapUsage(subcommand);
+      return;
+    case "verification":
+      verificationUsage(subcommand);
       return;
     default:
       usage();
@@ -256,7 +279,11 @@ export function findingsUsage(subcommand: string | undefined): void {
       console.log("Usage: omv findings workflow [--json]");
       return;
     case "doctor":
-      console.log("Usage: omv findings doctor <id> [--json]");
+      console.log(`Usage: omv findings doctor <id> [--json] [--strict-verification]
+
+Explain what blocks submission readiness. With --strict-verification, report
+readiness requires .omv/verifications/<id>.yaml to validate with decision.status
+pass and a non-stale Evidence.v1 hash.`);
       return;
     case "show":
       console.log("Usage: omv findings show <id> [--archived] [--json]");
@@ -341,9 +368,43 @@ package block filled from .omv/findings/<id>.yaml, paths: [] awaiting one entry
 per source -> sink route). The sidecar is optional and does not modify the
 parent Evidence.v1 file. --force overwrites a non-empty threat map.`);
       return;
+    case "validate":
+      console.log(`Usage: omv threat-map validate <id> [--json]
+
+Validate .omv/threatmaps/<id>.yaml as a ThreatMap.v1 evidence graph and warn
+when graph locations appear inconsistent with Evidence.v1 source/sink/guard
+summary fields.`);
+      return;
     default:
       console.log(`Usage:
-  omv threat-map init <id> [--force] [--json]`);
+  omv threat-map init <id> [--force] [--json]
+  omv threat-map validate <id> [--json]`);
+      return;
+  }
+}
+
+export function verificationUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "init":
+      console.log(`Usage: omv verification init <id> [--force] [--json]
+
+Scaffold .omv/verifications/<id>.yaml as a Verification.v1 sidecar linked to
+the current Evidence.v1 file hash.`);
+      return;
+    case "show":
+      console.log("Usage: omv verification show <id> [--json]");
+      return;
+    case "validate":
+      console.log(`Usage: omv verification validate <id> [--json]
+
+Validate Verification.v1 structure and warn when the reviewed Evidence.v1 hash
+is stale.`);
+      return;
+    default:
+      console.log(`Usage:
+  omv verification init <id> [--force] [--json]
+  omv verification show <id> [--json]
+  omv verification validate <id> [--json]`);
       return;
   }
 }

@@ -11,6 +11,12 @@ export interface InstalledFile {
   sha256: string;
 }
 
+export interface InstalledAgent {
+  name: string;
+  file: string;
+  sha256: string;
+}
+
 export interface InstalledSkill {
   name: string;
   invocation: string;
@@ -24,6 +30,7 @@ export interface InstallManifest {
   scope: SetupScope;
   installed_at: string;
   skills: InstalledSkill[];
+  agents: InstalledAgent[];
 }
 
 export function installManifestPath(scope: SetupScope, projectRoot = process.cwd()): string {
@@ -58,6 +65,8 @@ export async function buildInstallManifest(
     skills: SkillCatalogEntry[];
     registryVersion: string;
     projectRoot?: string;
+    agentsDir?: string;
+    agents?: string[];
   },
 ): Promise<InstallManifest> {
   const packageJson = JSON.parse(await readFile(join(packageRoot(), "package.json"), "utf-8")) as {
@@ -79,6 +88,24 @@ export async function buildInstallManifest(
     });
   }
 
+  const installedAgents: InstalledAgent[] = [];
+  const agentsDir = options.agentsDir;
+  const agentNames = options.agents ?? [];
+  if (agentsDir && agentNames.length > 0) {
+    for (const name of agentNames) {
+      const file = `${name}.md`;
+      const dest = join(agentsDir, file);
+      if (!existsSync(dest)) {
+        continue;
+      }
+      installedAgents.push({
+        name,
+        file,
+        sha256: await sha256File(dest),
+      });
+    }
+  }
+
   return {
     package_name: packageJson.name ?? "",
     package_version: packageJson.version ?? "",
@@ -86,6 +113,7 @@ export async function buildInstallManifest(
     scope: options.scope,
     installed_at: new Date().toISOString(),
     skills: installedSkills,
+    agents: installedAgents,
   };
 }
 

@@ -6,6 +6,7 @@ import * as version from "./version.js";
 import * as setup from "./setup.js";
 import * as doctor from "./doctor.js";
 import * as dashboard from "./dashboard.js";
+import * as review from "./review.js";
 import * as workspace from "./workspace.js";
 import * as findings from "./findings.js";
 import * as radar from "./radar.js";
@@ -17,6 +18,7 @@ import * as config from "./config.js";
 import * as repro from "./repro.js";
 import * as report from "./report.js";
 import * as threatMap from "./threat-map.js";
+import * as verification from "./verification.js";
 
 const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
   version: version.run,
@@ -24,6 +26,7 @@ const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
   uninstall: setup.runUninstall,
   doctor: doctor.run,
   dashboard: dashboard.run,
+  review: review.run,
   workspace: workspace.run,
   findings: findings.run,
   radar: radar.run,
@@ -35,6 +38,7 @@ const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
   repro: repro.run,
   report: report.run,
   "threat-map": threatMap.run,
+  verification: verification.run,
 };
 
 export async function run(): Promise<void> {

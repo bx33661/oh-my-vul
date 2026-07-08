@@ -229,7 +229,7 @@ async function runFindingsDoctor(args: string[], json: boolean): Promise<void> {
     console.error("Missing finding id.");
     process.exit(1);
   }
-  const result = await doctorFinding(target);
+  const result = await doctorFinding(target, process.cwd(), { strictVerification: args.includes("--strict-verification") });
   const ok = result.issues.every((issue) => issue.severity !== "error");
   if (json) {
     console.log(JSON.stringify(result, null, 2));

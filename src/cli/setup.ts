@@ -1,7 +1,7 @@
-import { mkdir, cp, writeFile, rm } from "fs/promises";
+import { mkdir, cp, writeFile, rm, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { claudeSkillsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
+import { claudeSkillsDir, claudeAgentsDir, projectAgentsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 import { buildInstallManifest, installManifestPath, readInstallManifest, writeInstallManifest } from "./install-manifest.js";
 import { readConfig } from "./config.js";
@@ -19,6 +19,7 @@ export interface SetupResult {
   scope: SetupScope;
   destination: string;
   installed: string[];
+  installedAgents: string[];
   skipped: string[];
   errors: string[];
 }
@@ -32,7 +33,9 @@ export interface UninstallOptions {
 export interface UninstallResult {
   scope: SetupScope;
   skillsDir: string;
+  agentsDir: string;
   removed: string[];
+  agentsRemoved: string[];
   notFound: string[];
   errors: string[];
   manifestRemoved: boolean;
@@ -42,10 +45,13 @@ export interface UninstallResult {
 export async function uninstall(options: UninstallOptions = {}): Promise<UninstallResult> {
   const { scope = "user", projectRoot = process.cwd() } = options;
   const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
+  const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
   const result: UninstallResult = {
     scope,
     skillsDir,
+    agentsDir,
     removed: [],
+    agentsRemoved: [],
     notFound: [],
     errors: [],
     manifestRemoved: false,
@@ -54,6 +60,7 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
 
   const manifest = await readInstallManifest(installManifestPath(scope, projectRoot));
   const skillsToRemove = manifest?.skills.map((s) => s.name) ?? [];
+  const agentsToRemove = manifest?.agents ?? [];
 
   for (const skill of skillsToRemove) {
     const dest = join(skillsDir, skill);
@@ -66,6 +73,20 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
       result.removed.push(skill);
     } catch (err) {
       result.errors.push(`${skill}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Remove installed agent .md files (best-effort; not an error if missing).
+  for (const agent of agentsToRemove) {
+    const dest = join(agentsDir, agent.file);
+    if (!existsSync(dest)) {
+      continue;
+    }
+    try {
+      await rm(dest, { force: true });
+      result.agentsRemoved.push(agent.name);
+    } catch (err) {
+      result.errors.push(`agent:${agent.name}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -99,7 +120,8 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
   const { force = false, dryRun = false, scope = "user", projectRoot = process.cwd() } = options;
   const destDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
-  const result: SetupResult = { scope, destination: destDir, installed: [], skipped: [], errors: [] };
+  const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
+  const result: SetupResult = { scope, destination: destDir, installed: [], installedAgents: [], skipped: [], errors: [] };
 
   const catalog = await readCatalog();
   const skillDirs = getInstallableSkills(catalog);
@@ -147,6 +169,45 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
     }
   }
 
+  if (!dryRun) {
+    await mkdir(agentsDir, { recursive: true });
+  }
+
+  // Install each agents/*.md as a Claude Code subagent definition.
+  // Each agent file has frontmatter (name, description, tools, model) and is
+  // auto-discovered by Claude Code under .claude/agents/ (project) or
+  // ~/.claude/agents/ (user).
+  const agentsSrc = join(packageRoot(), "agents");
+  if (existsSync(agentsSrc)) {
+    let agentFiles: string[] = [];
+    try {
+      agentFiles = (await readdir(agentsSrc)).filter((f) => f.endsWith(".md"));
+    } catch (err) {
+      result.errors.push(`agents: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    for (const agentFile of agentFiles) {
+      const src = join(agentsSrc, agentFile);
+      const dest = join(agentsDir, agentFile);
+      const agentName = agentFile.replace(/\.md$/, "");
+
+      if (existsSync(dest) && !force) {
+        result.skipped.push(`agent:${agentName}`);
+        continue;
+      }
+
+      if (!dryRun) {
+        try {
+          await cp(src, dest, { force: true });
+          result.installedAgents.push(agentName);
+        } catch (err) {
+          result.errors.push(`agent:${agentName}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      } else {
+        result.installedAgents.push(agentName);
+      }
+    }
+  }
+
   if (!dryRun && result.errors.length === 0) {
     const manifest = await buildInstallManifest({
       scope,
@@ -154,6 +215,8 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
       skills: skillDirs,
       registryVersion: catalog.version,
       projectRoot,
+      agentsDir,
+      agents: result.installedAgents,
     });
     await writeInstallManifest(installManifestPath(scope, projectRoot), manifest);
   }

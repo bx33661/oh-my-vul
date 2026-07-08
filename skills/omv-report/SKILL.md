@@ -12,6 +12,7 @@ Load these when needed — do not load all at once:
 - **`references/ecosystems.md`** — vendor naming rules, version verification commands, duplicate CVE search databases, CWE→Class mapping. Read when ecosystem-specific details are needed.
 - **`references/shared/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
 - **`contracts/evidence.v1.yaml`** — structured input contract from `omv-find`; read when the user provides a handoff packet or asks to continue from finder results.
+- **`contracts/verification.v1.yaml`** — adversarial review sidecar. Read when `.omv/verifications/<id>.yaml` exists or the user asks for a high-confidence report.
 - **`references/report-templates.md`** — reusable VulDB, GHSA, OSV, and standalone Markdown advisory templates. Read when the user requests a specific report format.
 - **`references/examples/xss-npm.md`** — complete filled report for a click-triggered XSS in an npm package.
 - **`references/examples/path-traversal-go.md`** — complete filled report for an unauthenticated path traversal in a Go module.
@@ -48,11 +49,15 @@ Before writing any submission-ready report from finder output, consume the local
 1. If the user gives a finding id such as `demo`, read `.omv/findings/demo.yaml`.
 2. If the user gives a path, read that Evidence.v1 file.
 3. Run or ask for `omv findings validate <id|path> --json` when CLI tools are available.
-4. If CLI tools are unavailable, validate manually against `contracts/evidence.v1.yaml` and say that deterministic validation was not run.
+4. If `.omv/threatmaps/<id>.yaml` exists, run or ask for `omv threat-map validate <id> --json`.
+5. If `.omv/verifications/<id>.yaml` exists or the user wants a strict pre-submission gate, run or ask for `omv verification validate <id> --json` and `omv findings doctor <id> --strict-verification --json`.
+6. If CLI tools are unavailable, validate manually against `contracts/evidence.v1.yaml` and `contracts/verification.v1.yaml` when relevant, and say that deterministic validation was not run.
 
 Use the validation result to choose output mode:
 
 - Validation errors: lead with the errors and blockers; do not produce a submission-ready VulDB/CVE/GHSA/OSV report.
+- ThreatMap errors: do not use graph claims as report proof until `omv threat-map validate <id>` passes.
+- Verification failure, stale hash, or non-pass decision under strict verification: do not produce a submission-ready report; list the verifier disagreements or required changes first.
 - `status: blocked`: explain blockers and minimum evidence needed.
 - `status: candidate`: produce only triage notes or a draft outline clearly marked not ready for submission.
 - `status: confirmed`: proceed only if required evidence is present and submission score is at least 75/100 (`submissionScore` = `submission_score` in contract — the gating score after deducting blockers/unverified fields/confidence penalties); include validation warnings in the pre-submission checklist.
@@ -373,3 +378,26 @@ Use bundled scripts when they fit the task:
 - [ ] Duplicate CVE search completed
 - [ ] Vendor contact status stated honestly
 - [ ] Screenshot or GIF attached (optional but meaningfully improves acceptance rate)
+
+## Subagent Team Orchestration
+
+这个 skill 在关键环节可以委托给专门 subagent：
+
+- **`cvss-analyst`** — 从 Evidence.v1 impact 字段计算 CVSS v3.1 vector、score、severity。当 impact 字段已填且需要严格评分时委托：
+  ```
+  Use the cvss-analyst subagent to compute CVSS from: <vuln_class>, <impact_fields>
+  ```
+- **`dedup-analyst`** — 在递交前检索 NVD/GHSA/OSV 是否已有相同 advisories。submission 前强制推荐：
+  ```
+  Use the dedup-analyst subagent to check duplicates for: <ecosystem>, <package>, <vuln_class>
+  ```
+- **`report-writer`** — 从 confirmed Evidence.v1 推导具体平台格式（VulDB / GHSA / OSV / Markdown）。当用户指定特定格式时委托：
+  ```
+  Use the report-writer subagent to render: <finding_id>, <formats[]>
+  ```
+- **`verifier`** — submission 前对 evidence 结论做对抗复核（默认反驳 bias），并把结果写入 Verification.v1。提升 submission 信心时推荐：
+  ```
+  Use the verifier subagent with the cvss-deflate lens to refute the CVSS scoring for <finding_id>, then record the result in .omv/verifications/<id>.yaml
+  ```
+
+Subagent 是可选优化，不是强制；其 tools 白名单与硬约束在 `.claude/agents/*.md` 已定义。不要只把 verifier 结论保存在聊天记录里；如果它影响报告可信度，必须记录到 Verification.v1。

@@ -1,3 +1,10 @@
+---
+name: vuln-scanner
+description: Passive candidate discovery agent for oh-my-vul. Use proactively during omv-find to scan public GitHub search results and registry metadata for packages worth auditing. Reads public sources only — does not clone, run live exploit attempts, or execute code.
+tools: Read, WebFetch, Bash
+model: inherit
+---
+
 # Agent: vuln-scanner
 
 Delegated by: `omv-find`
@@ -18,7 +25,6 @@ A raw candidate list with: project name, repo URL, ecosystem, registry URL/packa
 ## Constraints
 
 - Passive and non-destructive only.
-- Use `../../shared/scripts/collect_metadata.py` for structured metadata.
-- Mark unverified fields as `未确认`.
-- Do not fabricate stars, dates, downloads, or LOC.
+- Use the `collect_metadata.py` script for structured metadata. It lives at `skills/omv-find/scripts/collect_metadata.py` under the Claude Code skills directory. Bash is allowed only for this script.
+- Mark unverified fields as `未确认`. Never fabricate stars, dates, downloads, or LOC.
 - Avoid flagship or heavily audited framework cores.

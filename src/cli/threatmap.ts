@@ -13,6 +13,7 @@ import { appendWorkspaceActivity } from "./workspace.js";
 export interface FindingThreatMap {
   path: string;
   rendered: string[];
+  validation: ThreatMapValidation;
 }
 
 export interface ThreatMapWriteResult {
@@ -21,6 +22,16 @@ export interface ThreatMapWriteResult {
   findingPath: string;
   written: boolean;
   skipped: boolean;
+}
+
+export interface ThreatMapValidation {
+  id: string;
+  path: string;
+  exists: boolean;
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  rendered: string[];
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -56,8 +67,75 @@ export async function readThreatMap(id: string, projectRoot: string): Promise<Fi
   if (!existsSync(path)) {
     return undefined;
   }
-  const parsed = parseEvidenceYaml(await readFile(path, "utf-8")).data;
-  return { path, rendered: renderThreatMap(parsed) };
+  const validation = await validateThreatMap(id, projectRoot, { requireExisting: true });
+  return { path: validation.path, rendered: validation.rendered, validation };
+}
+
+export async function validateThreatMap(
+  target: string,
+  projectRoot = process.cwd(),
+  options: { requireExisting?: boolean; evidence?: Record<string, unknown> } = {},
+): Promise<ThreatMapValidation> {
+  const id = normalizeFindingId(target);
+  const path = threatMapPath(id, projectRoot);
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!existsSync(path)) {
+    const message = `${path} does not exist`;
+    if (options.requireExisting ?? true) {
+      errors.push(message);
+    } else {
+      warnings.push(message);
+    }
+    return { id, path, exists: false, ok: errors.length === 0, errors, warnings, rendered: [] };
+  }
+
+  const parseResult = parseEvidenceYaml(await readFile(path, "utf-8"));
+  errors.push(...parseResult.errors.map((message) => message.replace(/^Evidence YAML/, "ThreatMap YAML")));
+  const data = parseResult.data;
+
+  if (getString(data, "schema_version") !== "1") {
+    errors.push("schema_version must be 1");
+  }
+  const findingId = getString(data, "finding_id");
+  if (!findingId) {
+    errors.push("finding_id is required");
+  } else if (findingId !== id) {
+    errors.push(`finding_id must match ${id}`);
+  }
+  if (!getString(data, "package.ecosystem")) {
+    warnings.push("package.ecosystem is empty");
+  }
+  if (!getString(data, "package.registry_name") && !getString(data, "package.repository_url")) {
+    warnings.push("package.registry_name or package.repository_url should be set");
+  }
+
+  const paths = getList(data, "paths");
+  if (paths.length === 0) {
+    errors.push("paths must include at least one source-to-sink path");
+  }
+  paths.forEach((item, index) => validateThreatPath(item, index, errors, warnings));
+
+  const summaryCount = Number(getString(data, "summary.path_count"));
+  if (Number.isFinite(summaryCount) && summaryCount > 0 && summaryCount !== paths.length) {
+    warnings.push(`summary.path_count is ${summaryCount} but paths has ${paths.length} entr${paths.length === 1 ? "y" : "ies"}`);
+  }
+
+  const evidence = options.evidence ?? await readEvidenceIfPresent(id, projectRoot);
+  if (evidence) {
+    addEvidenceConsistencyWarnings(data, evidence, warnings);
+  }
+
+  return {
+    id,
+    path,
+    exists: true,
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    rendered: renderThreatMap(data),
+  };
 }
 
 // ── Private helpers ─────────────────────────────────────────────────────
@@ -123,6 +201,89 @@ function renderThreatMap(data: Record<string, unknown>): string[] {
     if (parts.length > 0) lines.push(`summary: ${parts.join(", ")}`);
   }
   return lines;
+}
+
+function validateThreatPath(value: unknown, index: number, errors: string[], warnings: string[]): void {
+  const prefix = `paths[${index}]`;
+  if (!isRecord(value)) {
+    errors.push(`${prefix} must be a mapping`);
+    return;
+  }
+  validateThreatNode(value.source, `${prefix}.source`, errors);
+  validateThreatNode(value.sink, `${prefix}.sink`, errors);
+  for (const [transformIndex, transform] of getList(value, "transforms").entries()) {
+    validateThreatNode(transform, `${prefix}.transforms[${transformIndex}]`, errors);
+  }
+  if (!isRecord(value.guard)) {
+    errors.push(`${prefix}.guard must be a mapping`);
+  } else {
+    if (typeof value.guard.present !== "boolean") {
+      errors.push(`${prefix}.guard.present must be true or false`);
+    }
+    if (value.guard.bypassable !== undefined && typeof value.guard.bypassable !== "boolean") {
+      errors.push(`${prefix}.guard.bypassable must be true or false when present`);
+    }
+    if (!getRecordString(value.guard, "description")) {
+      warnings.push(`${prefix}.guard.description is empty`);
+    }
+  }
+  const confidence = getRecordString(value, "confidence");
+  if (!["high", "medium", "low", "unknown", ""].includes(confidence)) {
+    errors.push(`${prefix}.confidence must be high, medium, low, or unknown`);
+  }
+}
+
+function validateThreatNode(value: unknown, path: string, errors: string[]): void {
+  if (!isRecord(value)) {
+    errors.push(`${path} must be a mapping`);
+    return;
+  }
+  if (!getRecordString(value, "type")) {
+    errors.push(`${path}.type is required`);
+  }
+  if (!getRecordString(value, "location") && !getRecordString(value, "description")) {
+    errors.push(`${path}.location or ${path}.description is required`);
+  }
+}
+
+function addEvidenceConsistencyWarnings(
+  threatMap: Record<string, unknown>,
+  evidence: Record<string, unknown>,
+  warnings: string[],
+): void {
+  const graphText = JSON.stringify(threatMap);
+  for (const [field, label] of [
+    ["evidence.source", "source"],
+    ["evidence.sink", "sink"],
+    ["evidence.guard", "guard"],
+  ] as const) {
+    const value = getString(evidence, field);
+    const refs = fileLineReferences(value);
+    for (const ref of refs) {
+      if (!graphText.includes(ref)) {
+        warnings.push(`Evidence ${label} reference ${ref} is not present in ThreatMap.v1`);
+      }
+    }
+  }
+
+  const guardSummary = getString(evidence, "evidence.guard");
+  const saysMissing = /\b(absent|missing|none|not present|不存在|缺失|无)\b/i.test(guardSummary);
+  const paths = getList(threatMap, "paths");
+  if (saysMissing && paths.some((path) => isRecord(path) && isRecord(path.guard) && path.guard.present === true)) {
+    warnings.push("Evidence guard summary says missing/absent but ThreatMap.v1 has a present guard");
+  }
+}
+
+function fileLineReferences(value: string): string[] {
+  return [...value.matchAll(/\b[^\s:]+\.[A-Za-z0-9]+:\d+(?::\d+)?\b/g)].map((match) => match[0]);
+}
+
+async function readEvidenceIfPresent(id: string, projectRoot: string): Promise<Record<string, unknown> | undefined> {
+  const path = resolveFindingPath(id, projectRoot);
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  return (await readEvidence(path)).data;
 }
 
 function describeThreatNode(value: unknown, fallback: string): string {
