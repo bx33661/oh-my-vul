@@ -1,0 +1,30 @@
+# Verification.v1 — adversarial review sidecar
+# Produced by: omv verification init + verifier/critic workflows
+# Consumed by: omv findings doctor, omv-report, omv-critic
+#
+# Verification.v1 records independent attempts to refute a finding or a
+# ThreatMap.v1 path. It augments Evidence.v1 and does not replace it.
+
+schema_version: "1"
+
+finding_id: ""             # matches .omv/findings/<id>.yaml
+finding_sha256: ""         # sha256 of the Evidence.v1 file when reviewed
+
+reviews: []
+# - reviewer: verifier
+#   target: threatmap.paths[0]   # evidence | threatmap.paths[N] | evidence.source | evidence.sink | evidence.guard
+#   agrees: true                 # true | false
+#   disagreements: []
+#   required_changes: []
+#   confidence: unknown          # high | medium | low | unknown
+#   reviewed_at: ""              # ISO date YYYY-MM-DD
+
+decision:
+  status: needs-human-review # pass | fail | needs-human-review
+  reason: ""
+  required_for_confirmed: true
+
+provenance:
+  generated_at: ""
+  tool: omv
+  tool_version: unknown

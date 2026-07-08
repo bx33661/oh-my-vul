@@ -3,9 +3,12 @@ import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 import {
+  claudeAgentsDir,
   claudeHome,
   claudeSkillsDir,
+  packageAgentsDir,
   packageRoot,
+  projectAgentsDir,
   projectClaudeHome,
   projectSkillsDir,
   setupScopePath,
@@ -90,6 +93,11 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
 
     checks.push(...(await validateInstallManifest(scope, projectRoot, skillsDir, catalog.version)));
   }
+
+  // Verify bundled subagents are installed.
+  const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
+  const agentCheck = await validateInstalledAgents(agentsDir);
+  checks.push(agentCheck);
 
   const failCount = checks.filter((item) => item.status === "fail").length;
   const warnCount = checks.filter((item) => item.status === "warn").length;
@@ -222,4 +230,66 @@ async function findModifiedInstalledFiles(manifest: InstallManifest, skillsDir: 
     }
   }
   return modified;
+}
+
+/**
+ * Verify every bundled `agents/*.md` is installed and matches the package
+ * source. Returns a single `agents` check describing the state. Missing or
+ * stale agent files are reported (warn, not fail) because agents are an
+ * enhancement — skills work without them.
+ */
+async function validateInstalledAgents(agentsDir: string): Promise<Check> {
+  const srcDir = packageAgentsDir();
+  if (!existsSync(srcDir)) {
+    return check("agents", "pass", "no bundled agents");
+  }
+  let agentFiles: string[] = [];
+  try {
+    agentFiles = (await readdir(srcDir)).filter((f) => f.endsWith(".md"));
+  } catch {
+    return check("agents", "warn", "unable to read bundled agents directory");
+  }
+  if (agentFiles.length === 0) {
+    return check("agents", "pass", "no bundled agents");
+  }
+
+  if (!existsSync(agentsDir)) {
+    return check(
+      "agents",
+      "warn",
+      `${agentFiles.length} bundled agent(s) not installed (run: omv setup --scope user --force)`,
+    );
+  }
+
+  const stale: string[] = [];
+  const missing: string[] = [];
+  for (const file of agentFiles) {
+    const dest = join(agentsDir, file);
+    if (!existsSync(dest)) {
+      missing.push(file);
+      continue;
+    }
+    const srcHash = await sha256File(join(srcDir, file));
+    const dstHash = await sha256File(dest);
+    if (srcHash !== dstHash) {
+      stale.push(file);
+    }
+  }
+
+  const installed = agentFiles.length - missing.length - stale.length;
+  if (missing.length === 0 && stale.length === 0) {
+    return check("agents", "pass", `${installed}/${agentFiles.length} subagent(s) installed`);
+  }
+  const problems: string[] = [];
+  if (missing.length > 0) {
+    problems.push(`missing ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", ..." : ""}`);
+  }
+  if (stale.length > 0) {
+    problems.push(`stale ${stale.slice(0, 3).join(", ")}${stale.length > 3 ? ", ..." : ""}`);
+  }
+  return check(
+    "agents",
+    "warn",
+    `${problems.join("; ")} (run: omv setup --scope user --force)`,
+  );
 }

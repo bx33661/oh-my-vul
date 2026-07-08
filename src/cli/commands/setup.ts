@@ -77,6 +77,7 @@ function printSetupResult(result: SetupResult): void {
 
   const rows = [
     ...result.installed.map((name) => [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
+    ...result.installedAgents.map((name) => [statusIcon("installed"), `agent:${name}`, outcomeBadge("installed"), "copied into agents directory"]),
     ...result.skipped.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "already installed; use --force to overwrite"]),
     ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
   ];

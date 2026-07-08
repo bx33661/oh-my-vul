@@ -42,11 +42,14 @@ ASSET_MAPPINGS = [
     ("contracts/evidence.v1.yaml", "skills/omv-repro/contracts/evidence.v1.yaml"),
     ("shared/references/cvss-builder.md", "skills/omv-report/references/shared/cvss-builder.md"),
     ("contracts/evidence.v1.yaml", "skills/omv-report/contracts/evidence.v1.yaml"),
+    ("contracts/verification.v1.yaml", "skills/omv-report/contracts/verification.v1.yaml"),
     ("contracts/evidence.v1.yaml", "skills/omv-dedup/contracts/evidence.v1.yaml"),
     ("contracts/evidence.v1.yaml", "skills/omv-disclose/contracts/evidence.v1.yaml"),
     ("contracts/submission.v1.yaml", "skills/omv-disclose/contracts/submission.v1.yaml"),
     ("contracts/evidence.v1.yaml", "skills/omv-critic/contracts/evidence.v1.yaml"),
     ("contracts/threat-map.v1.yaml", "skills/omv-critic/contracts/threat-map.v1.yaml"),
+    ("contracts/verification.v1.yaml", "skills/omv-critic/contracts/verification.v1.yaml"),
+    ("contracts/verification.v1.yaml", "skills/omv-audit/contracts/verification.v1.yaml"),
 ]
 
 

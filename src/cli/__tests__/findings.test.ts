@@ -21,8 +21,11 @@ import {
   validateFindings,
   writeThreatMap,
 } from "../findings.js";
-import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, threatMapPath, workspaceIndexPath } from "../paths.js";
+import { archiveMetadataPath, archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, threatMapPath, verificationPath, workspaceIndexPath } from "../paths.js";
 import { recordSubmission } from "../submissions.js";
+import { validateThreatMap } from "../threatmap.js";
+import { initVerification, validateVerification } from "../verification.js";
+import { reviewFinding } from "../review.js";
 import { readWorkspaceActivity } from "../workspace.js";
 
 const BASE_FINDING = `schema_version: "1"
@@ -456,6 +459,208 @@ test("writeThreatMap scaffolds an idempotent ThreatMap.v1 sidecar", async () => 
     const third = await writeThreatMap("demo", projectRoot, { force: true });
     assert.equal(third.written, true);
     assert.equal(third.skipped, false);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("validateThreatMap checks graph shape and Evidence summary consistency", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "demo.yaml"), BASE_FINDING, "utf-8");
+    await mkdir(join(projectRoot, ".omv", "threatmaps"), { recursive: true });
+    await writeFile(
+      threatMapPath("demo", projectRoot),
+      `schema_version: "1"
+finding_id: demo
+package:
+  ecosystem: npm
+  registry_name: demo-package
+paths:
+  - source:
+      type: user_input
+      location: lib/index.js:12
+      description: options.filename
+    sink:
+      type: fs_read
+      location: lib/index.js:44
+      description: fs.readFileSync
+    guard:
+      present: false
+      description: missing path normalization
+      bypassable: true
+    confidence: high
+summary:
+  path_count: 1
+`,
+      "utf-8",
+    );
+
+    let validation = await validateThreatMap("demo", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.deepEqual(validation.warnings, []);
+
+    await writeFile(
+      threatMapPath("demo", projectRoot),
+      `schema_version: "1"
+finding_id: demo
+paths:
+  - source:
+      type: user_input
+      location: lib/other.js:1
+    sink:
+      type: fs_read
+      location: lib/other.js:2
+    guard:
+      present: true
+      description: prefix check
+`,
+      "utf-8",
+    );
+
+    validation = await validateThreatMap("demo", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.match(validation.warnings.join("\n"), /lib\/index\.js:12/);
+    assert.match(validation.warnings.join("\n"), /lib\/index\.js:44/);
+    assert.match(validation.warnings.join("\n"), /guard summary says missing/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("Verification.v1 sidecars validate hashes and strict doctor gates report readiness", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "confirmed.yaml"), BASE_FINDING.replace("status: candidate", "status: confirmed"), "utf-8");
+
+    let doctor = await doctorFinding("confirmed", projectRoot, { strictVerification: true });
+    assert.equal(doctor.reportReady, false);
+    assert.equal(doctor.nextAction, "omv verification init confirmed");
+    assert.match(doctor.issues.map((issue) => issue.message).join("\n"), /does not exist/);
+
+    const init = await initVerification("confirmed", projectRoot);
+    assert.equal(init.written, true);
+    assert.equal(init.path, verificationPath("confirmed", projectRoot));
+    await writeFile(
+      verificationPath("confirmed", projectRoot),
+      `schema_version: "1"
+finding_id: "confirmed"
+finding_sha256: "${init.findingSha256}"
+reviews:
+  - reviewer: verifier
+    target: threatmap.paths[0]
+    agrees: true
+    disagreements: []
+    required_changes: []
+    confidence: high
+    reviewed_at: "2026-04-29"
+decision:
+  status: pass
+  reason: independent verifier found no refutation
+  required_for_confirmed: true
+provenance:
+  generated_at: "2026-04-29"
+  tool: omv
+  tool_version: test
+`,
+      "utf-8",
+    );
+
+    let validation = await validateVerification("confirmed", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.equal(validation.status, "pass");
+    assert.equal(validation.stale, false);
+    doctor = await doctorFinding("confirmed", projectRoot, { strictVerification: true });
+    assert.equal(doctor.reportReady, true);
+    assert.equal(doctor.nextAction, "/omv-report confirmed");
+
+    await writeFile(join(dir, "confirmed.yaml"), `${BASE_FINDING.replace("status: candidate", "status: confirmed")}\n# changed\n`, "utf-8");
+    validation = await validateVerification("confirmed", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.equal(validation.stale, true);
+    doctor = await doctorFinding("confirmed", projectRoot, { strictVerification: true });
+    assert.equal(doctor.reportReady, false);
+    assert.equal(doctor.nextAction, "omv verification validate confirmed");
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("reviewFinding classifies report readiness verdicts", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-review-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "ready.yaml"), BASE_FINDING.replace("status: candidate", "status: confirmed"), "utf-8");
+    await writeFile(
+      join(dir, "needs-repro.yaml"),
+      BASE_FINDING
+        .replace("status: candidate", "status: confirmed")
+        .replace("observed_result: reads outside base directory", "observed_result: unknown"),
+      "utf-8",
+    );
+    await writeFile(
+      join(dir, "needs-audit.yaml"),
+      BASE_FINDING.replace("source: lib/index.js:12 options.filename", "source: unknown"),
+      "utf-8",
+    );
+    await writeFile(
+      join(dir, "blocked.yaml"),
+      BASE_FINDING.replace("status: candidate", "status: blocked").replace("blockers: []", "blockers:\n  - duplicate CVE"),
+      "utf-8",
+    );
+
+    const missingVerification = await reviewFinding("ready", projectRoot, { strict: true });
+    assert.equal(missingVerification.verdict, "needs-verification");
+    assert.equal(missingVerification.nextAction, "omv verification init ready");
+
+    const init = await initVerification("ready", projectRoot);
+    await writeFile(
+      verificationPath("ready", projectRoot),
+      `schema_version: "1"
+finding_id: "ready"
+finding_sha256: "${init.findingSha256}"
+reviews:
+  - reviewer: verifier
+    target: evidence
+    agrees: true
+    disagreements: []
+    required_changes: []
+    confidence: high
+    reviewed_at: "2026-04-29"
+decision:
+  status: pass
+  reason: independent verifier found no refutation
+  required_for_confirmed: true
+provenance:
+  generated_at: "2026-04-29"
+  tool: omv
+  tool_version: test
+`,
+      "utf-8",
+    );
+
+    const ready = await reviewFinding("ready", projectRoot, { strict: true });
+    assert.equal(ready.verdict, "ready");
+    assert.equal(ready.reportReady, true);
+    assert.equal(ready.nextAction, "/omv-report ready");
+    assert.equal(ready.blockers.length, 0);
+    assert.match(ready.warnings.join("\n"), /report artifacts/);
+
+    const needsRepro = await reviewFinding("needs-repro", projectRoot);
+    assert.equal(needsRepro.verdict, "needs-repro");
+    assert.equal(needsRepro.nextAction, "/omv-repro needs-repro");
+
+    const needsAudit = await reviewFinding("needs-audit", projectRoot);
+    assert.equal(needsAudit.verdict, "needs-audit");
+
+    const blocked = await reviewFinding("blocked", projectRoot);
+    assert.equal(blocked.verdict, "blocked");
+    assert.equal(blocked.nextAction, "omv findings archive blocked --reason blocked");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

@@ -34,6 +34,10 @@ test("CLI argument validation enforces command positional arity", () => {
   assert.match(extraDoctorArg.error ?? "", /accepts at most 0 positional/);
 
   assert.equal(validateArgs(["findings", "validate", "demo", "--json"]).ok, true);
+
+  const missingReviewId = validateArgs(["review"]);
+  assert.equal(missingReviewId.ok, false);
+  assert.match(missingReviewId.error ?? "", /requires 1 positional/);
 });
 
 test("CLI argument validation covers workspace and archive workflow commands", () => {
@@ -44,6 +48,7 @@ test("CLI argument validation covers workspace and archive workflow commands", (
   assert.match(validateArgs(["workspace", "bogus"]).error ?? "", /Unknown workspace command/);
 
   assert.equal(validateArgs(["findings", "workflow"]).ok, true);
+  assert.equal(validateArgs(["findings", "doctor", "demo", "--strict-verification"]).ok, true);
   assert.equal(validateArgs(["findings", "show", "demo", "--archived"]).ok, true);
   assert.equal(validateArgs(["findings", "open", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "archive", "demo", "--reason", "reported", "--strict"]).ok, true);
@@ -70,11 +75,16 @@ test("CLI argument validation covers intelligence and disclosure commands", () =
   assert.equal(validateArgs(["submissions", "record", "demo", "--platform", "vuldb", "--submission-id", "123", "--url", "https://example.test"]).ok, true);
   assert.equal(validateArgs(["submissions", "track", "demo"]).ok, true);
   assert.equal(validateArgs(["submissions", "close", "demo", "--cve", "CVE-2026-12345"]).ok, true);
+  assert.equal(validateArgs(["threat-map", "validate", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["verification", "init", "demo", "--force"]).ok, true);
+  assert.equal(validateArgs(["verification", "show", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["verification", "validate", "demo"]).ok, true);
 
   assert.equal(validateArgs(["radar", "refresh", "extra"]).ok, false);
   assert.equal(validateArgs(["request", "fetch"]).ok, false);
   assert.equal(validateArgs(["request", "fetch", "https://example.test", "extra"]).ok, false);
   assert.equal(validateArgs(["submissions", "record", "demo", "--platform", "vuldb"]).ok, false);
+  assert.equal(validateArgs(["verification", "validate"]).ok, false);
 });
 
 test("CLI argument validation accepts UX flags and command help", () => {
@@ -84,6 +94,7 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["doctor", "--strict"]).ok, true);
   assert.equal(validateArgs(["dashboard"]).ok, true);
   assert.equal(validateArgs(["dashboard", "--json"]).ok, true);
+  assert.equal(validateArgs(["review", "demo", "--strict", "--json"]).ok, true);
   assert.equal(validateArgs(["repro", "init", "demo"]).ok, true);
   assert.equal(validateArgs(["repro", "init", "demo", "--force", "--json"]).ok, true);
   assert.equal(validateArgs(["report", "artifacts", "demo"]).ok, true);

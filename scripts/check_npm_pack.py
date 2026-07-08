@@ -65,7 +65,6 @@ REQUIRED_PREFIXES = {
 
 FORBIDDEN_PREFIXES = {
     ".omv/",
-    ".claude/",
     ".codex/",
     ".agents/",
     ".github/",

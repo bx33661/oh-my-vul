@@ -50,10 +50,17 @@ contracts/
 
 agents/
   vuln-scanner.md               — passive candidate discovery
-  dataflow-tracer.md            — source -> sink -> guard analysis
-  cvss-analyst.md               — CVSS v3.1 computation
-  dedup-analyst.md              — duplicate CVE/GHSA search
-  report-writer.md              — platform-specific advisory rendering
+  dataflow-tracer.md             — source -> sink -> guard analysis
+  cvss-analyst.md                — CVSS v3.1 computation
+  dedup-analyst.md               — duplicate CVE/GHSA search
+  report-writer.md               — platform-specific advisory rendering
+  guard-checker.md              — adversarial guard bypass assessment
+  verifier.md                   — adversarial conclusion refutation
+
+.claude/agents/                — Claude Code project subagent registration (auto-discovered)
+  <name>.md                      — frontmatter (name, description, tools, model) + system prompt body
+  Each subagent's body references the matching agents/*.md domain spec. See
+  docs/architecture/agent-team-upgrade.md for the orchestration design.
 
 scripts/
   sync_metadata.py              — sync package, registry, and README metadata

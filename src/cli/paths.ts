@@ -94,6 +94,16 @@ export function threatMapPath(id: string, projectRoot = process.cwd()): string {
   return join(threatMapsDir(projectRoot), `${id}.yaml`);
 }
 
+/** .omv/verifications/ — optional Verification.v1 sidecars keyed by finding id. */
+export function verificationsDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "verifications");
+}
+
+/** .omv/verifications/<id>.yaml — adversarial Verification.v1 sidecar for one finding. */
+export function verificationPath(id: string, projectRoot = process.cwd()): string {
+  return join(verificationsDir(projectRoot), `${id}.yaml`);
+}
+
 /** .omv/radar/ — local passive intelligence state. */
 export function radarDir(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "radar");
@@ -158,4 +168,19 @@ export function packageRoot(): string {
 /** skills/ directory inside the package */
 export function packageSkillsDir(): string {
   return join(packageRoot(), "skills");
+}
+
+/** agents/ directory inside the package */
+export function packageAgentsDir(): string {
+  return join(packageRoot(), "agents");
+}
+
+/** ~/.claude/agents/ — where Claude Code loads user-level subagents from */
+export function claudeAgentsDir(): string {
+  return join(claudeHome(), "agents");
+}
+
+/** .claude/agents/ — project-scoped subagent directory */
+export function projectAgentsDir(projectRoot = process.cwd()): string {
+  return join(projectClaudeHome(projectRoot), "agents");
 }
