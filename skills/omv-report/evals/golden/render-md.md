@@ -52,4 +52,4 @@ Reproduction artifacts:
   - .omv/repro/demo-merge-pp/observed.txt
 
 ---
-Rendered by omv render_template  |  evidence: 100/100  |  submission: 100/100  |  status: confirmed
+Rendered by omv render_template  |  evidence: 100/100  |  submission: 90/100  |  status: confirmed
