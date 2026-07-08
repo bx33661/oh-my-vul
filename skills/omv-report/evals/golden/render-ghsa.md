@@ -48,4 +48,4 @@ Expected output: prints 'yes' confirming Object.prototype mutation
 [DRAFT: Specific code fix — reject prototype-mutating keys, validate input, add output encoding, etc.]
 
 ---
-Rendered by omv render_template  |  evidence: 100/100  |  submission: 100/100  |  status: confirmed
+Rendered by omv render_template  |  evidence: 100/100  |  submission: 90/100  |  status: confirmed
