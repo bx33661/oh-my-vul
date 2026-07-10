@@ -12,12 +12,15 @@
 oh-my-codex/
 oh-my-claudecode/
 
-# OpenSpec: publish accepted specs; keep in-progress change drafts local
-openspec/changes/
-# Root historical vision draft only (do not match openspec/**/spec.md on case-insensitive FS)
+# Maintainer / agent / release engineering docs (local only — not for GitHub)
+openspec/
 /SPEC.md
-
-# Agent implementation plans / superseded design drafts (not public product docs)
+/AGENTS.md
+/CLAUDE.md
+/DEVELOPMENT.md
+/RELEASE.md
+docs/architecture/
+docs/roadmap-0.8.md
 docs/superpowers/
 
 # TypeScript build output
