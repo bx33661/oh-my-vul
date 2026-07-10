@@ -24,26 +24,35 @@ It does **not** attack live third-party services. Keep real findings under priva
 | Community | [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) |
 | Security | [SECURITY.md](SECURITY.md) |
 
-> **Current release:** **v0.10.0** — campaign first-mile, attack-surface cards, `using-omv` discipline. See [CHANGELOG.md](CHANGELOG.md).
+> **Current release:** **v0.10.1** — campaign first-mile, attack-surface cards, `using-omv` discipline. See [CHANGELOG.md](CHANGELOG.md).
 
-## Install
-
-```sh
-npx oh-my-vul setup
-omv doctor
-```
-
-This installs 10 self-contained skills for Claude Code. If `omv` is not on your `PATH`, run it through npx:
+## Install (one step → Claude Code)
 
 ```sh
-npx -p oh-my-vul omv doctor
+npx -y oh-my-vul setup
 ```
 
-Project-local install:
+That single command installs all skills + agents into `~/.claude/skills/` and `~/.claude/agents/`. Then open Claude Code and use `/omv`, `/using-omv`, `/omv-find`, etc.
 
 ```sh
-npx oh-my-vul setup --scope project
+# optional checks
+npx -y -p oh-my-vul omv doctor
+npx -y -p oh-my-vul omv version
 ```
+
+Project-local install (skills live in `./.claude/`):
+
+```sh
+npx -y oh-my-vul setup --scope project
+```
+
+Reinstall / upgrade:
+
+```sh
+npx -y oh-my-vul setup --force
+```
+
+> **Do not pin the version in the npx package name** (avoid `npx oh-my-vul@0.10.1 …`). npm can fail with `command not found` for hyphenated package names when `@version` is attached that way. Prefer `npx -y oh-my-vul setup` (latest) or `npx -y -p oh-my-vul@0.10.1 omv setup` if you must pin.
 
 ## Fast Workflow
 

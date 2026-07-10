@@ -22,7 +22,35 @@
 >
 > **安全边界：** 本项目只面向*被动研究*和*本地验证*。它不是批量扫描器，也不是线上攻击工具。真实 finding 放在私有 `.omv/` 中，不要提交到 Git。
 >
-> **当前版本：** **v0.10.0** — Campaign 首公里、攻击面卡片、`using-omv` 研究纪律。详见 [CHANGELOG.md](CHANGELOG.md)。
+> **当前版本：** **v0.10.1** — Campaign 首公里、攻击面卡片、`using-omv` 研究纪律。详见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 安装（一步装进 Claude Code）
+
+```sh
+npx -y oh-my-vul setup
+```
+
+一条命令把全部 skills + agents 装到 `~/.claude/skills/` 与 `~/.claude/agents/`。然后打开 Claude Code，使用 `/omv`、`/using-omv`、`/omv-find` 等即可。
+
+```sh
+# 可选检查
+npx -y -p oh-my-vul omv doctor
+npx -y -p oh-my-vul omv version
+```
+
+项目级安装（装到 `./.claude/`）：
+
+```sh
+npx -y oh-my-vul setup --scope project
+```
+
+强制覆盖升级：
+
+```sh
+npx -y oh-my-vul setup --force
+```
+
+> **不要**写成 `npx oh-my-vul@0.10.1 setup`（带 `@版本` 的包名形式）。对带连字符的包名，npm/npx 可能报 `command not found`。要钉版本请用：`npx -y -p oh-my-vul@0.10.1 omv setup`。
 >
 > **社区：** [贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md) · [安全政策](SECURITY.md)
 
@@ -43,21 +71,17 @@
 ## 快速开始
 
 ```sh
-npx oh-my-vul setup
-omv doctor
-omv request preflight
-```
-
-如果没有全局安装 `omv`，用 npx 临时运行：
-
-```sh
-npx -p oh-my-vul omv doctor
+npx -y oh-my-vul setup
+npx -y -p oh-my-vul omv doctor
+npx -y -p oh-my-vul omv request preflight
 ```
 
 在 Claude Code 中使用典型流程：
 
 ```text
-omv first --target acme --ecosystem npm --vuln traversal,auth --no-interactive
+omv first --target acme --ecosystem npm --vuln xss,ssrf --no-interactive
+omv campaign surfaces propose acme
+omv campaign surfaces select acme --cards renderer-pipeline
 omv campaign seed acme
 
 /omv-find --lang npm --vuln traversal --count 10
