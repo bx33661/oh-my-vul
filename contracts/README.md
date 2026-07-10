@@ -9,6 +9,7 @@ Skills reference these files directly rather than duplicating schema content in 
 | File | Description |
 |---|---|
 | `campaign.v1.yaml` | Local research target, scope, priorities, and candidate finding lanes used by `omv campaign`. |
+| `attack-surface-list.v1.yaml` | Proposed/selected attack-surface cards for a campaign (`omv campaign surfaces`). |
 | `source-ref.v1.yaml` | Optional local source identity and Evidence hash sidecar used by `omv sources`. |
 | `report-provenance.v1.yaml` | Generated hash manifest for report artifacts and their local inputs. |
 | `evidence.v1.yaml` | Finding object passed between `omv-find` and `omv-report`. Replaces the old `handoff-contract.md` in both skills. |

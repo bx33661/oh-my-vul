@@ -15,6 +15,12 @@ Usage:
   omv campaign [list] [--json]      List local research campaigns
   omv campaign init [flags]         Create Campaign.v1 YAML and runbook
   omv campaign show <id> [--json]   Show one campaign
+  omv campaign surfaces propose <id> [--force] [--json]
+                                     Propose attack-surface cards for a campaign
+  omv campaign surfaces show <id> [--json]
+                                     Show proposed/selected surface cards
+  omv campaign surfaces select <id> --cards <id,id> [--json]
+                                     Select cards to seed as candidate findings
   omv campaign seed <id> [--json]   Seed candidate Evidence.v1 hypotheses
   omv first [flags]                 Alias for campaign init
   omv review <id> [--strict] [--json]
@@ -230,7 +236,19 @@ Options: --id, --version, --source, --ecosystem, --mode, --goal, --budget,
       console.log(`Usage: ${root} seed <id> [--json]
 
 Creates candidate Evidence.v1 files only. A supported target ecosystem is required;
-existing .yaml and .yml findings are never overwritten.`);
+existing .yaml and .yml findings are never overwritten.
+
+If <id>.surfaces.yaml exists, only selected attack-surface cards are seeded.
+Otherwise generic vulnerability-class lanes are used.`);
+      return;
+    case "surfaces":
+      console.log(`Usage:
+  omv campaign surfaces propose <id> [--force] [--json]
+  omv campaign surfaces show <id> [--json]
+  omv campaign surfaces select <id> --cards <id,id> [--json]
+
+Propose deterministic attack-surface cards from the shared pack catalog, select
+which hypotheses to pursue, then seed candidate Evidence.v1 findings.`);
       return;
     default:
       console.log(`Usage:
@@ -238,6 +256,9 @@ existing .yaml and .yml findings are never overwritten.`);
   ${root} init --target <name> --vuln <comma-list> [options]
   ${root} list [--json]
   ${root} show <id> [--json]
+  omv campaign surfaces propose <id> [--force]
+  omv campaign surfaces show <id>
+  omv campaign surfaces select <id> --cards <id,id>
   ${root} seed <id> [--json]`);
       return;
   }

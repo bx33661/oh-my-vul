@@ -162,6 +162,9 @@ test("CLI argument validation covers Campaign commands and first aliases", () =>
   assert.equal(validateArgs(["first", "show", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["campaign", "seed", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["first", "seed", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["campaign", "surfaces", "propose", "demo", "--force", "--json"]).ok, true);
+  assert.equal(validateArgs(["campaign", "surfaces", "show", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["campaign", "surfaces", "select", "demo", "--cards", "renderer-pipeline"]).ok, true);
 
   for (const command of [
     ["campaign", "seed", "demo", "--force"],
@@ -176,6 +179,9 @@ test("CLI argument validation covers Campaign commands and first aliases", () =>
     ["campaign", "init", "--budget", "forever"],
     ["campaign", "init", "--local-lab", "maybe"],
     ["campaign", "init", "--ecosystem", "other"],
+    ["campaign", "surfaces", "propose"],
+    ["campaign", "surfaces", "select", "demo"],
+    ["campaign", "surfaces", "explode", "demo"],
   ]) {
     assert.equal(validateArgs(command).ok, false, command.join(" "));
   }

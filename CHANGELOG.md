@@ -12,6 +12,8 @@ Ship when release notes and `registry.yaml` / `package.json` versions are bumped
 - **ThreatMap rich render** — `omv findings show` prints full `source → transforms → sink` paths with confidence, bypassable guards, and summary (no longer collapses to a single source→sink line).
 - **Readiness policy helpers** — `isReportReady` / `isSubmissionScoreReady` / `resolveDoctorNextAction` in `workflow.ts` as the shared report-readiness gate used by doctor and review.
 - **Public docs policy** — GitHub publishes user-facing guides only; maintainer/agent/OpenSpec/release docs stay local.
+- **Attack Surface Cards** — `omv campaign surfaces propose|show|select` turns Campaign priorities into deterministic pack-based research cards; `omv campaign seed` uses selected cards when a surfaces sidecar exists.
+- **using-omv bootstrap** — process skill for evidence-before-claims and HARD-GATEs (no skill sprawl); audit/report/repro gain explicit verification-before-claim rules; stable evals cover premature-report refusal and process-first open.
 
 ## v0.9.0 - CLI command split and local findings dedup
 

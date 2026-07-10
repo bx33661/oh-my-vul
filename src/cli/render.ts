@@ -6,6 +6,11 @@ import type {
 } from "./campaign.js";
 import type { CampaignSeedResult } from "./campaign-seed.js";
 import type {
+  ProposeSurfacesResult,
+  SelectSurfacesResult,
+  ShowSurfacesResult,
+} from "./surfaces.js";
+import type {
   ArchivedFindingSummary,
   FindingArchiveResult,
   FindingDeleteResult,
@@ -105,6 +110,7 @@ export function printCampaignSeedResult(result: CampaignSeedResult): void {
     panel("campaign seed", [
       ...kv([
         ["campaign", result.campaignId],
+        ["mode", result.seedMode],
         ["result", outcomeBadge(state)],
         ["created", String(result.created.length)],
         ["skipped", String(result.skipped.length)],
@@ -114,6 +120,69 @@ export function printCampaignSeedResult(result: CampaignSeedResult): void {
       ...result.created.map((item) => `  created  ${item.id}`),
       ...result.skipped.map((item) => `  skipped  ${item.id}`),
       ...result.failed.map((item) => tuiError(`  failed  ${item.id}: ${item.message}`)),
+    ]),
+  );
+}
+
+export function printSurfacesProposeResult(result: ProposeSurfacesResult): void {
+  console.log(
+    panel(result.overwritten ? "surfaces regenerated" : "surfaces proposed", [
+      ...kv([
+        ["campaign", result.campaignId],
+        ["path", result.path],
+        ["cards", String(result.list.cards.length)],
+        ["next", cmd(result.nextAction)],
+      ]),
+      "",
+      section("attack surface cards"),
+      ...result.list.cards.map(
+        (card) => `  [${card.status}] ${card.id}  (${card.vulnerability_class})  ${card.title}`,
+      ),
+    ]),
+  );
+}
+
+export function printSurfacesShowResult(result: ShowSurfacesResult): void {
+  if (!result.list) {
+    console.log(
+      panel("surfaces", [
+        ...kv([
+          ["campaign", result.campaignId],
+          ["path", result.path],
+          ["status", "missing"],
+          ["next", cmd(result.nextAction)],
+        ]),
+      ]),
+    );
+    return;
+  }
+  console.log(
+    panel("surfaces", [
+      ...kv([
+        ["campaign", result.campaignId],
+        ["path", result.path],
+        ["cards", String(result.list.cards.length)],
+        ["selected", String(result.list.cards.filter((card) => card.status === "selected").length)],
+        ["next", cmd(result.nextAction)],
+      ]),
+      "",
+      section("attack surface cards"),
+      ...result.list.cards.map(
+        (card) => `  [${card.status}] ${card.id}  (${card.vulnerability_class})  → ${card.finding_id}`,
+      ),
+    ]),
+  );
+}
+
+export function printSurfacesSelectResult(result: SelectSurfacesResult): void {
+  console.log(
+    panel("surfaces selected", [
+      ...kv([
+        ["campaign", result.campaignId],
+        ["selected", result.selected.join(", ") || "(none)"],
+        ["skipped", String(result.skipped.length)],
+        ["next", cmd(result.nextAction)],
+      ]),
     ]),
   );
 }

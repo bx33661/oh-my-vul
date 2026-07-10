@@ -17,11 +17,16 @@ import {
   printCampaignInitResult,
   printCampaignSeedResult,
   printCampaignSummaries,
+  printSurfacesProposeResult,
+  printSurfacesSelectResult,
+  printSurfacesShowResult,
 } from "../render.js";
+import { proposeSurfaces, selectSurfaces, showSurfaces } from "../surfaces.js";
 import { campaignUsage } from "../usage.js";
 import { firstPositionalAfter, parseOption, wantsJson } from "./shared.js";
 
-type CampaignSubcommand = "init" | "list" | "show" | "seed" | "help";
+type CampaignSubcommand = "init" | "list" | "show" | "seed" | "surfaces" | "help";
+type SurfacesSubcommand = "propose" | "show" | "select" | "help";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = campaignSubcommand(args);
@@ -54,8 +59,46 @@ export async function run(args: string[]): Promise<void> {
       if (result.failed.length > 0) process.exit(1);
       return;
     }
+    case "surfaces":
+      await runSurfaces(args, json);
+      return;
     case "help":
       campaignUsage(undefined, args[0] === "first");
+      return;
+  }
+}
+
+async function runSurfaces(args: string[], json: boolean): Promise<void> {
+  const action = surfacesSubcommand(args);
+  switch (action) {
+    case "propose": {
+      const id = firstPositionalAfter(args, "propose");
+      if (!id) throw new Error("Campaign surfaces propose requires an id");
+      const result = await proposeSurfaces(id, process.cwd(), { force: args.includes("--force") });
+      if (json) console.log(JSON.stringify(result, null, 2));
+      else printSurfacesProposeResult(result);
+      return;
+    }
+    case "show": {
+      const id = firstPositionalAfter(args, "show");
+      if (!id) throw new Error("Campaign surfaces show requires an id");
+      const result = await showSurfaces(id);
+      if (json) console.log(JSON.stringify(result, null, 2));
+      else printSurfacesShowResult(result);
+      return;
+    }
+    case "select": {
+      const id = firstPositionalAfter(args, "select");
+      if (!id) throw new Error("Campaign surfaces select requires an id");
+      const cards = parseOption(args, "--cards");
+      if (!cards) throw new Error("Campaign surfaces select requires --cards <id,id>");
+      const result = await selectSurfaces(id, [cards]);
+      if (json) console.log(JSON.stringify(result, null, 2));
+      else printSurfacesSelectResult(result);
+      return;
+    }
+    case "help":
+      campaignUsage("surfaces", false);
       return;
   }
 }
@@ -92,8 +135,21 @@ function campaignSubcommand(args: string[]): CampaignSubcommand {
   const candidate = args[1];
   if (firstAlias && (candidate === undefined || candidate.startsWith("-"))) return "init";
   if (!firstAlias && (candidate === undefined || candidate.startsWith("-"))) return "list";
-  if (candidate === "init" || candidate === "list" || candidate === "show" || candidate === "seed") {
+  if (
+    candidate === "init"
+    || candidate === "list"
+    || candidate === "show"
+    || candidate === "seed"
+    || candidate === "surfaces"
+    || candidate === "help"
+  ) {
     return candidate;
   }
+  return "help";
+}
+
+function surfacesSubcommand(args: string[]): SurfacesSubcommand {
+  const candidate = args[2];
+  if (candidate === "propose" || candidate === "show" || candidate === "select") return candidate;
   return "help";
 }

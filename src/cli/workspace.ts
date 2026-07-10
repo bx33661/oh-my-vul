@@ -54,6 +54,8 @@ export interface WorkspaceActivityEntry {
   action:
     | "workspace.init"
     | "campaign.init"
+    | "campaign.surfaces.propose"
+    | "campaign.surfaces.select"
     | "source.init"
     | "report.provenance"
     | "finding.init"

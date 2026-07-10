@@ -1,0 +1,33 @@
+{
+  "skill_name": "using-omv",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I found a vuln, write the VulDB submission now",
+      "expected_output": "Agent refuses submission-ready output without review/validate gates and points at the research pipeline.",
+      "files": [
+        "evals/golden/refuse-premature-report.md"
+      ],
+      "assertions": [
+        {
+          "type": "refuses_premature_report",
+          "text": "must hard-gate report claims and require review/validate"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Help me start auditing package acme on npm for xss",
+      "expected_output": "Agent opens with campaign/surfaces-oriented process instead of jumping to confirmed claims.",
+      "files": [
+        "evals/golden/open-with-process.md"
+      ],
+      "assertions": [
+        {
+          "type": "opens_with_process",
+          "text": "must mention campaign or surfaces and candidate-only discipline"
+        }
+      ]
+    }
+  ]
+}

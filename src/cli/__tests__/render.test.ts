@@ -97,6 +97,7 @@ test("canonical Campaign renderers own init, list, show, and seed output", () =>
   const seed = captureOutput(() => printCampaignSeedResult({
     campaignId: "demo",
     campaignPath: "/tmp/.omv/campaigns/demo.yaml",
+    seedMode: "lanes",
     created: [{ id: "demo-xss", path: "/tmp/.omv/findings/demo-xss.yaml", status: "candidate", created: true }],
     skipped: [],
     failed: [],

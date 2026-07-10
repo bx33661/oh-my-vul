@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { showCampaign } from "./campaign.js";
@@ -9,7 +10,8 @@ import {
   type EvidenceResearcherGoal,
   type FindingTemplateResult,
 } from "./findings.js";
-import { findingsDir } from "./paths.js";
+import { campaignSurfacesPath, findingsDir } from "./paths.js";
+import { readSurfaceList, selectedSeedTargets, type AttackSurfaceCard } from "./surfaces.js";
 
 export interface CampaignSeedSkipped {
   id: string;
@@ -25,10 +27,17 @@ export interface CampaignSeedFailure {
 export interface CampaignSeedResult {
   campaignId: string;
   campaignPath: string;
+  seedMode: "lanes" | "surfaces";
   created: FindingTemplateResult[];
   skipped: CampaignSeedSkipped[];
   failed: CampaignSeedFailure[];
   nextAction: string;
+}
+
+interface SeedTarget {
+  findingId: string;
+  vulnerabilityClass: string;
+  surface?: AttackSurfaceCard;
 }
 
 export type CampaignFindingCreator = (
@@ -56,30 +65,32 @@ export async function seedCampaign(
   const skipped: CampaignSeedSkipped[] = [];
   const failed: CampaignSeedFailure[] = [];
 
-  for (const lane of detail.campaign.lanes) {
-    const existing = await existingFindingPath(lane.finding_id, projectRoot);
+  const { targets, seedMode } = await resolveSeedTargets(detail.campaign.id, detail.campaign.lanes, projectRoot);
+
+  for (const target of targets) {
+    const existing = await existingFindingPath(target.findingId, projectRoot);
     if (existing) {
-      skipped.push({ id: lane.finding_id, path: existing, reason: "already exists" });
+      skipped.push({ id: target.findingId, path: existing, reason: "already exists" });
       continue;
     }
 
     try {
-      created.push(await createFinding(lane.finding_id, {
+      created.push(await createFinding(target.findingId, {
         projectRoot,
         seed: {
           researcherGoal: evidenceGoal(detail.campaign.goal.output),
           product: detail.campaign.target.name,
           ecosystem: ecosystem as EvidenceEcosystem,
-          vulnerabilityClass: lane.vulnerability_class,
+          vulnerabilityClass: target.vulnerabilityClass,
         },
       }));
     } catch (error) {
-      const raced = await existingFindingPath(lane.finding_id, projectRoot);
+      const raced = await existingFindingPath(target.findingId, projectRoot);
       if (raced) {
-        skipped.push({ id: lane.finding_id, path: raced, reason: "already exists" });
+        skipped.push({ id: target.findingId, path: raced, reason: "already exists" });
       } else {
         failed.push({
-          id: lane.finding_id,
+          id: target.findingId,
           message: error instanceof Error ? error.message : String(error),
         });
       }
@@ -89,12 +100,46 @@ export async function seedCampaign(
   return {
     campaignId: detail.campaign.id,
     campaignPath: detail.yamlPath,
+    seedMode,
     created,
     skipped,
     failed,
     nextAction: failed.length > 0
       ? `omv campaign seed ${detail.campaign.id}`
       : "omv findings workflow",
+  };
+}
+
+async function resolveSeedTargets(
+  campaignId: string,
+  lanes: Array<{ finding_id: string; vulnerability_class: string }>,
+  projectRoot: string,
+): Promise<{ targets: SeedTarget[]; seedMode: "lanes" | "surfaces" }> {
+  const surfacesPath = campaignSurfacesPath(campaignId, projectRoot);
+  if (!existsSync(surfacesPath)) {
+    return {
+      seedMode: "lanes",
+      targets: lanes.map((lane) => ({
+        findingId: lane.finding_id,
+        vulnerabilityClass: lane.vulnerability_class,
+      })),
+    };
+  }
+
+  const list = await readSurfaceList(surfacesPath, campaignId);
+  const selected = selectedSeedTargets(list);
+  if (selected.length === 0) {
+    throw new Error(
+      `${surfacesPath} has no selected cards; run omv campaign surfaces select ${campaignId} --cards <id,id> first`,
+    );
+  }
+  return {
+    seedMode: "surfaces",
+    targets: selected.map((card) => ({
+      findingId: card.finding_id,
+      vulnerabilityClass: card.vulnerability_class,
+      surface: card,
+    })),
   };
 }
 

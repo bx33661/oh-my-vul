@@ -49,6 +49,14 @@ Stay in passive research mode: do not execute any commands yourself. Guide the u
 5. **confirmed 由 CLI validation 决定** — 写入用户报告的 `observed_result` 后，必须运行 `omv findings validate <id>`；失败时保持 `candidate`
 6. **复现材料标准化保存** — 建议把命令、输出、截图或 Compose 文件放到 `.omv/repro/<id>/`，并在 `evidence.repro_artifacts` 中列出路径
 
+### HARD-GATE: observation before proven
+
+```text
+NO invented observed_result
+NO exploitability: proven WITHOUT user-reported local observation recorded in Evidence
+NO "ready to submit" — after success, point to omv review --strict, not free-form certainty
+```
+
 ## 结论规则
 
 | 结论 | 触发条件 | 下一步 |
