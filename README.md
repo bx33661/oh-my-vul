@@ -19,9 +19,8 @@ It does **not** attack live third-party services. Keep real findings under priva
 |---|---|
 | Install | `npx oh-my-vul setup` then `omv doctor` |
 | Docs (zh) | [README.zh-CN.md](README.zh-CN.md) |
-| Contribute | [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) |
+| Community | [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) |
 | Security | [SECURITY.md](SECURITY.md) |
-| Specs | [`openspec/specs/`](openspec/specs/) (accepted behavior) |
 
 > **Version note:** npm package is currently **0.9.x**. Campaign / PatternPack / provenance work in this branch is **Unreleased** toward 0.10 — see [CHANGELOG.md](CHANGELOG.md).
 
@@ -192,27 +191,11 @@ Verdicts:
 | [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | research method guide |
 | [docs/request-broker.md](docs/request-broker.md) | request broker and cache behavior |
 | [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | sanitized end-to-end example |
+| [docs/examples/radar-to-audit-walkthrough.md](docs/examples/radar-to-audit-walkthrough.md) | radar → audit walkthrough |
+| [docs/examples/disclosure-submission-walkthrough.md](docs/examples/disclosure-submission-walkthrough.md) | disclosure / submission walkthrough |
 | [contracts/README.md](contracts/README.md) | Evidence.v1 and sidecar contracts |
-| [RELEASE.md](RELEASE.md) | release checklist |
-
-## Development
-
-```sh
-npm install
-npm run sync-metadata
-npm run sync-assets
-npm run validate
-npm run release:check
-```
-
-Before npm publish:
-
-```sh
-npm view oh-my-vul version
-npm run release:check
-npm pack --dry-run
-npm publish --access public
-```
+| [CHANGELOG.md](CHANGELOG.md) | release history |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | community guidelines |
 
 ## License
 

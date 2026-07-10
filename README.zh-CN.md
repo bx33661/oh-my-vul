@@ -15,7 +15,7 @@
   ·
   <a href="docs/vulnerability-research-best-practices.zh-CN.md">漏洞挖掘最佳实践</a>
   ·
-  <a href="RELEASE.md">发布指南</a>
+  <a href="SECURITY.md">安全政策</a>
 </p>
 
 > **定位：** `oh-my-vul` 用来辅助研究员发现值得审计的开源项目，整理 **source -> sink -> guard** 证据链，并把已确认的问题转成适合提交给 **VulDB**、**CVE**、**GHSA**、**OSV** 或 Markdown advisory 的报告草稿。
@@ -24,7 +24,7 @@
 >
 > **版本说明：** npm 当前为 **0.9.x**；Campaign / PatternPack / provenance 等能力在 CHANGELOG 中记为 **Unreleased（面向 0.10）**。
 >
-> **社区：** [贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md) · [安全政策](SECURITY.md) · [行为规格](openspec/specs/)
+> **社区：** [贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md) · [安全政策](SECURITY.md)
 
 ---
 
@@ -278,40 +278,16 @@ omv findings promote demo-traversal --status blocked
 | 文档 | 用途 |
 |---|---|
 | [README.md](README.md) | 英文项目指南 |
-| [docs/request-broker.zh-CN.md](docs/request-broker.zh-CN.md) | 请求代理、失败分类、缓存和 Playwright 评估 |
+| [docs/request-broker.zh-CN.md](docs/request-broker.zh-CN.md) | 请求代理、失败分类、缓存 |
 | [docs/request-broker.md](docs/request-broker.md) | 英文 request broker 指南 |
 | [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | 使用本项目做漏洞研究的最佳实践 |
 | [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | 脱敏的端到端 finding 工作流示例 |
-| [docs/roadmap-0.8.md](docs/roadmap-0.8.md) | `v0.8` CLI 改进交付记录 |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 开发与贡献规则 |
+| [docs/examples/radar-to-audit-walkthrough.md](docs/examples/radar-to-audit-walkthrough.md) | radar → 审计示例 |
+| [docs/examples/disclosure-submission-walkthrough.md](docs/examples/disclosure-submission-walkthrough.md) | 披露与提交示例 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 社区参与与安全边界 |
 | [SECURITY.md](SECURITY.md) | 报告本项目安全问题 |
-| [RELEASE.md](RELEASE.md) | 发布与兼容性检查 |
 | [contracts/README.md](contracts/README.md) | Evidence.v1 等共享 schema |
-
-## 开发
-
-```sh
-npm install
-npm run sync-metadata
-npm run sync-assets
-npm run validate
-npm run release:check
-npm run pack:check
-```
-
-<details>
-<summary><strong>发布前检查</strong></summary>
-
-```sh
-npm view oh-my-vul version
-npm run release:check
-npm pack --dry-run
-npm publish --access public
-```
-
-`package.json` 是发布版本的事实来源。metadata sync 会同步 registry 和生成文档。
-
-</details>
+| [CHANGELOG.md](CHANGELOG.md) | 版本变更记录 |
 
 ## 许可证
 
