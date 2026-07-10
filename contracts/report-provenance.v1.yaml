@@ -1,0 +1,11 @@
+# ReportProvenance.v1 — generated report input manifest
+# JSON instances are stored at: .omv/reports/<finding_id>/provenance.json
+
+schema_version: "1"
+finding_id: ""
+generated_at: ""
+
+inputs: []
+# - role: evidence         # evidence | report | source-ref | threat-map | verification | reproduction
+#   path: .omv/findings/example.yaml
+#   sha256: ""

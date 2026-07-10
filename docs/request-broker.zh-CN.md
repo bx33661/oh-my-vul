@@ -46,6 +46,23 @@ GitHub 的 `/rate_limit` 可能返回 HTTP 200，但 `x-ratelimit-remaining` 已
 
 使用 `--refresh` 可以绕过新鲜缓存并重新请求。
 
+## 目标与资源安全边界
+
+broker 只接受公开 HTTP(S) 目标。带 URL 凭据、本地主机名、非公网 IP 字面量，以及 DNS 结果中包含私网、回环、链路本地、多播、文档保留或其它非公网地址的目标都会在请求前被拒绝。
+
+redirect 由 broker 手动处理。每一跳都会重新解析和校验，最多允许 5 跳；host 专用 header 也会按当前目标重建，因此 GitHub API token 不会被转发到其它 host。
+
+响应 body 默认最多读取 8 MiB。声明的 `Content-Length` 已超限时不会缓冲 body；实际流式字节数超限时会立即取消读取。
+
+可通过环境变量调整请求控制：
+
+| 环境变量 | 默认值 | 用途 |
+|---|---:|---|
+| `OMV_HTTP_TIMEOUT_MS` | `20000` | DNS 校验和每次网络尝试的超时。 |
+| `OMV_HTTP_RETRIES` | `1` | timeout、传输错误和可重试 HTTP 状态的重试次数。 |
+| `OMV_HTTP_MAX_BODY_BYTES` | `8388608` | 允许读入内存的最大响应字节数。 |
+| `OMV_USER_AGENT` | 跟随 package 版本 | 覆盖默认 `omv-cli/<version>` 标识。 |
+
 ## JSON 字段
 
 `omv request fetch <url> --json` 会返回结构化结果：
@@ -58,8 +75,8 @@ GitHub 的 `/rate_limit` 可能返回 HTTP 200，但 `x-ratelimit-remaining` 已
   "status": 403,
   "cached": false,
   "cachePath": ".omv/cache/http/<hash>.json",
-  "fetchedAt": "2026-05-08T17:31:38.616Z",
-  "expiresAt": "2026-05-08T17:36:38.616Z",
+  "fetchedAt": "2026-07-10T05:31:38.616Z",
+  "expiresAt": "2026-07-10T05:36:38.616Z",
   "headers": {
     "x-ratelimit-remaining": "0"
   },
@@ -68,7 +85,7 @@ GitHub 的 `/rate_limit` 可能返回 HTTP 200，但 `x-ratelimit-remaining` 已
   "rateLimit": {
     "limit": 60,
     "remaining": 0,
-    "reset": "2026-05-08T17:52:00.000Z",
+    "reset": "2026-07-10T05:52:00.000Z",
     "resource": "core"
   },
   "recommendation": "Set GITHUB_TOKEN/GH_TOKEN or wait for the rate-limit reset before deep GitHub metadata checks.",
@@ -94,6 +111,9 @@ GitHub 的 `/rate_limit` 可能返回 HTTP 200，但 `x-ratelimit-remaining` 已
 | `network_error` | DNS/TLS/传输错误。 | 稍后重试，并把字段保持为未确认。 |
 | `upstream_error` | 上游返回 5xx。 | 稍后重试；不要据此判断候选项目质量。 |
 | `invalid_url` | URL 不是 `http` 或 `https`。 | 修正 URL 后重试。 |
+| `unsafe_destination` | URL 凭据或本地/非公网目标被拒绝。 | 改用公开主来源 endpoint。 |
+| `too_many_redirects` | redirect 链超过 5 跳。 | 直接使用最终公开 URL。 |
+| `response_too_large` | 响应超过配置的字节上限。 | 使用更小的 metadata endpoint，或仅对可信来源提高上限。 |
 
 ## GitHub Token
 

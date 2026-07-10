@@ -7,7 +7,7 @@ export async function run(args: string[]): Promise<void> {
   const json = wantsJson(args);
   if (subcommand !== "timeline") {
     console.error(`Unknown disclose command: ${subcommand}\n`);
-    commandUsage(args, args[0], "disclose", args[1]);
+    commandUsage("disclose", args[1]);
     process.exit(1);
   }
   const id = firstPositionalAfter(args, "timeline");

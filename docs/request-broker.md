@@ -46,6 +46,23 @@ Cache keys include both URL and `Accept` header. Successful responses use respon
 
 Use `--refresh` to bypass a fresh cache entry and fetch again.
 
+## Destination And Resource Safety
+
+The broker accepts only public HTTP(S) destinations. It rejects URL credentials, local hostnames, non-public literal IP addresses, and hostnames when any DNS result is private, loopback, link-local, multicast, documentation-only, or otherwise non-public.
+
+Redirects are followed manually. Every hop is resolved and validated again, the chain is limited to five redirects, and host-specific headers are rebuilt for each hop. A GitHub API token is therefore never forwarded to another host.
+
+Response bodies are streamed with an 8 MiB default hard limit. The broker rejects an oversized declared `Content-Length` before buffering and cancels a stream as soon as its observed bytes exceed the limit.
+
+The request controls can be tuned with environment variables:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `OMV_HTTP_TIMEOUT_MS` | `20000` | Timeout for DNS validation and each network attempt. |
+| `OMV_HTTP_RETRIES` | `1` | Retry count for timeouts, transport errors, and retryable HTTP status codes. |
+| `OMV_HTTP_MAX_BODY_BYTES` | `8388608` | Maximum response bytes read into memory. |
+| `OMV_USER_AGENT` | package-derived | Override the default `omv-cli/<version>` identity. |
+
 ## JSON Shape
 
 `omv request fetch <url> --json` returns a structured result:
@@ -58,8 +75,8 @@ Use `--refresh` to bypass a fresh cache entry and fetch again.
   "status": 403,
   "cached": false,
   "cachePath": ".omv/cache/http/<hash>.json",
-  "fetchedAt": "2026-05-08T17:31:38.616Z",
-  "expiresAt": "2026-05-08T17:36:38.616Z",
+  "fetchedAt": "2026-07-10T05:31:38.616Z",
+  "expiresAt": "2026-07-10T05:36:38.616Z",
   "headers": {
     "x-ratelimit-remaining": "0"
   },
@@ -68,7 +85,7 @@ Use `--refresh` to bypass a fresh cache entry and fetch again.
   "rateLimit": {
     "limit": 60,
     "remaining": 0,
-    "reset": "2026-05-08T17:52:00.000Z",
+    "reset": "2026-07-10T05:52:00.000Z",
     "resource": "core"
   },
   "recommendation": "Set GITHUB_TOKEN/GH_TOKEN or wait for the rate-limit reset before deep GitHub metadata checks.",
@@ -94,6 +111,9 @@ Sensitive response headers such as `set-cookie`, `cookie`, and `authorization` a
 | `network_error` | DNS/TLS/transport error. | Retry later and keep the field unverified. |
 | `upstream_error` | 5xx response from upstream. | Retry later; do not infer candidate quality from this. |
 | `invalid_url` | URL is not `http` or `https`. | Fix the URL before retrying. |
+| `unsafe_destination` | URL credentials or a local/non-public destination was rejected. | Use a public primary-source endpoint. |
+| `too_many_redirects` | The redirect chain exceeded five hops. | Use the final public URL directly. |
+| `response_too_large` | The response exceeded the configured byte limit. | Use a smaller metadata endpoint or raise the limit only for a trusted source. |
 
 ## GitHub Token
 

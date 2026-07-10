@@ -9,68 +9,44 @@ The project ships a TypeScript CLI (`omv`) for installing skills, plus Markdown 
 ```
 src/
   cli/
-    omv.ts                        — CLI entry point (setup / doctor / findings / help)
-    setup.ts                      — copies installable skills to ~/.claude/skills/ or ./.claude/skills/
-    doctor.ts                     — checks installation health
-    findings.ts                   — creates, lists, validates, and promotes Evidence.v1 handoffs
-    paths.ts                      — path utilities (claudeSkillsDir, projectSkillsDir, findingsDir, packageRoot, …)
+    omv.ts                        — thin CLI entry (dispatches to commands/)
+    commands/                     — one module per top-level command (findings, campaign, review, …)
+    findings.ts                   — Evidence.v1 parse / validate / score / doctor / archive
+    workflow.ts                   — shared readiness + next-action policy
+    review.ts                     — report-readiness verdicts (ready | needs-*)
+    campaign.ts                   — Campaign.v1 first-mile research plans
+    setup.ts / doctor.ts          — install skills+agents; health checks
+    paths.ts                      — claudeSkillsDir, findingsDir, packageRoot, …
   index.ts                        — package exports
 
-skills/
-  omv/SKILL.md                  — collection manager (/omv)
-  omv-find/SKILL.md             — find and rank audit targets (/omv-find)
-  omv-find/references/
-    scoring.md                  — scoring rubric, confidence adjustments, filtering, LOC estimation
-    output-contract.md          — final table contract, audit tips, invalid-request template
-  omv-find/scripts/check_output.py  — heuristic eval checker
-  omv-find/evals/evals.json     — behavior-focused eval scenarios
-  omv-find/evals/golden/        — stable golden outputs
-  omv-report/SKILL.md           — generate VulDB/CVE/GHSA/OSV reports (/omv-report)
-  omv-report/references/
-    ecosystems.md               — vendor/product/version rules, CWE mapping, duplicate-CVE databases
-    report-templates.md         — VulDB, GHSA, OSV JSON, Markdown advisory templates
-    examples/                   — filled advisory examples
-  omv-report/scripts/check_output.py  — heuristic eval checker
-  omv-report/evals/evals.json   — behavior-focused report-generation eval scenarios
-  omv-report/evals/golden/      — stable golden outputs
+skills/                           — 9 installable skills (self-contained after setup)
+  omv, omv-find, omv-audit, omv-repro, omv-report,
+  omv-radar, omv-dedup, omv-disclose, omv-critic
 
 shared/
-  references/
-    ecosystems.md               — ecosystem registry sources, GitHub search shapes, flagship exclusions
-    vuln-patterns.md            — vulnerability aliases and source -> sink -> guard patterns
-    cvss-builder.md             — CVSS v3.1 metric decision table and common vectors
-  scripts/
-    collect_metadata.py         — collects GitHub and selected registry metadata as JSON
-    estimate_loc.sh             — estimates source LOC from a GitHub URL or local checkout
+  references/                     — ecosystems, vuln-patterns, cvss-builder, per-eco patterns/
+  pattern-packs/                  — 14 PatternPack.v1 JSON manifests
+  scripts/                        — collect_metadata, estimate_loc, run_evals, …
 
 contracts/
-  evidence.v1.yaml              — finding object: the typed boundary between omv-find and omv-report
-  candidate-list.v1.yaml        — candidate table entry schema produced by omv-find
-  threat-map.v1.yaml            — dataflow threat map schema (planned: omv-audit M2+)
+  evidence.v1.yaml                — finding object (find → report boundary)
+  candidate-list.v1.yaml          — omv-find table entries
+  threat-map.v1.yaml              — source → transform → sink graph (omv-audit sidecar)
+  verification.v1.yaml            — adversarial verifier review sidecar
+  campaign.v1.yaml                — research campaign plan + seed lanes
+  source-ref.v1.yaml / report-provenance.v1.yaml / submission.v1.yaml
 
-agents/
-  vuln-scanner.md               — passive candidate discovery
-  dataflow-tracer.md             — source -> sink -> guard analysis
-  cvss-analyst.md                — CVSS v3.1 computation
-  dedup-analyst.md               — duplicate CVE/GHSA search
-  report-writer.md               — platform-specific advisory rendering
-  guard-checker.md              — adversarial guard bypass assessment
-  verifier.md                   — adversarial conclusion refutation
-
-.claude/agents/                — Claude Code project subagent registration (auto-discovered)
-  <name>.md                      — frontmatter (name, description, tools, model) + system prompt body
-  Each subagent's body references the matching agents/*.md domain spec. See
-  docs/architecture/agent-team-upgrade.md for the orchestration design.
+agents/                           — Claude Code subagent specs (installed by omv setup)
+  vuln-scanner, dataflow-tracer, guard-checker, cvss-analyst,
+  dedup-analyst, report-writer, verifier
 
 scripts/
-  sync_metadata.py              — sync package, registry, and README metadata
-  sync_skill_assets.py           — sync canonical shared/contract assets into self-contained skill dirs
-  validate_skill.py             — validates all skill directories and optional .skill packages
-  package_skill.sh              — builds a .skill archive from a skill directory
-  release_check.py              — release-time validator, package builder, SHA-256 manifest printer
+  sync_metadata.py / sync_skill_assets.py / validate_skill.py
+  package_skill.sh / release_check.py / pattern_packs.py
 
-registry.yaml                   — collection metadata: versions, produces/consumes bindings
-.github/workflows/validate.yml  — CI validation, packaging checks, stable golden evals
+registry.yaml                     — skills, agents, contracts, versions
+openspec/                         — accepted specs + change archive
+.github/workflows/validate.yml
 ```
 
 ## CLI
@@ -86,6 +62,12 @@ npx oh-my-vul setup --dry-run    # preview only
 omv doctor
 omv doctor --json
 
+# Workspace + campaign
+omv dashboard
+omv first --target <name> --ecosystem npm --vuln traversal --no-interactive
+omv campaign list|show|seed <id>
+omv review <id> --strict
+
 # Manage project-local Evidence.v1 findings
 omv findings list
 omv findings init <id>
@@ -93,6 +75,17 @@ omv findings init <id> --status candidate|confirmed|blocked --force
 omv findings validate
 omv findings validate <id|path>
 omv findings promote <id|path> --status candidate|confirmed|blocked
+omv findings workflow
+omv findings doctor <id>
+omv findings archive <id> --reason blocked|reported
+
+# Sidecars and release gates
+omv threat-map init|validate <id>
+omv verification init|validate <id>
+omv sources init|validate <id>
+omv report artifacts|provenance <id>
+omv repro init <id>
+omv eval --json
 ```
 
 Build the CLI:

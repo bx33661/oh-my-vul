@@ -9,6 +9,14 @@ Usage:
   omv doctor [--scope user|project] [--json] [--strict]
                                      Check installation health
   omv dashboard [--json]            Show workspace, queue, and recent activity
+  omv eval [--json|--junit]         Run stable skill eval checks
+  omv eval --skill <name> --eval-id <id> --output <path>
+                                     Check one saved skill output
+  omv campaign [list] [--json]      List local research campaigns
+  omv campaign init [flags]         Create Campaign.v1 YAML and runbook
+  omv campaign show <id> [--json]   Show one campaign
+  omv campaign seed <id> [--json]   Seed candidate Evidence.v1 hypotheses
+  omv first [flags]                 Alias for campaign init
   omv review <id> [--strict] [--json]
                                      Review a finding and recommend report readiness
   omv workspace init [--json]        Initialize local .omv workspace
@@ -39,8 +47,14 @@ Usage:
   omv radar brief [--json]           Summarize local radar events
   omv repro init <id> [--force] [--json]
                                      Scaffold .omv/repro/<id>/ reproduction artifacts
+  omv sources init <id> [--force] [--json]
+                                     Capture local SourceRef.v1 source identity
+  omv sources show|validate <id> [--json]
+                                     Show SourceRef.v1 and Evidence hash freshness
   omv report artifacts <id> [--json]
                                      Inspect report/repro artifacts and readiness
+  omv report provenance <id> [--force] [--json]
+                                     Hash report inputs into provenance.json
   omv threat-map init <id> [--force] [--json]
                                      Scaffold .omv/threatmaps/<id>.yaml ThreatMap.v1 sidecar
   omv threat-map validate <id> [--json]
@@ -77,6 +91,8 @@ Examples:
   omv doctor
   omv doctor --json
   omv dashboard
+  omv first --target acme --ecosystem npm --vuln xss,auth --no-interactive
+  omv campaign list
   omv review demo --strict
   omv findings list
   omv findings init demo
@@ -95,7 +111,7 @@ Examples:
 `);
 }
 
-export function commandUsage(args: string[], command: string | undefined, topic: string | undefined, subcommand: string | undefined): void {
+export function commandUsage(topic: string | undefined, subcommand: string | undefined): void {
   switch (topic) {
     case "setup":
       console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
@@ -124,6 +140,9 @@ Show package version, registry version, platform, and registry update date.`);
 
 Show local workspace status, active workflow queue, and recent activity in one view.`);
       return;
+    case "eval":
+      evalUsage();
+      return;
     case "review":
       console.log(`Usage: omv review <id> [--strict] [--json]
 
@@ -131,6 +150,12 @@ Review Evidence.v1 plus available ThreatMap.v1 and Verification.v1 sidecars and
 return one verdict: ready, needs-repro, needs-audit, needs-verification, or
 blocked. With --strict, readiness requires a passing, non-stale Verification.v1
 sidecar.`);
+      return;
+    case "campaign":
+      campaignUsage(subcommand, false);
+      return;
+    case "first":
+      campaignUsage(subcommand, true);
       return;
     case "workspace":
       workspaceUsage(subcommand);
@@ -162,6 +187,9 @@ sidecar.`);
     case "report":
       reportUsage(subcommand);
       return;
+    case "sources":
+      sourcesUsage(subcommand);
+      return;
     case "threat-map":
       threatMapUsage(subcommand);
       return;
@@ -170,6 +198,47 @@ sidecar.`);
       return;
     default:
       usage();
+      return;
+  }
+}
+
+export function evalUsage(): void {
+  console.log(`Usage:
+  omv eval [--json | --junit]
+  omv eval --skill <name> --eval-id <id> --output <path> [--json | --junit]
+
+Runs checked-in stable golden cases by default. Targeted mode reuses the selected
+skill's existing check_output.py. The command performs no model or network calls.`);
+}
+
+export function campaignUsage(subcommand: string | undefined, firstAlias = false): void {
+  const root = firstAlias ? "omv first" : "omv campaign";
+  switch (subcommand) {
+    case "init":
+      console.log(`Usage: ${root} init --target <name> --vuln <comma-list> [options]
+
+Options: --id, --version, --source, --ecosystem, --mode, --goal, --budget,
+--local-lab, --force, --no-interactive, --json.`);
+      return;
+    case "list":
+      console.log(`Usage: ${root} list [--json]`);
+      return;
+    case "show":
+      console.log(`Usage: ${root} show <id> [--json]`);
+      return;
+    case "seed":
+      console.log(`Usage: ${root} seed <id> [--json]
+
+Creates candidate Evidence.v1 files only. A supported target ecosystem is required;
+existing .yaml and .yml findings are never overwritten.`);
+      return;
+    default:
+      console.log(`Usage:
+  ${firstAlias ? "omv first [init flags]" : "omv campaign [list] [--json]"}
+  ${root} init --target <name> --vuln <comma-list> [options]
+  ${root} list [--json]
+  ${root} show <id> [--json]
+  ${root} seed <id> [--json]`);
       return;
   }
 }
@@ -351,10 +420,37 @@ export function reportUsage(subcommand: string | undefined): void {
 Inspect declared report artifacts under .omv/reports/<id>/ and .omv/repro/<id>/,
 listing empty and missing artifacts. Exits non-zero on errors.`);
       return;
+    case "provenance":
+      console.log(`Usage: omv report provenance <id> [--force] [--json]
+
+Hash Evidence.v1, report files, and available local sidecar/reproduction inputs
+into .omv/reports/<id>/provenance.json. No remote source is fetched.`);
+      return;
     default:
       console.log(`Usage:
-  omv report artifacts <id> [--json]`);
+  omv report artifacts <id> [--json]
+  omv report provenance <id> [--force] [--json]`);
       return;
+  }
+}
+
+export function sourcesUsage(subcommand: string | undefined): void {
+  switch (subcommand) {
+    case "init":
+      console.log(`Usage: omv sources init <id> [--force] [--json]
+
+Create .omv/sources/<id>.yaml from source facts already recorded in Evidence.v1.
+This records local provenance and does not prove remote source authenticity.`);
+      return;
+    case "show":
+    case "validate":
+      console.log(`Usage: omv sources ${subcommand} <id> [--json]`);
+      return;
+    default:
+      console.log(`Usage:
+  omv sources init <id> [--force] [--json]
+  omv sources show <id> [--json]
+  omv sources validate <id> [--json]`);
   }
 }
 

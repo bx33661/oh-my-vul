@@ -1,0 +1,60 @@
+# Campaign.v1 - local research campaign contract
+# Produced and consumed by: omv campaign
+#
+# Storage:
+#   .omv/campaigns/<id>.yaml - source of truth
+#   .omv/campaigns/<id>.md   - deterministic human runbook
+#
+# A campaign records research intent and unproven hypothesis lanes. It does not
+# claim that discovery, proof, reproduction, or exploitation has occurred.
+
+schema_version: "1"
+
+# Identity
+id: acme-1-2              # safe filename id; derived from target and known version when omitted
+title: Acme 1.2 research campaign
+status: active            # active is the only Campaign.v1 initialization status
+profile: generic          # generic only; lanes come solely from normalized user input
+created_at: "2026-07-10T00:00:00.000Z" # ISO 8601
+updated_at: "2026-07-10T00:00:00.000Z" # ISO 8601
+
+# Target facts. Unknown optional values stay explicit rather than being guessed.
+target:
+  name: Acme              # required, non-empty user input
+  version: "1.2"          # normalized user input or unknown; unknown is omitted from a derived id
+  source: unknown         # user-supplied source location/reference or unknown
+  ecosystem: unknown      # unknown | npm | python | go | rust | java | ruby | php | csharp | swift | dart | elixir | perl | r | lua
+
+# Conservative scope defaults. Supported modes:
+# whitebox | graybox | local-lab | passive | mixed
+scope:
+  mode: passive
+  local_reproduction: unknown # yes | no | unknown
+  boundaries:
+    - local or explicitly authorized assets only
+    - no live third-party testing
+    - no automatic exploitation
+
+# Supported outputs:
+# course-report | cve | vuldb | internal-report | research-notes
+goal:
+  output: research-notes
+
+# Supported depths: quick | standard | deep
+budget:
+  depth: standard
+
+priorities:
+  # At least one class is required. Classes are lowercase safe slugs,
+  # deduplicated after normalization while preserving first-seen order.
+  vulnerability_classes:
+    - xss
+
+# There is exactly one generic lane per normalized vulnerability class, in the
+# same order. Lane id and vulnerability_class equal the class slug. finding_id
+# is <campaign-id>-<class-slug>; each lane remains an unproven hypothesis.
+lanes:
+  - id: xss
+    title: Review xss hypotheses
+    vulnerability_class: xss
+    finding_id: acme-1-2-xss

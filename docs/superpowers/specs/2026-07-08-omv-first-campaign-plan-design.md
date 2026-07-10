@@ -1,7 +1,9 @@
 # omv first Campaign Plan Design
 
 Date: 2026-07-08
-Status: proposed
+Status: superseded by Campaign.v1
+
+> Historical record only. The implemented design uses `Campaign.v1` under `.omv/campaigns/`, has no campaign notes file or target-specific TypeScript profile, and seed creates candidate Evidence only (no ThreatMap or force overwrite).
 
 ## Summary
 

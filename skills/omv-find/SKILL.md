@@ -36,7 +36,7 @@ Load only the files needed for the request:
 - Vulnerability source/sink/guard patterns: `references/shared/vuln-patterns.md`
 - Research-radar lanes, diff signals, novelty, duplicate risk, audit-readiness fields: `references/research-radar.md`
 - Pattern-pack discovery for archive extractors, renderers, template engines, config loaders, media tools, webhook clients, and upload handlers: `references/pattern-packs.md`
-- Ecosystem sink registry for core lanes: references under `references/patterns/npm.md`
+- Ecosystem PatternPack manifests live under `references/pattern-packs/`; load the matching Markdown registry under `references/patterns/`.
 - Scoring, filtering, confidence rules: `references/scoring.md`
 - Required final table, audit tips, freshness notes, invalid-request template: `references/output-contract.md`
 - Candidate-list schema for structured finder outputs: `contracts/candidate-list.v1.yaml`
@@ -44,7 +44,7 @@ Load only the files needed for the request:
 
 For narrow requests, use `rg` inside the relevant reference to read only the needed ecosystem or vulnerability section. For `--vuln all`, inspect the project type first, then load the most likely vulnerability sections.
 
-For npm, Python, Go, Rust, Java, and Ruby requests, load the matching file under `references/patterns/` when forming source -> sink -> guard hypotheses. Pattern files are methodology registries, not concrete vulnerability examples; do not load unrelated ecosystem registries.
+For any of the 14 supported ecosystems, load the matching JSON file under `references/pattern-packs/` and the matching Markdown file under `references/patterns/` when forming source -> sink -> guard hypotheses. Pattern files are methodology registries, not concrete vulnerability examples; do not load unrelated ecosystem registries.
 
 Load `references/research-radar.md` only when the user asks for creative/radar/portfolio ideas, recent changes, novelty, duplicate resistance, or audit readiness. Load `references/pattern-packs.md` only when the user describes package types or playbooks such as archive extractors, renderers, config loaders, media processors, webhook clients, or upload handlers.
 

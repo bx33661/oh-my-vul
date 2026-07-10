@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "elixir",
+  "ecosystem": "elixir",
+  "aliases": ["elixir", "hex"],
+  "reference": "references/patterns/elixir.md",
+  "vulnerability_classes": ["code-injection", "resource-exhaustion", "sql-injection"],
+  "consumers": ["omv-audit", "omv-find"]
+}

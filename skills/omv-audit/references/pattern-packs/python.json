@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "python",
+  "ecosystem": "python",
+  "aliases": ["python", "pypi", "pip"],
+  "reference": "references/patterns/python.md",
+  "vulnerability_classes": ["ssrf", "unsafe-yaml", "path-traversal"],
+  "consumers": ["omv-audit", "omv-find"]
+}

@@ -12,6 +12,11 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 ```text
 /omv list                   — list all installed omv-* skills with one-line descriptions
 /omv dashboard              — show workspace, active workflow queue, and recent activity
+/omv eval                   — run deterministic stable skill eval checks
+/omv first [flags]          — initialize a Campaign.v1 first-mile research plan
+/omv campaign              — list local research campaigns
+/omv campaign show <id>    — show Campaign scope, lanes, and next action
+/omv campaign seed <id>    — create candidate Evidence hypotheses for unseeded lanes
 /omv status                 — show local .omv workspace status (delegates to omv CLI)
 /omv log                    — show local workspace activity log (delegates to omv CLI)
 /omv next                   — show active findings and recommended next actions
@@ -20,6 +25,9 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 /omv repro init <id>        — create .omv/repro/<id>/ artifact scaffold
 /omv review <id>            — review report readiness and recommend the next step
 /omv report artifacts <id>  — check report and reproduction artifacts
+/omv report provenance <id> — hash report inputs into a local provenance manifest
+/omv sources init <id>       — capture SourceRef.v1 from known Evidence source facts
+/omv sources validate <id>   — check SourceRef.v1 and Evidence hash freshness
 /omv verification init <id> — create .omv/verifications/<id>.yaml adversarial review scaffold
 /omv verification show <id> — show adversarial verification status
 /omv verification validate <id>
@@ -55,21 +63,27 @@ Collection metadata lives in `references/registry.yaml`. Read it to show current
 
 ## State Directory
 
-`.omv/` at the repository root stores findings, archive metadata, and the rebuildable local workspace index. It is private local research state and should be gitignored. Active findings live under `.omv/findings/`; inactive findings live under `.omv/archive/findings/`.
+`.omv/` at the repository root stores campaigns, findings, source references, report provenance, archive metadata, and the rebuildable local workspace index. It is private local research state and should be gitignored. Campaigns live under `.omv/campaigns/`; active findings live under `.omv/findings/`; SourceRef.v1 sidecars live under `.omv/sources/`; inactive findings live under `.omv/archive/findings/`.
 
 ## CLI Delegation
 
-When the user invokes workspace, lifecycle, repro scaffold, artifact check, archive, or restore commands, **run the matching `omv` CLI command via `Bash` and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
+When the user invokes campaign, workspace, lifecycle, repro scaffold, artifact check, archive, or restore commands, **run the matching `omv` CLI command via `Bash` and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
 
 Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `omv help report` as the source of truth for exact CLI signatures. For direct aliases:
 
 - `/omv dashboard` -> `omv dashboard`
+- `/omv eval ...` -> `omv eval ...`
+- `/omv first ...` -> `omv first ...`
+- `/omv campaign ...` -> `omv campaign ...`
 - `/omv status` -> `omv workspace status`
 - `/omv log` -> `omv workspace log`
 - `/omv next` -> `omv findings workflow`
 - `/omv repro init <id>` -> `omv repro init <id>`
 - `/omv review <id>` -> `omv review <id>`
 - `/omv report artifacts <id>` -> `omv report artifacts <id>`
+- `/omv report provenance <id>` -> `omv report provenance <id>`
+- `/omv sources init <id>` -> `omv sources init <id>`
+- `/omv sources validate <id>` -> `omv sources validate <id>`
 - `/omv verification init <id>` -> `omv verification init <id>`
 - `/omv verification show <id>` -> `omv verification show <id>`
 - `/omv verification validate <id>` -> `omv verification validate <id>`
@@ -81,7 +95,11 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 
 ### Subcommand reference
 
+- **first / campaign init** — creates `.omv/campaigns/<id>.yaml` and a deterministic Markdown runbook. Use canonical `omv campaign init` when the user asks how to begin; preserve `/omv first` when explicitly invoked.
+- **campaign list/show** — reads Campaign.v1 files directly and reports generic hypothesis lanes.
+- **campaign seed `<id>`** — creates only candidate Evidence.v1 hypotheses for unseeded lanes. Existing `.yaml`/`.yml` findings are never overwritten. Never claim seed audited, reproduced, verified, or proved a vulnerability, and never create ThreatMap, repro, verification, report, or PoC artifacts manually.
 - **dashboard** — prints workspace status, active workflow queue, and recent activity in one view.
+- **eval** — runs checked-in deterministic checker/golden pairs through the unified runner. It does not invoke a model or make network requests; `--json` and `--junit` are available for automation.
 - **workspace status** — prints workspace path, active/archive counts, status counts, and privacy warnings.
 - **workspace log** — prints the local activity trail for workspace init, finding init, promotion, archive, and restore.
 - **init `<id>`** — creates `.omv/findings/<id>.yaml` from the Evidence.v1 template; default `--status candidate`. If file exists, CLI errors — suggest `--force`.
@@ -95,6 +113,8 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 - **promote `<id|path> --status <s>`** — updates the `status` field and re-validates. Valid statuses: `candidate`, `confirmed`, `blocked`.
 - **repro init `<id>`** — creates `.omv/repro/<id>/` with standard reproduction artifact files and records suggested `evidence.repro_artifacts`.
 - **report artifacts `<id>`** — checks `.omv/reports/<id>/` and Evidence.v1 reproduction artifact references before final archive.
+- **sources init/validate `<id>`** — records only source facts already present in Evidence.v1 and checks whether its hash is stale. Never describe SourceRef as proof that a remote source is authoritative.
+- **report provenance `<id>`** — hashes Evidence, non-empty report files, and available SourceRef/ThreatMap/Verification/reproduction dependencies into `.omv/reports/<id>/provenance.json`.
 - **verification init `<id>`** — creates `.omv/verifications/<id>.yaml` with the current Evidence.v1 SHA-256 for adversarial verifier review.
 - **verification show `<id>`** — summarizes Verification.v1 decision, disagreements, required changes, and stale-hash state.
 - **verification validate `<id>`** — validates Verification.v1 structure and warns when Evidence.v1 changed after review.
@@ -105,6 +125,9 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 ## Workflow Overview
 
 ```
+omv campaign init  → records target, scope, priorities, and generic lanes
+omv campaign seed  → optional candidate Evidence.v1 hypotheses only
+                        ↓
 /omv-find  →  identifies candidates
               writes .omv/findings/<id>.yaml  (status: candidate)
                         ↓
@@ -120,6 +143,7 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
               returns ready | needs-repro | needs-audit | needs-verification | blocked
                         ↓
 /omv-report → reads confirmed finding, generates VulDB/CVE/GHSA/OSV report
+              then records/checks local provenance with omv report provenance/artifacts
                         ↓
 archive    → omv findings archive <id> --reason reported
 ```

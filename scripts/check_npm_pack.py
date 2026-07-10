@@ -8,6 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    from .pattern_packs import load_pattern_packs
+except ImportError:
+    from pattern_packs import load_pattern_packs
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,6 +30,9 @@ REQUIRED_FILES = {
     "dist/index.js",
     "registry.yaml",
     "contracts/evidence.v1.yaml",
+    "contracts/campaign.v1.yaml",
+    "contracts/source-ref.v1.yaml",
+    "contracts/report-provenance.v1.yaml",
     "contracts/candidate-list.v1.yaml",
     "contracts/submission.v1.yaml",
     "contracts/threat-map.v1.yaml",
@@ -42,6 +50,8 @@ REQUIRED_FILES = {
     "shared/scripts/estimate_loc.sh",
     "shared/scripts/http_client.py",
     "shared/scripts/resolve_source_path.py",
+    "shared/scripts/run_evals.py",
+    "shared/evals/stable.json",
     "shared/references/patterns/npm.md",
     "shared/references/research-radar.md",
     "shared/references/pattern-packs.md",
@@ -68,15 +78,21 @@ FORBIDDEN_PREFIXES = {
     ".codex/",
     ".agents/",
     ".github/",
+    "dist/cli/__tests__/",
     "node_modules/",
     "src/",
     "scripts/",
 }
 
 FORBIDDEN_SUFFIXES = {
+    ".pyc",
+    ".pyd",
+    ".pyo",
     ".skill",
     ".tgz",
 }
+
+COMPILED_SUFFIXES = (".d.ts.map", ".d.ts", ".js.map", ".js")
 
 
 def fail(message: str) -> None:
@@ -98,6 +114,47 @@ def npm_pack() -> dict[str, object]:
     return parsed[0]
 
 
+def expected_command_files() -> set[str]:
+    command_sources = (REPO_ROOT / "src" / "cli" / "commands").glob("*.ts")
+    return {
+        f"dist/cli/commands/{source.stem}{suffix}"
+        for source in command_sources
+        for suffix in COMPILED_SUFFIXES
+    }
+
+
+def expected_pattern_pack_files() -> set[str]:
+    expected: set[str] = set()
+    for pack in load_pattern_packs(REPO_ROOT):
+        expected.add(pack.manifest_path.relative_to(REPO_ROOT).as_posix())
+        expected.add(f"shared/{pack.reference}")
+        for consumer in pack.consumers:
+            expected.add(f"skills/{consumer}/references/pattern-packs/{pack.ecosystem}.json")
+            expected.add(f"skills/{consumer}/references/patterns/{pack.ecosystem}.md")
+    return expected
+
+
+def stale_cli_files(paths: set[str]) -> list[str]:
+    source_stems_by_output_dir = {
+        "dist/cli": {source.stem for source in (REPO_ROOT / "src" / "cli").glob("*.ts")},
+        "dist/cli/commands": {
+            source.stem for source in (REPO_ROOT / "src" / "cli" / "commands").glob("*.ts")
+        },
+    }
+    stale: list[str] = []
+    for path in paths:
+        compiled = Path(path)
+        source_stems = source_stems_by_output_dir.get(compiled.parent.as_posix())
+        if source_stems is None:
+            continue
+        for suffix in COMPILED_SUFFIXES:
+            if compiled.name.endswith(suffix):
+                if compiled.name.removesuffix(suffix) not in source_stems:
+                    stale.append(path)
+                break
+    return sorted(stale)
+
+
 def main() -> None:
     package = npm_pack()
     files = package.get("files", [])
@@ -108,6 +165,14 @@ def main() -> None:
     missing = sorted(REQUIRED_FILES - paths)
     if missing:
         fail(f"missing required npm files: {', '.join(missing)}")
+
+    missing_patterns = sorted(expected_pattern_pack_files() - paths)
+    if missing_patterns:
+        fail(f"missing PatternPack npm files: {', '.join(missing_patterns[:12])}")
+
+    missing_commands = sorted(expected_command_files() - paths)
+    if missing_commands:
+        fail(f"missing compiled command modules: {', '.join(missing_commands)}")
 
     for prefix in sorted(REQUIRED_PREFIXES):
         if not any(path.startswith(prefix) for path in paths):
@@ -120,6 +185,10 @@ def main() -> None:
     )
     if forbidden:
         fail(f"forbidden files in npm package: {', '.join(forbidden[:12])}")
+
+    stale = stale_cli_files(paths)
+    if stale:
+        fail(f"compiled CLI files without matching sources: {', '.join(stale[:12])}")
 
     print(
         json.dumps(

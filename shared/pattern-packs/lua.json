@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "lua",
+  "ecosystem": "lua",
+  "aliases": ["lua", "luarocks"],
+  "reference": "references/patterns/lua.md",
+  "vulnerability_classes": ["command-injection", "path-traversal", "code-injection"],
+  "consumers": ["omv-audit", "omv-find"]
+}

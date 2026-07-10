@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "r",
+  "ecosystem": "r",
+  "aliases": ["r", "cran"],
+  "reference": "references/patterns/r.md",
+  "vulnerability_classes": ["command-injection", "path-traversal", "unsafe-deserialization"],
+  "consumers": ["omv-audit", "omv-find"]
+}

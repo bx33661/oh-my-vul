@@ -94,15 +94,89 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["doctor", "--strict"]).ok, true);
   assert.equal(validateArgs(["dashboard"]).ok, true);
   assert.equal(validateArgs(["dashboard", "--json"]).ok, true);
+  assert.equal(validateArgs(["eval"]).ok, true);
+  assert.equal(validateArgs(["eval", "--json"]).ok, true);
+  assert.equal(validateArgs(["eval", "--junit"]).ok, true);
+  assert.equal(validateArgs(["eval", "--skill", "omv-find", "--eval-id", "26", "--output", "result.md", "--json"]).ok, true);
   assert.equal(validateArgs(["review", "demo", "--strict", "--json"]).ok, true);
   assert.equal(validateArgs(["repro", "init", "demo"]).ok, true);
   assert.equal(validateArgs(["repro", "init", "demo", "--force", "--json"]).ok, true);
   assert.equal(validateArgs(["report", "artifacts", "demo"]).ok, true);
   assert.equal(validateArgs(["report", "artifacts", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["report", "provenance", "demo", "--force", "--json"]).ok, true);
+  assert.equal(validateArgs(["sources", "init", "demo", "--force", "--json"]).ok, true);
+  assert.equal(validateArgs(["sources", "show", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["sources", "validate", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "doctor", "demo"]).ok, true);
   assert.equal(validateArgs(["findings", "doctor", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--strict"]).ok, true);
   assert.equal(validateArgs(["setup", "--help"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--help"]).ok, true);
   assert.equal(validateArgs(["help", "findings", "validate"]).ok, true);
+});
+
+test("CLI argument validation enforces eval target and output format rules", () => {
+  for (const command of [
+    ["eval", "extra"],
+    ["eval", "--json", "--junit"],
+    ["eval", "--skill", "omv-find"],
+    ["eval", "--skill", "omv-find", "--eval-id", "26"],
+    ["eval", "--eval-id", "26", "--output", "result.md"],
+    ["eval", "--skill", "../find", "--eval-id", "26", "--output", "result.md"],
+    ["eval", "--skill", "omv-find", "--eval-id", "-1", "--output", "result.md"],
+    ["eval", "--skill", "omv-find", "--eval-id", "x", "--output", "result.md"],
+  ]) {
+    assert.equal(validateArgs(command).ok, false, command.join(" "));
+  }
+});
+
+test("CLI argument validation enforces SourceRef and report provenance grammar", () => {
+  for (const command of [
+    ["sources", "init"],
+    ["sources", "init", "demo", "extra"],
+    ["sources", "show"],
+    ["sources", "show", "demo", "--force"],
+    ["sources", "validate", "demo", "extra"],
+    ["sources", "unknown", "demo"],
+    ["report", "provenance"],
+    ["report", "provenance", "demo", "extra"],
+  ]) {
+    assert.equal(validateArgs(command).ok, false, command.join(" "));
+  }
+});
+
+test("CLI argument validation covers Campaign commands and first aliases", () => {
+  const initFlags = [
+    "--target", "acme", "--version", "1.2", "--source", "/tmp/acme",
+    "--ecosystem", "npm", "--mode", "passive", "--goal", "research-notes",
+    "--budget", "standard", "--vuln", "xss,auth", "--local-lab", "unknown",
+    "--id", "demo", "--force", "--no-interactive", "--json",
+  ];
+  assert.equal(validateArgs(["campaign"]).ok, true);
+  assert.equal(validateArgs(["campaign", "init", ...initFlags]).ok, true);
+  assert.equal(validateArgs(["first", ...initFlags]).ok, true);
+  assert.equal(validateArgs(["first", "init", ...initFlags]).ok, true);
+  assert.equal(validateArgs(["campaign", "list", "--json"]).ok, true);
+  assert.equal(validateArgs(["first", "list", "--json"]).ok, true);
+  assert.equal(validateArgs(["campaign", "show", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["first", "show", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["campaign", "seed", "demo", "--json"]).ok, true);
+  assert.equal(validateArgs(["first", "seed", "demo", "--json"]).ok, true);
+
+  for (const command of [
+    ["campaign", "seed", "demo", "--force"],
+    ["first", "seed", "demo", "--force"],
+    ["campaign", "show"],
+    ["campaign", "show", "demo", "extra"],
+    ["campaign", "seed"],
+    ["campaign", "list", "extra"],
+    ["campaign", "init", "extra"],
+    ["campaign", "init", "--mode", "live"],
+    ["campaign", "init", "--goal", "pdf"],
+    ["campaign", "init", "--budget", "forever"],
+    ["campaign", "init", "--local-lab", "maybe"],
+    ["campaign", "init", "--ecosystem", "other"],
+  ]) {
+    assert.equal(validateArgs(command).ok, false, command.join(" "));
+  }
 });

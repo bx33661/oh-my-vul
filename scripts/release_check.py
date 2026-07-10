@@ -11,6 +11,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+try:
+    from .pattern_packs import load_pattern_packs
+except ImportError:
+    from pattern_packs import load_pattern_packs
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.sh"
@@ -18,21 +23,6 @@ VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
 SYNC_METADATA_SCRIPT = REPO_ROOT / "scripts" / "sync_metadata.py"
 METHODOLOGY_SCRIPT = REPO_ROOT / "scripts" / "check_methodology_guidance.py"
-STABLE_EVAL_CHECKS = [
-    ("skills/omv/scripts/check_output.py", "0", "skills/omv/evals/golden/next-workflow.md"),
-    ("skills/omv/scripts/check_output.py", "1", "skills/omv/evals/golden/archive-delegation.md"),
-    ("skills/omv-audit/scripts/check_output.py", "0", "skills/omv-audit/evals/golden/incomplete-observed-result.md"),
-    ("skills/omv-audit/scripts/check_output.py", "1", "skills/omv-audit/evals/golden/duplicate-blocked.md"),
-    ("skills/omv-audit/scripts/check_output.py", "2", "skills/omv-audit/evals/golden/confirmed-complete.md"),
-    ("skills/omv-repro/scripts/check_output.py", "0", "skills/omv-repro/evals/golden/no-agent-execution.md"),
-    ("skills/omv-repro/scripts/check_output.py", "1", "skills/omv-repro/evals/golden/read-only-reproducer.md"),
-    ("skills/omv-repro/scripts/check_output.py", "2", "skills/omv-repro/evals/golden/blocked-repro-failure.md"),
-    ("skills/omv-radar/scripts/check_output.py", "0", "skills/omv-radar/evals/golden/radar-dry-run.md"),
-    ("skills/omv-dedup/scripts/check_output.py", "0", "skills/omv-dedup/evals/golden/known-duplicate.md"),
-    ("skills/omv-disclose/scripts/check_output.py", "0", "skills/omv-disclose/evals/golden/timeline.md"),
-    ("skills/omv-critic/scripts/check_output.py", "0", "skills/omv-critic/evals/golden/high-risk.md"),
-]
-
 RENDERER_FIXTURE = "skills/omv-report/evals/fixtures/confirmed-prototype-pollution.yaml"
 RENDERER_FORMATS = ["vuldb", "ghsa", "osv", "md"]
 
@@ -110,18 +100,10 @@ def validate_versions() -> None:
 
 
 def validate_stable_evals() -> None:
-    for script, eval_id, output in STABLE_EVAL_CHECKS:
-        run([
-            sys.executable,
-            str(REPO_ROOT / script),
-            "--eval-id",
-            eval_id,
-            "--output",
-            str(REPO_ROOT / output),
-        ])
+    run([sys.executable, str(REPO_ROOT / "shared" / "scripts" / "run_evals.py")])
 
 
-def validate_pattern_registry() -> None:
+def validate_pattern_registry(root: Path = REPO_ROOT) -> None:
     required = [
         "Source pattern:",
         "Sink signature:",
@@ -131,16 +113,14 @@ def validate_pattern_registry() -> None:
         "False-positive checks:",
         "CWE:",
     ]
-    root = REPO_ROOT / "shared" / "references" / "patterns"
-    for ecosystem in ["npm", "python", "go", "rust", "java", "ruby", "php", "csharp", "swift", "dart", "elixir", "perl"]:
-        path = root / f"{ecosystem}.md"
-        if not path.exists():
-            raise SystemExit(f"missing pattern registry: {path.relative_to(REPO_ROOT)}")
+    packs = load_pattern_packs(root)
+    for pack in packs:
+        path = root / "shared" / pack.reference
         text = path.read_text(encoding="utf-8")
         for marker in required:
             if marker not in text:
-                raise SystemExit(f"{path.relative_to(REPO_ROOT)} missing {marker}")
-    print("OK: pattern registries", flush=True)
+                raise SystemExit(f"{path.relative_to(root)} missing {marker}")
+    print(f"OK: {len(packs)} PatternPack registries", flush=True)
 
 
 def validate_renderer() -> None:

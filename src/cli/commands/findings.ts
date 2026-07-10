@@ -11,16 +11,6 @@ import {
   deleteFinding,
   showFinding,
   doctorFinding,
-  type FindingTemplateResult,
-  type FindingSummary,
-  type FindingWorkflowSummary,
-  type FindingDetail,
-  type FindingValidation,
-  type FindingDoctorResult,
-  type ArchivedFindingSummary,
-  type FindingArchiveResult,
-  type FindingRestoreResult,
-  type FindingDeleteResult,
 } from "../findings.js";
 import {
   printArchivedSummaries,
@@ -36,24 +26,7 @@ import {
 } from "../render.js";
 import { usage } from "../usage.js";
 import { firstPositionalAfter, parseStatus, parseReason, wantsJson } from "./shared.js";
-import {
-  command as cmd,
-  empty,
-  error as tuiError,
-  kv,
-  muted,
-  outcomeBadge,
-  panel,
-  readiness,
-  section,
-  statusBadge,
-  statusIcon,
-  table,
-  title,
-  truncate,
-  validationBadge,
-  warn,
-} from "../tui.js";
+import { command as cmd, kv, panel } from "../tui.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1] ?? "list";

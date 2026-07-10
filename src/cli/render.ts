@@ -1,5 +1,11 @@
 import type { Check, DoctorResult } from "./doctor.js";
 import type {
+  CampaignSummary,
+  InitCampaignResult,
+  ShowCampaignResult,
+} from "./campaign.js";
+import type { CampaignSeedResult } from "./campaign-seed.js";
+import type {
   ArchivedFindingSummary,
   FindingArchiveResult,
   FindingDeleteResult,
@@ -14,7 +20,9 @@ import type {
   ReproInitResult,
 } from "./findings.js";
 import type { FindingReview } from "./review.js";
-import type { SetupResult } from "./setup.js";
+import type { ReportProvenanceResult } from "./report-provenance.js";
+import type { SourceRefInitResult, SourceRefValidation } from "./source-ref.js";
+import type { SetupResult, UninstallResult } from "./setup.js";
 import type { WorkspaceActivityEntry, WorkspaceStatus } from "./workspace.js";
 import {
   command as cmd,
@@ -34,6 +42,81 @@ import {
   validationBadge,
   warn,
 } from "./tui.js";
+
+export function printCampaignInitResult(result: InitCampaignResult): void {
+  console.log(
+    panel(result.overwritten ? "campaign updated" : "campaign created", [
+      ...kv([
+        ["id", result.campaign.id],
+        ["target", result.campaign.target.name],
+        ["yaml", result.yamlPath],
+        ["runbook", result.runbookPath],
+        ["lanes", String(result.campaign.lanes.length)],
+        ["next", cmd(result.nextAction)],
+      ]),
+      ...result.warnings.map((message) => warn(`warning  ${message}`)),
+    ]),
+  );
+}
+
+export function printCampaignSummaries(campaigns: CampaignSummary[]): void {
+  if (campaigns.length === 0) {
+    console.log(empty("No campaigns yet. Run omv campaign init to create one."));
+    return;
+  }
+  console.log(title("campaigns"));
+  console.log(
+    table(
+      ["id", "target", "version", "status", "lanes", "next"],
+      campaigns.map((campaign) => [
+        campaign.id,
+        campaign.target,
+        campaign.version,
+        campaign.status,
+        String(campaign.laneCount),
+        campaign.nextAction,
+      ]),
+    ),
+  );
+}
+
+export function printCampaignDetail(result: ShowCampaignResult): void {
+  console.log(
+    panel("campaign", [
+      ...kv([
+        ["id", result.campaign.id],
+        ["target", result.campaign.target.name],
+        ["version", result.campaign.target.version],
+        ["ecosystem", result.campaign.target.ecosystem],
+        ["yaml", result.yamlPath],
+        ["runbook", result.runbookExists ? result.runbookPath : "missing"],
+        ["next", cmd(result.nextAction)],
+      ]),
+      "",
+      section("candidate lanes"),
+      ...result.campaign.lanes.map((lane) => `  ${lane.vulnerability_class}  ${lane.finding_id}`),
+    ]),
+  );
+}
+
+export function printCampaignSeedResult(result: CampaignSeedResult): void {
+  const state = result.failed.length > 0 ? "warn" : "pass";
+  console.log(
+    panel("campaign seed", [
+      ...kv([
+        ["campaign", result.campaignId],
+        ["result", outcomeBadge(state)],
+        ["created", String(result.created.length)],
+        ["skipped", String(result.skipped.length)],
+        ["failed", String(result.failed.length)],
+        ["next", cmd(result.nextAction)],
+      ]),
+      ...result.created.map((item) => `  created  ${item.id}`),
+      ...result.skipped.map((item) => `  skipped  ${item.id}`),
+      ...result.failed.map((item) => tuiError(`  failed  ${item.id}: ${item.message}`)),
+    ]),
+  );
+}
 
 export function printSetupResult(result: SetupResult): void {
   const total = result.installed.length + result.skipped.length + result.errors.length;
@@ -64,6 +147,45 @@ export function printSetupResult(result: SetupResult): void {
     ...result.installed.map((name) => [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
     ...result.installedAgents.map((name) => [statusIcon("installed"), `agent:${name}`, outcomeBadge("installed"), "copied into agents directory"]),
     ...result.skipped.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "already installed; use --force to overwrite"]),
+    ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
+  ];
+  if (rows.length > 0) {
+    console.log(table(["", "skill", "state", "detail"], rows));
+  }
+}
+
+export function printUninstallResult(result: UninstallResult): void {
+  const total = result.removed.length + result.notFound.length + result.errors.length;
+  const summary = result.errors.length > 0
+    ? `${result.errors.length} error(s), ${result.removed.length}/${total} removed`
+    : `${result.removed.length}/${total} skill(s) removed`;
+  const next = result.errors.length > 0 ? "omv doctor" : "omv setup";
+  const finalState = result.errors.length > 0
+    ? "error"
+    : result.removed.length === 0 && result.notFound.length === 0
+      ? "skipped"
+      : "pass";
+
+  console.log(title("oh-my-vul uninstall"));
+  console.log(
+    panel("uninstall summary", [
+      ...kv([
+        ["scope", result.scope],
+        ["skills dir", result.skillsDir],
+        ["result", outcomeBadge(finalState)],
+        ["skills", summary],
+        ["manifest", result.manifestRemoved ? "removed" : "not found"],
+        ...(result.scope === "project"
+          ? [["setup scope", result.setupScopeRemoved ? "removed" : "not found"]] as [string, string][]
+          : []),
+        ["next", cmd(next)],
+      ]),
+    ]),
+  );
+
+  const rows = [
+    ...result.removed.map((name) => [statusIcon("installed"), name, outcomeBadge("pass"), "removed from skills directory"]),
+    ...result.notFound.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "not found in skills directory"]),
     ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
   ];
   if (rows.length > 0) {
@@ -440,6 +562,9 @@ export function printReportArtifacts(result: ReportArtifactsResult): void {
     ["report files", String(result.reportArtifactPaths.length)],
     ["repro", result.reproDir],
     ["repro refs", `${result.existingReproArtifacts.length}/${result.listedReproArtifacts.length}`],
+    ["provenance", result.provenanceManifestExists
+      ? result.provenanceFresh === true ? "fresh" : "stale or invalid"
+      : "missing"],
   ]);
   if (result.reportArtifactPaths.length > 0) {
     lines.push("", "report artifacts");
@@ -454,6 +579,50 @@ export function printReportArtifacts(result: ReportArtifactsResult): void {
     lines.push(...result.warnings.map((item) => `  ${item}`));
   }
   console.log(panel("report artifacts", lines));
+}
+
+export function printSourceRefInitResult(result: SourceRefInitResult): void {
+  console.log(
+    panel(result.overwritten ? "source reference updated" : "source reference created", [
+      ...kv([
+        ["id", result.id],
+        ["path", result.path],
+        ["finding", result.findingPath],
+        ["sources", String(result.sourceRef.sources.length)],
+      ]),
+      ...result.warnings.map((message) => warn(`warning  ${message}`)),
+    ]),
+  );
+}
+
+export function printSourceRefDetail(result: SourceRefValidation): void {
+  console.log(
+    panel("source reference", [
+      ...kv([
+        ["id", result.id],
+        ["path", result.path],
+        ["finding", result.findingPath],
+        ["state", result.stale ? outcomeBadge("warn") : outcomeBadge("pass")],
+        ["sources", String(result.sourceRef.sources.length)],
+      ]),
+      ...result.sourceRef.sources.map((source) => `  ${source.kind}  ${source.locator}`),
+      ...result.warnings.map((message) => warn(`warning  ${message}`)),
+    ]),
+  );
+}
+
+export function printReportProvenanceResult(result: ReportProvenanceResult): void {
+  console.log(
+    panel(result.overwritten ? "report provenance updated" : "report provenance created", [
+      ...kv([
+        ["id", result.id],
+        ["path", result.path],
+        ["inputs", String(result.manifest.inputs.length)],
+        ["next", cmd(`omv report artifacts ${result.id}`)],
+      ]),
+      ...result.warnings.map((message) => warn(`warning  ${message}`)),
+    ]),
+  );
 }
 
 export function printFindingTemplateResult(result: FindingTemplateResult): void {

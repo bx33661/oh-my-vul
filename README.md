@@ -32,6 +32,12 @@ npx oh-my-vul setup --scope project
 ## Fast Workflow
 
 ```text
+omv first --target acme --ecosystem npm --vuln traversal,auth --no-interactive
+  -> .omv/campaigns/acme.yaml + deterministic runbook
+
+omv campaign seed acme
+  -> candidate Evidence.v1 hypotheses only
+
 /omv-find --lang npm --vuln traversal --count 10
   -> choose a candidate
 
@@ -47,6 +53,9 @@ omv review <id> --strict
 
 /omv-report <id>
 /omv-critic <id>
+omv sources init <id>
+omv report provenance <id>
+omv report artifacts <id>
 omv submissions record <id> --platform vuldb --submission-id 12345 --url https://example.test/submission/12345
 omv findings archive <id> --reason reported
 ```
@@ -57,12 +66,17 @@ Use `omv dashboard` or `/omv next` whenever you are unsure what to do next.
 
 ```sh
 omv dashboard
+omv campaign list
+omv campaign show <id>
 omv findings workflow
 omv findings show <id>
 omv findings validate <id>
 omv review <id> --strict
+omv sources validate <id>
+omv report provenance <id>
 omv report artifacts <id>
 omv submissions track <id>
+omv eval --json
 ```
 
 Useful setup and health checks:
@@ -71,6 +85,7 @@ Useful setup and health checks:
 omv doctor --strict
 omv request preflight
 omv version --json
+omv eval --junit
 ```
 
 ## Skills
@@ -78,7 +93,7 @@ omv version --json
 <!-- omv:skills:start -->
 | Skill | Command | Category | Purpose |
 |---|---|---|---|
-| `omv` | `/omv` | manager | Local-first project manager — shows workspace status, active finding next actions, archive state, and installed skills |
+| `omv` | `/omv` | manager | Local-first project manager — creates research campaigns, shows workspace status, and delegates finding lifecycle actions |
 | `omv-find` | `/omv-find` | research | Find and rank open-source packages worth auditing for passive CVE research |
 | `omv-audit` | `/omv-audit` | audit | Deep-audit a candidate finding — prove or disprove the vulnerability, fill Evidence.v1 fields for omv-report |
 | `omv-repro` | `/omv-repro` | audit | Guide local reproduction of a finding — walk through execution, record observed_result, confirm or block |
@@ -116,11 +131,14 @@ Project state lives under `.omv/` and is private by default.
 
 | Path | Purpose |
 |---|---|
+| `.omv/campaigns/<id>.yaml` | Campaign.v1 target, scope, priorities, and lanes |
+| `.omv/campaigns/<id>.md` | deterministic campaign runbook |
 | `.omv/findings/<id>.yaml` | Evidence.v1 finding ledger |
+| `.omv/sources/<id>.yaml` | SourceRef.v1 local source identity and Evidence hash |
 | `.omv/threatmaps/<id>.yaml` | ThreatMap.v1 source -> sink -> guard graph |
 | `.omv/verifications/<id>.yaml` | Verification.v1 adversarial review result |
 | `.omv/repro/<id>/` | local reproduction notes and artifacts |
-| `.omv/reports/<id>/` | generated report drafts |
+| `.omv/reports/<id>/` | generated report drafts and `provenance.json` input hashes |
 | `.omv/submissions/<id>.yaml` | submission tracking |
 
 Create or inspect findings:

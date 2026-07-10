@@ -7,72 +7,32 @@ The project ships a TypeScript CLI (`omv`) for installing skills, plus Markdown 
 ## Structure
 
 ```
-src/
-  cli/
-    omv.ts                        — CLI entry point (setup / doctor / help)
-    setup.ts                      — copies skills/ to ~/.claude/skills/
-    doctor.ts                     — checks installation health
-    paths.ts                      — path utilities (claudeSkillsDir, packageRoot, …)
-  index.ts                        — package exports
-
-skills/
-  omv/SKILL.md                  — collection manager (/omv)
-  omv-find/SKILL.md             — find and rank audit targets (/omv-find)
-  omv-find/references/
-    scoring.md                  — scoring rubric, confidence adjustments, filtering, LOC estimation
-    output-contract.md          — final table contract, audit tips, invalid-request template
-  omv-find/scripts/check_output.py  — heuristic eval checker
-  omv-find/evals/evals.json     — behavior-focused eval scenarios
-  omv-find/evals/golden/        — stable golden outputs
-  omv-report/SKILL.md           — generate VulDB/CVE/GHSA/OSV reports (/omv-report)
-  omv-report/references/
-    ecosystems.md               — vendor/product/version rules, CWE mapping, duplicate-CVE databases
-    report-templates.md         — VulDB, GHSA, OSV JSON, Markdown advisory templates
-    examples/                   — filled advisory examples
-  omv-report/scripts/check_output.py  — heuristic eval checker
-  omv-report/evals/evals.json   — behavior-focused report-generation eval scenarios
-  omv-report/evals/golden/      — stable golden outputs
-
-shared/
-  references/
-    ecosystems.md               — ecosystem registry sources, GitHub search shapes, flagship exclusions
-    vuln-patterns.md            — vulnerability aliases and source -> sink -> guard patterns
-    cvss-builder.md             — CVSS v3.1 metric decision table and common vectors
-  scripts/
-    collect_metadata.py         — collects GitHub and selected registry metadata as JSON
-    estimate_loc.sh             — estimates source LOC from a GitHub URL or local checkout
-
-contracts/
-  evidence.v1.yaml              — finding object: the typed boundary between omv-find and omv-report
-  candidate-list.v1.yaml        — candidate table entry schema produced by omv-find
-  threat-map.v1.yaml            — dataflow threat map schema (planned: omv-audit M2+)
-
-agents/
-  vuln-scanner.md               — passive candidate discovery
-  dataflow-tracer.md            — source -> sink -> guard analysis
-  cvss-analyst.md               — CVSS v3.1 computation
-  dedup-analyst.md              — duplicate CVE/GHSA search
-  report-writer.md              — platform-specific advisory rendering
-
-scripts/
-  validate_skill.py             — validates all skill directories and optional .skill packages
-  package_skill.sh              — builds a .skill archive from a skill directory
-  release_check.py              — release-time validator, package builder, SHA-256 manifest printer
-
-registry.yaml                   — collection metadata: versions, produces/consumes bindings
-.github/workflows/validate.yml  — CI validation, packaging checks, stable golden evals
+src/cli/          — TypeScript CLI (commands/ split; findings/workflow/review/campaign domain modules)
+skills/           — 9 omv-* skills (find, audit, repro, report, radar, dedup, disclose, critic, manager)
+shared/           — references, pattern-packs, eval runner helpers
+contracts/        — Evidence, ThreatMap, Verification, Campaign, SourceRef, Submission, …
+agents/           — subagent specs installed to ~/.claude/agents/ by omv setup
+openspec/         — accepted specs + change archive
+registry.yaml     — versions and produces/consumes bindings
 ```
+
+Canonical maintainer map: see `AGENTS.md` (kept in sync with the current tree). Early vision draft `SPEC.md` is historical only.
 
 ## CLI
 
 ```sh
-# Install skills to ~/.claude/skills/
+# Install skills + agents
 npx oh-my-vul setup
-npx oh-my-vul setup --force      # overwrite existing
-npx oh-my-vul setup --dry-run    # preview only
+npx oh-my-vul setup --scope project
+npx oh-my-vul setup --force
+npx oh-my-vul setup --dry-run
 
-# Check installation health
+# Health and workspace
 omv doctor
+omv doctor --strict
+omv dashboard
+omv review <id> --strict
+omv findings workflow
 ```
 
 Build the CLI:

@@ -1,0 +1,15 @@
+# SourceRef.v1 — local source identity sidecar
+# Stored at: .omv/sources/<finding_id>.yaml
+# This records local research inputs; it does not prove remote authenticity.
+
+schema_version: "1"
+finding_id: ""
+finding_sha256: ""
+captured_at: ""
+
+sources: []
+# - kind: repository       # repository | registry | archive | file | advisory | other
+#   locator: ""
+#   revision: unknown
+#   path: unknown
+#   sha256: unknown        # lowercase SHA-256 or unknown

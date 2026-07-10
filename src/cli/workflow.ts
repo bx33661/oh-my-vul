@@ -1,10 +1,75 @@
 // workflow.ts — workflow priority and next-action logic
 // Extracted from findings.ts. These functions are pure helpers that
 // interpret validation results to produce lifecycle guidance.
+//
+// Readiness policy (single source of truth for report recommendation):
+//   report-ready when status=confirmed, validation.ok, submissionScore>=threshold,
+//   optional ThreatMap is ok when present, and Verification passes when strict.
+// workflowNextAction is the lightweight queue hint (score + missing fields).
+// doctorFinding / reviewFinding apply the full readiness policy and must remain
+// the authoritative next-action for report readiness.
 
 import type { FindingSummary, FindingValidation, FindingDoctorIssue } from "./findings.js";
 
+/** Minimum submission score before recommending /omv-report or priority 100. */
+export const SUBMISSION_READY_THRESHOLD = 75;
+
+export interface ReportReadinessInput {
+  status: string;
+  validationOk: boolean;
+  submissionScore: number;
+  /** When a ThreatMap sidecar exists, it must validate. Default true if absent. */
+  threatMapOk?: boolean;
+  /** When strict verification is required, Verification.v1 must pass. Default true. */
+  verificationOk?: boolean;
+}
+
 // ── Exported helpers ────────────────────────────────────────────────────
+
+export function isSubmissionScoreReady(
+  status: string,
+  validationOk: boolean,
+  submissionScore: number,
+): boolean {
+  return status === "confirmed" && validationOk && submissionScore >= SUBMISSION_READY_THRESHOLD;
+}
+
+/**
+ * Full report-readiness gate shared by doctorFinding and reviewFinding.
+ * Lightweight workflow queue uses isSubmissionScoreReady only (no sidecar I/O).
+ */
+export function isReportReady(input: ReportReadinessInput): boolean {
+  return (
+    isSubmissionScoreReady(input.status, input.validationOk, input.submissionScore) &&
+    (input.threatMapOk ?? true) &&
+    (input.verificationOk ?? true)
+  );
+}
+
+/**
+ * Prefer report when ready; otherwise surface verification work under strict mode,
+ * then fall back to the lightweight workflow next-action.
+ */
+export function resolveDoctorNextAction(
+  id: string,
+  reportReady: boolean,
+  fallbackNextAction: string,
+  options: {
+    strictVerification?: boolean;
+    verificationReady?: boolean;
+    verificationExists?: boolean;
+  } = {},
+): string {
+  if (reportReady) {
+    return `/omv-report ${id}`;
+  }
+  if (options.strictVerification && options.verificationReady === false) {
+    return options.verificationExists
+      ? `omv verification validate ${id}`
+      : `omv verification init ${id}`;
+  }
+  return fallbackNextAction;
+}
 
 export function workflowMissingFields(validation: FindingValidation): string[] {
   const missing = new Set<string>();
@@ -46,7 +111,7 @@ export function workflowNextAction(
   if (finding.status === "blocked") {
     return `omv findings archive ${finding.id} --reason blocked`;
   }
-  if (finding.status === "confirmed" && validation.ok) {
+  if (isSubmissionScoreReady(finding.status, validation.ok, finding.submissionScore)) {
     return `/omv-report ${finding.id}`;
   }
   const missing = new Set(missingFields);
@@ -65,7 +130,7 @@ export function workflowNextAction(
   if (missing.has("evidence.observed_result")) {
     return `/omv-repro ${finding.id}`;
   }
-  if (finding.status === "candidate" && validation.ok && finding.submissionScore >= 75) {
+  if (finding.status === "candidate" && validation.ok && finding.submissionScore >= SUBMISSION_READY_THRESHOLD) {
     return `omv findings promote ${finding.id} --status confirmed`;
   }
   return `/omv-audit ${finding.id}`;
@@ -77,7 +142,7 @@ export function workflowPriority(
   missingFields: string[],
   nextAction: string,
 ): number {
-  if (finding.status === "confirmed" && validation.ok) {
+  if (isSubmissionScoreReady(finding.status, validation.ok, finding.submissionScore)) {
     return 100;
   }
   if (nextAction.includes("--status confirmed")) {

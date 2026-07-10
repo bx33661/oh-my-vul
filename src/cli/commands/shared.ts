@@ -16,6 +16,19 @@ const VALUE_FLAGS = new Set([
   "--url",
   "--cve",
   "--accept",
+  "--target",
+  "--version",
+  "--source",
+  "--ecosystem",
+  "--mode",
+  "--goal",
+  "--budget",
+  "--vuln",
+  "--local-lab",
+  "--id",
+  "--skill",
+  "--eval-id",
+  "--output",
 ]);
 
 export function wantsHelp(args: string[]): boolean {
