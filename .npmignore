@@ -3,3 +3,14 @@
 **/*.pyd
 **/*.pyo
 **/test_*.py
+
+# Maintainer-only docs (must not ship in npm)
+docs/architecture/
+docs/roadmap-0.8.md
+docs/superpowers/
+AGENTS.md
+CLAUDE.md
+DEVELOPMENT.md
+RELEASE.md
+SPEC.md
+openspec/
