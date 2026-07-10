@@ -23,10 +23,10 @@ test("compiled eval command runs the stable manifest as one JSON document", () =
   };
   assert.equal(output.schema_version, "1");
   assert.equal(output.ok, true);
-  assert.equal(output.total, 16);
-  assert.equal(output.passed, 16);
+  assert.equal(output.total, 18);
+  assert.equal(output.passed, 18);
   assert.equal(output.failed, 0);
-  assert.equal(output.results.length, 16);
+  assert.equal(output.results.length, 18);
 });
 
 test("compiled eval command emits parseable JUnit suite counts", () => {
@@ -34,9 +34,9 @@ test("compiled eval command emits parseable JUnit suite counts", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /^<\?xml version=['"]1\.0['"]/);
-  assert.match(result.stdout, /<testsuite\b[^>]*tests="16"/);
+  assert.match(result.stdout, /<testsuite\b[^>]*tests="18"/);
   assert.match(result.stdout, /failures="0"/);
-  assert.equal((result.stdout.match(/<testcase\b/g) ?? []).length, 16);
+  assert.equal((result.stdout.match(/<testcase\b/g) ?? []).length, 18);
 });
 
 test("compiled eval command forwards a targeted checker invocation", () => {

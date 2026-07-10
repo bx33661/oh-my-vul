@@ -22,7 +22,7 @@
 >
 > **安全边界：** 本项目只面向*被动研究*和*本地验证*。它不是批量扫描器，也不是线上攻击工具。真实 finding 放在私有 `.omv/` 中，不要提交到 Git。
 >
-> **版本说明：** npm 当前为 **0.9.x**；Campaign / PatternPack / provenance 等能力在 CHANGELOG 中记为 **Unreleased（面向 0.10）**。
+> **当前版本：** **v0.10.0** — Campaign 首公里、攻击面卡片、`using-omv` 研究纪律。详见 [CHANGELOG.md](CHANGELOG.md)。
 >
 > **社区：** [贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md) · [安全政策](SECURITY.md)
 

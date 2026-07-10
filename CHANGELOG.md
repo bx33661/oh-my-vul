@@ -2,18 +2,19 @@
 
 ## Unreleased
 
-### Planned for v0.10.0 — Campaign + evidence graph (draft)
+## v0.10.0 - Campaign first-mile, surfaces, and research discipline
 
-Ship when release notes and `registry.yaml` / `package.json` versions are bumped together.
+First-mile research and quality gates for evidence-first work:
 
-- **Campaign.v1 first-mile planning** — `omv campaign init|list|show|seed` and the `omv first` alias. Seeding creates conservative candidate Evidence only and never overwrites existing findings or creates proof artifacts.
-- **SourceRef.v1 + report provenance** — `omv sources init|show|validate` and `omv report provenance` manifests that hash Evidence, reports, and available local dependencies. Missing manifests warn; stale confirmed manifests fail artifact checks.
+- **Campaign.v1** — `omv campaign init|list|show|seed` and `omv first`. Seeding creates conservative candidate Evidence only and never overwrites existing findings or proof artifacts.
+- **Attack Surface Cards** — `omv campaign surfaces propose|show|select` turns campaign priorities into deterministic pack-based research cards; `omv campaign seed` uses selected cards when a surfaces sidecar exists (otherwise falls back to vuln-class lanes).
+- **SourceRef.v1 + report provenance** — `omv sources init|show|validate` and `omv report provenance` manifests that hash Evidence, reports, and local dependencies. Missing manifests warn; stale confirmed manifests fail artifact checks.
 - **PatternPack.v1 + unified evals** — 14 JSON pattern-pack manifests (including R/Lua), manifest-driven find/audit asset sync, and `omv eval` with human/JSON/JUnit output.
-- **ThreatMap rich render** — `omv findings show` prints full `source → transforms → sink` paths with confidence, bypassable guards, and summary (no longer collapses to a single source→sink line).
-- **Readiness policy helpers** — `isReportReady` / `isSubmissionScoreReady` / `resolveDoctorNextAction` in `workflow.ts` as the shared report-readiness gate used by doctor and review.
+- **ThreatMap rich render** — `omv findings show` prints full `source → transforms → sink` paths with confidence, bypassable guards, and summary.
+- **Readiness helpers** — shared `isReportReady` / `isSubmissionScoreReady` / `resolveDoctorNextAction` for doctor and review.
+- **using-omv bootstrap** — process skill for evidence-before-claims and HARD-GATEs (quality growth, not skill sprawl); audit/report/repro gain explicit verification-before-claim rules; stable evals cover premature-report refusal and process-first open.
 - **Public docs policy** — GitHub publishes user-facing guides only; maintainer/agent/OpenSpec/release docs stay local.
-- **Attack Surface Cards** — `omv campaign surfaces propose|show|select` turns Campaign priorities into deterministic pack-based research cards; `omv campaign seed` uses selected cards when a surfaces sidecar exists.
-- **using-omv bootstrap** — process skill for evidence-before-claims and HARD-GATEs (no skill sprawl); audit/report/repro gain explicit verification-before-claim rules; stable evals cover premature-report refusal and process-first open.
+- **Install set** — 10 skills (adds `using-omv`).
 
 ## v0.9.0 - CLI command split and local findings dedup
 

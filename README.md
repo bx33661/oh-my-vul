@@ -24,7 +24,7 @@ It does **not** attack live third-party services. Keep real findings under priva
 | Community | [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) |
 | Security | [SECURITY.md](SECURITY.md) |
 
-> **Version note:** npm package is currently **0.9.x**. Campaign / PatternPack / provenance work in this branch is **Unreleased** toward 0.10 — see [CHANGELOG.md](CHANGELOG.md).
+> **Current release:** **v0.10.0** — campaign first-mile, attack-surface cards, `using-omv` discipline. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 

@@ -26,6 +26,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
       "omv-radar",
       "omv-report",
       "omv-repro",
+      "using-omv",
     ]);
 
     assert.equal(existsSync(join(claudeHome, "skills", "omv-find", "references", "shared", "ecosystems.md")), true);
