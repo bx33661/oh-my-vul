@@ -9,7 +9,8 @@
     "omv-mcp": "dist/cli/omv-mcp.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"import('fs').then(fs => { fs.chmodSync('dist/cli/omv.js', 0o755); fs.chmodSync('dist/cli/omv-mcp.js', 0o755); })\"",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc && node -e \"import('fs').then(fs => { fs.chmodSync('dist/cli/omv.js', 0o755); fs.chmodSync('dist/cli/omv-mcp.js', 0o755); })\"",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/**/__tests__/*.test.js",
@@ -30,6 +31,10 @@
     "dist/cli/*.d.ts.map",
     "dist/cli/*.js",
     "dist/cli/*.js.map",
+    "dist/cli/commands/*.d.ts",
+    "dist/cli/commands/*.d.ts.map",
+    "dist/cli/commands/*.js",
+    "dist/cli/commands/*.js.map",
     "dist/index.d.ts",
     "dist/index.d.ts.map",
     "dist/index.js",

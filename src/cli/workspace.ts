@@ -6,11 +6,13 @@ import {
   archiveMetadataDir,
   archiveMetadataPath,
   archivedFindingsDir,
+  campaignsDir,
   findingsDir,
   notesDir,
   omvStateDir,
   radarDir,
   reproDir,
+  sourcesDir,
   submissionsDir,
   threatMapsDir,
   verificationsDir,
@@ -51,6 +53,9 @@ export interface WorkspaceActivityEntry {
   timestamp: string;
   action:
     | "workspace.init"
+    | "campaign.init"
+    | "source.init"
+    | "report.provenance"
     | "finding.init"
     | "finding.promote"
     | "finding.archive"
@@ -86,6 +91,8 @@ export interface InitWorkspaceOptions {
   gitignore?: boolean;
 }
 
+const OMV_GITIGNORE_ENTRY = ".omv/";
+
 export async function initWorkspace(
   projectRoot = process.cwd(),
   options: InitWorkspaceOptions = {},
@@ -93,41 +100,42 @@ export async function initWorkspace(
   await ensureWorkspaceDirs(projectRoot);
   await rebuildWorkspaceIndex(projectRoot);
   await appendWorkspaceActivity({ action: "workspace.init" }, projectRoot);
+  const gitignoreAdvice = await initGitignoreAdvice(projectRoot, options.gitignore ?? false);
   const status = await workspaceStatus(projectRoot);
-  status.warnings.push(...(await initGitignoreAdvice(projectRoot, options.gitignore ?? false)));
+  status.warnings.push(...gitignoreAdvice);
   return status;
 }
 
 async function initGitignoreAdvice(projectRoot: string, autoAdd: boolean): Promise<string[]> {
   const gitignorePath = join(projectRoot, ".gitignore");
-  const wanted = [".omv/repro/", ".omv/reports/", ".omv/archive/"];
-  const keep = ".omv/findings/";
+  const wanted = OMV_GITIGNORE_ENTRY;
   const warnings: string[] = [];
 
   if (!existsSync(gitignorePath)) {
-    warnings.push(
-      `.gitignore not found. Suggested entries:\n  ${wanted.join("\n  ")}\nKeep tracked:\n  ${keep}`,
-    );
+    if (autoAdd) {
+      await writeFile(gitignorePath, `${wanted}\n`, "utf-8");
+      return warnings;
+    }
+    warnings.push(`.gitignore not found. Suggested entry:\n  ${wanted}`);
     return warnings;
   }
 
   const content = await readFile(gitignorePath, "utf-8");
-  const lines = content.split(/\r?\n/);
-  const missing = wanted.filter((entry) => !lines.some((line) => line.trim() === entry));
+  const missing = !ignoresOmvState(content);
 
-  if (missing.length === 0) {
+  if (!missing) {
     return warnings;
   }
 
   if (autoAdd) {
     const prefix = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
-    const append = prefix + missing.map((entry) => entry).join("\n") + "\n";
+    const append = `${prefix}${wanted}\n`;
     await appendFile(gitignorePath, append, "utf-8");
     return warnings;
   }
 
   warnings.push(
-    `Suggested .gitignore entries (run omv workspace init --gitignore to auto-add):\n  ${missing.join("\n  ")}`,
+    `Suggested .gitignore entry (run omv workspace init --gitignore to auto-add):\n  ${wanted}`,
   );
   return warnings;
 }
@@ -159,6 +167,8 @@ export async function workspaceStatus(projectRoot = process.cwd()): Promise<Work
 
 export async function ensureWorkspaceDirs(projectRoot = process.cwd()): Promise<void> {
   await mkdir(findingsDir(projectRoot), { recursive: true });
+  await mkdir(campaignsDir(projectRoot), { recursive: true });
+  await mkdir(sourcesDir(projectRoot), { recursive: true });
   await mkdir(reproDir(projectRoot), { recursive: true });
   await mkdir(threatMapsDir(projectRoot), { recursive: true });
   await mkdir(verificationsDir(projectRoot), { recursive: true });
@@ -366,12 +376,15 @@ async function workspaceWarnings(projectRoot: string): Promise<string[]> {
   if (!existsSync(gitignorePath)) {
     return [".omv/ is local research state; add .omv/ to .gitignore before publishing"];
   }
-  const gitignore = await readFile(gitignorePath, "utf-8");
-  const ignored = gitignore
+  const ignored = ignoresOmvState(await readFile(gitignorePath, "utf-8"));
+  return ignored ? [] : [".omv/ is local research state; add .omv/ to .gitignore before publishing"];
+}
+
+function ignoresOmvState(gitignore: string): boolean {
+  return gitignore
     .split(/\r?\n/)
     .map((line) => line.trim())
     .some((line) => line === ".omv/" || line === ".omv" || line === "/.omv/" || line === "/.omv");
-  return ignored ? [] : [".omv/ is local research state; add .omv/ to .gitignore before publishing"];
 }
 
 function emptyIndex(): WorkspaceIndex {

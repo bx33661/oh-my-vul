@@ -1,3 +1,11 @@
+import {
+  CAMPAIGN_DEPTHS,
+  CAMPAIGN_ECOSYSTEMS,
+  CAMPAIGN_LOCAL_REPRODUCTIONS,
+  CAMPAIGN_MODES,
+  CAMPAIGN_OUTPUTS,
+} from "./campaign.js";
+
 export interface ArgsValidation {
   ok: boolean;
   error?: string;
@@ -58,6 +66,8 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
+    case "eval":
+      return validateEvalArgs(args.slice(1));
     case "review":
       return validateOptions(args.slice(1), {
         command: "review",
@@ -66,10 +76,16 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 1,
         maxPositionals: 1,
       });
+    case "campaign":
+      return validateCampaignArgs(args.slice(1), false);
+    case "first":
+      return validateCampaignArgs(args.slice(1), true);
     case "repro":
       return validateReproArgs(args.slice(1));
     case "report":
       return validateReportArgs(args.slice(1));
+    case "sources":
+      return validateSourcesArgs(args.slice(1));
     case "threat-map":
       return validateThreatMapArgs(args.slice(1));
     case "verification":
@@ -96,7 +112,99 @@ export function validateArgs(args: string[]): ArgsValidation {
     case "submissions":
       return validateSubmissionsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: version, setup, uninstall, config, doctor, dashboard, review, workspace, findings, radar, request, dedup, disclose, submissions, repro, report, threat-map, verification, help`);
+      return fail(`Unknown command: ${command}. Valid commands: version, setup, uninstall, config, doctor, dashboard, eval, campaign, first, review, workspace, findings, sources, radar, request, dedup, disclose, submissions, repro, report, threat-map, verification, help`);
+  }
+}
+
+function validateEvalArgs(args: string[]): ArgsValidation {
+  const validated = validateOptions(args, {
+    command: "eval",
+    flags: new Set(["--json", "--junit", ...HELP_FLAGS]),
+    options: new Map(),
+    freeOptions: new Set(["--skill", "--eval-id", "--output"]),
+    minPositionals: 0,
+    maxPositionals: 0,
+  });
+  if (!validated.ok) return validated;
+  if (args.includes("--json") && args.includes("--junit")) {
+    return fail("eval accepts only one output format: --json or --junit");
+  }
+  const targeted = ["--skill", "--eval-id", "--output"].map((option) => args.includes(option));
+  if (targeted.some(Boolean) && !targeted.every(Boolean)) {
+    return fail("eval targeted mode requires --skill, --eval-id, and --output together");
+  }
+  if (targeted.every(Boolean)) {
+    const skill = optionValue(args, "--skill");
+    const evalId = optionValue(args, "--eval-id");
+    if (!skill || !/^[a-z0-9][a-z0-9-]*$/.test(skill)) {
+      return fail("--skill must be a lowercase package name");
+    }
+    if (!evalId || !/^\d+$/.test(evalId)) {
+      return fail("--eval-id must be a non-negative integer");
+    }
+  }
+  return ok();
+}
+
+function optionValue(args: string[], option: string): string | undefined {
+  const index = args.indexOf(option);
+  return index === -1 ? undefined : args[index + 1];
+}
+
+function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidation {
+  const leading = args[0];
+  let subcommand: string;
+  let rest: string[];
+  if (firstAlias && (leading === undefined || leading.startsWith("-"))) {
+    subcommand = "init";
+    rest = args;
+  } else if (!firstAlias && (leading === undefined || leading.startsWith("-"))) {
+    subcommand = "list";
+    rest = args;
+  } else {
+    subcommand = leading;
+    rest = args.slice(1);
+  }
+
+  switch (subcommand) {
+    case "init":
+      return validateOptions(rest, {
+        command: `${firstAlias ? "first" : "campaign"} init`,
+        flags: new Set(["--force", "--no-interactive", "--json", ...HELP_FLAGS]),
+        options: new Map<string, Set<string>>([
+          ["--ecosystem", new Set<string>(CAMPAIGN_ECOSYSTEMS)],
+          ["--mode", new Set<string>(CAMPAIGN_MODES)],
+          ["--goal", new Set<string>(CAMPAIGN_OUTPUTS)],
+          ["--budget", new Set<string>(CAMPAIGN_DEPTHS)],
+          ["--local-lab", new Set<string>(CAMPAIGN_LOCAL_REPRODUCTIONS)],
+        ]),
+        freeOptions: new Set(["--target", "--version", "--source", "--vuln", "--id"]),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "list":
+      return validateOptions(rest, {
+        command: `${firstAlias ? "first" : "campaign"} list`,
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "show":
+    case "seed":
+      return validateOptions(rest, {
+        command: `${firstAlias ? "first" : "campaign"} ${subcommand}`,
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length <= 1 ? ok() : fail(`${firstAlias ? "first" : "campaign"} help accepts at most one topic`);
+    default:
+      return fail(`Unknown ${firstAlias ? "first" : "campaign"} command: ${subcommand}. Valid commands: init, list, show, seed, help`);
   }
 }
 
@@ -192,12 +300,50 @@ function validateReportArgs(args: string[]): ArgsValidation {
         minPositionals: 1,
         maxPositionals: 1,
       });
+    case "provenance":
+      return validateOptions(rest, {
+        command: "report provenance",
+        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
     case "help":
     case "--help":
     case "-h":
       return rest.length === 0 ? ok() : fail(`report ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown report command: ${subcommand ?? ""}. Valid commands: artifacts, help`);
+      return fail(`Unknown report command: ${subcommand ?? ""}. Valid commands: artifacts, provenance, help`);
+  }
+}
+
+function validateSourcesArgs(args: string[]): ArgsValidation {
+  const subcommand = args[0];
+  const rest = args.slice(1);
+  switch (subcommand) {
+    case "init":
+      return validateOptions(rest, {
+        command: "sources init",
+        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "show":
+    case "validate":
+      return validateOptions(rest, {
+        command: `sources ${subcommand}`,
+        flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 1,
+        maxPositionals: 1,
+      });
+    case "help":
+    case "--help":
+    case "-h":
+      return rest.length === 0 ? ok() : fail(`sources ${subcommand} accepts no arguments`);
+    default:
+      return fail(`Unknown sources command: ${subcommand ?? ""}. Valid commands: init, show, validate, help`);
   }
 }
 

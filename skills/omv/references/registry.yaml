@@ -4,7 +4,7 @@
 name: oh-my-vul
 version: "0.9.0"
 platform: claude-code
-updated: "2026-05-08"
+updated: "2026-07-10"
 
 skills:
   - name: omv
@@ -12,8 +12,11 @@ skills:
     path: skills/omv
     invocation: /omv
     status: stable
-    description: Local-first project manager — shows workspace status, active finding next actions, archive state, and installed skills
-    produces: []
+    description: Local-first project manager — creates research campaigns, shows workspace status, and delegates finding lifecycle actions
+    produces:
+      - Campaign.v1
+      - Evidence.v1    # candidate hypotheses from explicit campaign seed
+      - SourceRef.v1   # optional local source identity sidecar
     consumes: []
 
   - name: omv-find
@@ -62,10 +65,12 @@ skills:
       - GHSA advisory
       - OSV JSON
       - Markdown advisory
+      - ReportProvenance.v1
     consumes:
       - Evidence.v1    # writes cvss and dedup subfields
       - ThreatMap.v1
       - Verification.v1
+      - SourceRef.v1
 
   - name: omv-radar
     category: intelligence
@@ -158,9 +163,21 @@ agents:
     description: Adversarial verification agent — independently refutes a candidate audit conclusion; bias toward "wrong"
 
 contracts:
+  - name: Campaign.v1
+    path: contracts/campaign.v1.yaml
+    description: Local research campaign target, scope, priorities, and candidate lanes
+
   - name: Evidence.v1
     path: contracts/evidence.v1.yaml
     description: Finding object — the typed boundary between omv-find and omv-report
+
+  - name: SourceRef.v1
+    path: contracts/source-ref.v1.yaml
+    description: Optional local source identity and Evidence hash sidecar
+
+  - name: ReportProvenance.v1
+    path: contracts/report-provenance.v1.yaml
+    description: Generated SHA-256 manifest for reports and local dependencies
 
   - name: CandidateList.v1
     path: contracts/candidate-list.v1.yaml
@@ -189,6 +206,29 @@ shared:
     - shared/references/patterns/rust.md
     - shared/references/patterns/java.md
     - shared/references/patterns/ruby.md
+    - shared/references/patterns/php.md
+    - shared/references/patterns/csharp.md
+    - shared/references/patterns/swift.md
+    - shared/references/patterns/dart.md
+    - shared/references/patterns/elixir.md
+    - shared/references/patterns/perl.md
+    - shared/references/patterns/r.md
+    - shared/references/patterns/lua.md
+    - shared/pattern-packs/npm.json
+    - shared/pattern-packs/python.json
+    - shared/pattern-packs/go.json
+    - shared/pattern-packs/rust.json
+    - shared/pattern-packs/java.json
+    - shared/pattern-packs/ruby.json
+    - shared/pattern-packs/php.json
+    - shared/pattern-packs/csharp.json
+    - shared/pattern-packs/swift.json
+    - shared/pattern-packs/dart.json
+    - shared/pattern-packs/elixir.json
+    - shared/pattern-packs/perl.json
+    - shared/pattern-packs/r.json
+    - shared/pattern-packs/lua.json
   scripts:
     - shared/scripts/collect_metadata.py
     - shared/scripts/estimate_loc.sh
+    - shared/scripts/run_evals.py

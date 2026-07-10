@@ -8,6 +8,9 @@ Skills reference these files directly rather than duplicating schema content in 
 
 | File | Description |
 |---|---|
+| `campaign.v1.yaml` | Local research target, scope, priorities, and candidate finding lanes used by `omv campaign`. |
+| `source-ref.v1.yaml` | Optional local source identity and Evidence hash sidecar used by `omv sources`. |
+| `report-provenance.v1.yaml` | Generated hash manifest for report artifacts and their local inputs. |
 | `evidence.v1.yaml` | Finding object passed between `omv-find` and `omv-report`. Replaces the old `handoff-contract.md` in both skills. |
 | `candidate-list.v1.yaml` | Schema for the candidate list output produced by `omv-find`. |
 | `threat-map.v1.yaml` | Optional dataflow threat map sidecar produced by `omv-audit`. |

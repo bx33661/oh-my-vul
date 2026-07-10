@@ -1,6 +1,6 @@
-# Roadmap 0.8
+# Roadmap 0.8 (Complete)
 
-`v0.7.1` stabilized the Evidence.v1 workflow, npm packaging, Chinese documentation, and the evidence/submission score split. `v0.8` should focus on making local reproduction and report readiness harder to misuse.
+`v0.7.1` stabilized the Evidence.v1 workflow, npm packaging, Chinese documentation, and the evidence/submission score split. `v0.8` delivered the local reproduction and report-readiness work below. This document is retained as a release record.
 
 ## Theme
 
@@ -8,7 +8,7 @@ Make the CLI answer one question clearly:
 
 > What exact work remains before this finding can become a responsible disclosure report?
 
-## Planned Work
+## Delivered Work
 
 ### 1. `omv repro init <id>` — implemented
 
@@ -117,9 +117,9 @@ Acceptance criteria:
 - Do not add live target scanning.
 - Do not weaken the passive research boundary.
 
-## Release Gate
+## Release Gate Used
 
-Before `v0.8.0`:
+The `v0.8.0` release was gated with:
 
 ```sh
 npm run release:check
@@ -127,4 +127,4 @@ npm pack --dry-run
 npx -p oh-my-vul omv version
 ```
 
-The release should include at least one new deterministic test per new command.
+Each new command included deterministic regression coverage.

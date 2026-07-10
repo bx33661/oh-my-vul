@@ -13,6 +13,8 @@ Load these when needed — do not load all at once:
 - **`references/shared/cvss-builder.md`** — metric-by-metric CVSS v3.1 decision table with common vector combinations. Read when computing the CVSS score.
 - **`contracts/evidence.v1.yaml`** — structured input contract from `omv-find`; read when the user provides a handoff packet or asks to continue from finder results.
 - **`contracts/verification.v1.yaml`** — adversarial review sidecar. Read when `.omv/verifications/<id>.yaml` exists or the user asks for a high-confidence report.
+- **`contracts/source-ref.v1.yaml`** — optional local source identity sidecar. Read when `.omv/sources/<id>.yaml` exists; a locator is recorded input, not proof of remote authenticity.
+- **`contracts/report-provenance.v1.yaml`** — generated report input manifest shape used by `omv report provenance`.
 - **`references/report-templates.md`** — reusable VulDB, GHSA, OSV, and standalone Markdown advisory templates. Read when the user requests a specific report format.
 - **`references/examples/xss-npm.md`** — complete filled report for a click-triggered XSS in an npm package.
 - **`references/examples/path-traversal-go.md`** — complete filled report for an unauthenticated path traversal in a Go module.
@@ -51,7 +53,8 @@ Before writing any submission-ready report from finder output, consume the local
 3. Run or ask for `omv findings validate <id|path> --json` when CLI tools are available.
 4. If `.omv/threatmaps/<id>.yaml` exists, run or ask for `omv threat-map validate <id> --json`.
 5. If `.omv/verifications/<id>.yaml` exists or the user wants a strict pre-submission gate, run or ask for `omv verification validate <id> --json` and `omv findings doctor <id> --strict-verification --json`.
-6. If CLI tools are unavailable, validate manually against `contracts/evidence.v1.yaml` and `contracts/verification.v1.yaml` when relevant, and say that deterministic validation was not run.
+6. If `.omv/sources/<id>.yaml` exists, run or ask for `omv sources validate <id> --json`; treat a stale hash as a traceability warning, not as proof or disproof of the vulnerability.
+7. If CLI tools are unavailable, validate manually against `contracts/evidence.v1.yaml`, `contracts/verification.v1.yaml`, and `contracts/source-ref.v1.yaml` when relevant, and say that deterministic validation was not run.
 
 Use the validation result to choose output mode:
 
@@ -82,7 +85,17 @@ python3 ~/.claude/skills/omv-report/scripts/render_template.py \
 
 The renderer fills all structural fields (package, versions, CVSS, CWE, source→sink→guard, reproducer, dedup checklist) and leaves `[DRAFT: ...]` markers for prose sections. Fill in every `[DRAFT: ...]` before submitting. Do not submit placeholders.
 
-After producing a submission-ready report for a confirmed finding, suggest removing it from the active local queue:
+After producing a submission-ready report for a confirmed finding, record and check its local inputs when the report was written under `.omv/reports/<id>/`:
+
+```bash
+omv sources init <id>              # optional; derives only known Evidence source facts
+omv report provenance <id>        # run after report files are written
+omv report artifacts <id>
+```
+
+SourceRef and report provenance are local hash records. Do not claim they verify remote repository authenticity. A legacy report without `provenance.json` remains usable but receives a warning until a manifest is created.
+
+Then suggest removing it from the active local queue:
 
 ```bash
 omv findings archive <id> --reason reported

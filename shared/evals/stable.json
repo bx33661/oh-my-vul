@@ -1,0 +1,117 @@
+{
+  "schema_version": "1",
+  "cases": [
+    {
+      "id": "omv-next-workflow",
+      "skill": "omv",
+      "eval_id": 0,
+      "checker": "skills/omv/scripts/check_output.py",
+      "output": "skills/omv/evals/golden/next-workflow.md"
+    },
+    {
+      "id": "omv-archive-delegation",
+      "skill": "omv",
+      "eval_id": 1,
+      "checker": "skills/omv/scripts/check_output.py",
+      "output": "skills/omv/evals/golden/archive-delegation.md"
+    },
+    {
+      "id": "omv-audit-incomplete-observation",
+      "skill": "omv-audit",
+      "eval_id": 0,
+      "checker": "skills/omv-audit/scripts/check_output.py",
+      "output": "skills/omv-audit/evals/golden/incomplete-observed-result.md"
+    },
+    {
+      "id": "omv-audit-duplicate-blocked",
+      "skill": "omv-audit",
+      "eval_id": 1,
+      "checker": "skills/omv-audit/scripts/check_output.py",
+      "output": "skills/omv-audit/evals/golden/duplicate-blocked.md"
+    },
+    {
+      "id": "omv-audit-confirmed-complete",
+      "skill": "omv-audit",
+      "eval_id": 2,
+      "checker": "skills/omv-audit/scripts/check_output.py",
+      "output": "skills/omv-audit/evals/golden/confirmed-complete.md"
+    },
+    {
+      "id": "omv-repro-no-agent-execution",
+      "skill": "omv-repro",
+      "eval_id": 0,
+      "checker": "skills/omv-repro/scripts/check_output.py",
+      "output": "skills/omv-repro/evals/golden/no-agent-execution.md"
+    },
+    {
+      "id": "omv-repro-read-only-reproducer",
+      "skill": "omv-repro",
+      "eval_id": 1,
+      "checker": "skills/omv-repro/scripts/check_output.py",
+      "output": "skills/omv-repro/evals/golden/read-only-reproducer.md"
+    },
+    {
+      "id": "omv-repro-blocked-failure",
+      "skill": "omv-repro",
+      "eval_id": 2,
+      "checker": "skills/omv-repro/scripts/check_output.py",
+      "output": "skills/omv-repro/evals/golden/blocked-repro-failure.md"
+    },
+    {
+      "id": "omv-radar-dry-run",
+      "skill": "omv-radar",
+      "eval_id": 0,
+      "checker": "skills/omv-radar/scripts/check_output.py",
+      "output": "skills/omv-radar/evals/golden/radar-dry-run.md"
+    },
+    {
+      "id": "omv-dedup-known-duplicate",
+      "skill": "omv-dedup",
+      "eval_id": 0,
+      "checker": "skills/omv-dedup/scripts/check_output.py",
+      "output": "skills/omv-dedup/evals/golden/known-duplicate.md"
+    },
+    {
+      "id": "omv-disclose-timeline",
+      "skill": "omv-disclose",
+      "eval_id": 0,
+      "checker": "skills/omv-disclose/scripts/check_output.py",
+      "output": "skills/omv-disclose/evals/golden/timeline.md"
+    },
+    {
+      "id": "omv-critic-high-risk",
+      "skill": "omv-critic",
+      "eval_id": 0,
+      "checker": "skills/omv-critic/scripts/check_output.py",
+      "output": "skills/omv-critic/evals/golden/high-risk.md"
+    },
+    {
+      "id": "omv-find-invalid-flags",
+      "skill": "omv-find",
+      "eval_id": 26,
+      "checker": "skills/omv-find/scripts/check_output.py",
+      "output": "skills/omv-find/evals/golden/invalid-flags.md"
+    },
+    {
+      "id": "omv-report-blocked-handoff",
+      "skill": "omv-report",
+      "eval_id": 4,
+      "checker": "skills/omv-report/scripts/check_output.py",
+      "output": "skills/omv-report/evals/golden/blocked-handoff.md"
+    },
+    {
+      "id": "omv-report-osv-prototype-pollution",
+      "skill": "omv-report",
+      "eval_id": 5,
+      "checker": "skills/omv-report/scripts/check_output.py",
+      "output": "skills/omv-report/evals/golden/osv-prototype-pollution.json"
+    },
+    {
+      "id": "omv-report-duplicate-cna-warning",
+      "skill": "omv-report",
+      "eval_id": 7,
+      "checker": "skills/omv-report/scripts/check_output.py",
+      "output": "skills/omv-report/evals/golden/duplicate-cna-warning.md"
+    }
+  ]
+}

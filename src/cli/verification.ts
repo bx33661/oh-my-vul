@@ -73,7 +73,7 @@ export async function showVerification(id: string, projectRoot = process.cwd()):
     return { ...validation, rendered: [] };
   }
   const parseResult = parseVerificationYaml(await readFile(path, "utf-8"));
-  const validation = await validateParsedVerification(normalizedId, path, findingPath, parseResult, projectRoot);
+  const validation = await validateParsedVerification(normalizedId, path, findingPath, parseResult);
   const rendered = renderVerification(parseResult.data);
   return { ...validation, rendered };
 }
@@ -100,7 +100,7 @@ export async function validateVerification(
   }
 
   const parseResult = parseVerificationYaml(await readFile(path, "utf-8"));
-  return validateParsedVerification(id, path, findingPath, parseResult, projectRoot);
+  return validateParsedVerification(id, path, findingPath, parseResult);
 }
 
 async function validateParsedVerification(
@@ -108,7 +108,6 @@ async function validateParsedVerification(
   path: string,
   findingPath: string,
   parseResult: { data: Record<string, unknown>; errors: string[] },
-  projectRoot: string,
 ): Promise<VerificationValidation> {
   const errors: string[] = [];
   const warnings: string[] = [];

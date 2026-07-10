@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "csharp",
+  "ecosystem": "csharp",
+  "aliases": ["csharp", "c#", "dotnet", "nuget"],
+  "reference": "references/patterns/csharp.md",
+  "vulnerability_classes": ["unsafe-deserialization", "path-traversal", "ssrf"],
+  "consumers": ["omv-audit", "omv-find"]
+}

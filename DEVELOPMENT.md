@@ -190,20 +190,61 @@ Tradeoff:
 
 The ledger is intentionally lightweight YAML, not a database or platform. That keeps the project easy to install and review, but it means deeper validation and rendering still need future deterministic helpers.
 
+### Current iteration - Manifest-driven PatternPacks and evals
+
+What changed:
+
+- Added one PatternPack.v1 JSON manifest for every supported ecosystem, including R and Lua.
+- Made manifests drive skill-local pattern distribution and release-time methodology checks.
+- Added one stable eval manifest plus a human/JSON/JUnit Python runner and `omv eval` CLI adapter.
+
+Core idea:
+
+Repeated asset and eval lists are contracts disguised as source code. Moving membership into validated JSON keeps progressive disclosure, package self-containment, local CI, and release checks aligned without rewriting skill-specific assertions.
+
+Tradeoff:
+
+The unified runner still starts one Python process per checker. The suite is small, and preserving each Skill's domain-specific checker is more valuable than premature shared assertion abstractions.
+
 ## Current Weaknesses
 
 - The Evidence.v1 contract is copied into runtime skill directories; drift is checked by `scripts/sync_skill_assets.py --check`, but the duplication still adds release-surface noise.
 - `omv-find` can guide Evidence.v1 handoff creation, but candidate discovery quality still depends on model discipline, source inspection, and available metadata.
 - `omv-report` consumes validation guidance, but advisory rendering is still primarily model-written rather than deterministic.
 - Examples are partly synthetic.
-- Package archives are tracked but not independently diffable.
-- The README is user-facing; keep maintainer workflow details in `CONTRIBUTING.md`, `RELEASE.md`, and this file.
+- Subagent orchestration is documented and installable, but still optional prose-driven rather than a forced fan-out runtime (see `docs/architecture/agent-team-upgrade.md`).
+- Active skills (`omv-radar`, `omv-dedup`, `omv-disclose`, `omv-critic`) have thinner golden coverage than find/audit/repro/report.
+- `src/cli/findings.ts` remains a large domain module (validate + score + doctor + archive).
+- Historical `SPEC.md` listed skills that never shipped; treat OpenSpec + `registry.yaml` as truth.
 
 ## Proposed Next Iterations
 
-### v0.8 - Real Workflow Walkthrough
+### v0.10 - Campaign + evidence graph (in flight / Unreleased)
 
 Goal:
+
+Make the first-mile campaign story and evidence-graph sidecars a coherent release:
+
+- `omv first` / Campaign.v1 seed → candidate queue
+- ThreatMap + Verification + SourceRef + provenance on the report path
+- `omv review --strict` as the pre-report gate in user docs
+- Ship Unreleased items as `v0.10.0`
+
+### v0.11 - Deterministic report compiler
+
+Goal:
+
+Evidence.v1 → structured advisory IR → VulDB/GHSA/OSV/Markdown via CLI render, with LLM only polishing narrative paragraphs.
+
+### v0.12 - Agent team runtime minimum
+
+Goal:
+
+Tighten subagent tools (no unrestricted Bash), default omv-audit orchestration stages, and strict Verification requirements before confirmed/report-ready.
+
+### Earlier: Real Workflow Walkthrough (delivered in docs/examples)
+
+Goal (historical):
 
 Add a sanitized end-to-end example that demonstrates the intended user path:
 

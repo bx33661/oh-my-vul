@@ -4,15 +4,18 @@
 # Project-scoped Codex installs created by `omv setup --scope project`
 .codex/
 
-# Local assistant/OpenSpec scaffolding and nested worktrees
+# Local assistant scaffolding and nested worktrees
 .agents/
 .claude/
 .github/prompts/
 .github/skills/
-openspec/
-SPEC.md
 oh-my-codex/
 oh-my-claudecode/
+
+# OpenSpec: publish accepted specs; keep in-progress change drafts local
+openspec/changes/
+# Root historical vision draft only (do not match openspec/**/spec.md on case-insensitive FS)
+/SPEC.md
 
 # TypeScript build output
 dist/

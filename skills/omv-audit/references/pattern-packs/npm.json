@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "npm",
+  "ecosystem": "npm",
+  "aliases": ["npm", "node", "nodejs", "javascript", "typescript"],
+  "reference": "references/patterns/npm.md",
+  "vulnerability_classes": ["ssrf", "path-traversal", "prototype-pollution"],
+  "consumers": ["omv-audit", "omv-find"]
+}

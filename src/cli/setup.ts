@@ -4,7 +4,6 @@ import { join } from "path";
 import { claudeSkillsDir, claudeAgentsDir, projectAgentsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 import { buildInstallManifest, installManifestPath, readInstallManifest, writeInstallManifest } from "./install-manifest.js";
-import { readConfig } from "./config.js";
 
 export type SetupScope = "user" | "project";
 

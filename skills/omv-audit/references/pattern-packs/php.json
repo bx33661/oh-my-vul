@@ -1,0 +1,9 @@
+{
+  "schema_version": "1",
+  "id": "php",
+  "ecosystem": "php",
+  "aliases": ["php", "composer", "packagist"],
+  "reference": "references/patterns/php.md",
+  "vulnerability_classes": ["unsafe-deserialization", "sql-injection", "command-injection"],
+  "consumers": ["omv-audit", "omv-find"]
+}

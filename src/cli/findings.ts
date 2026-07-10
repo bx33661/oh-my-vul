@@ -1,11 +1,12 @@
 import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, isAbsolute, join, relative } from "path";
-import { parse as parseYaml, parseDocument } from "yaml";
-import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, threatMapPath, verificationPath } from "./paths.js";
+import { parse as parseYaml, parseDocument, stringify as stringifyYaml } from "yaml";
+import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, reportProvenancePath, threatMapPath, verificationPath } from "./paths.js";
 import { readSubmissions, type SubmissionRecord } from "./submissions.js";
 import { readThreatMap, validateThreatMap, writeThreatMap, type FindingThreatMap, type ThreatMapValidation, type ThreatMapWriteResult } from "./threatmap.js";
 import { validateVerification, verificationPasses, type VerificationValidation } from "./verification.js";
+import { validateReportProvenance, type ReportProvenanceValidation } from "./report-provenance.js";
 import {
   appendWorkspaceActivity,
   ensureWorkspaceDirs,
@@ -21,6 +22,9 @@ import {
   classifyWarning,
   dedupeIssues,
   extractFieldRefs,
+  isReportReady,
+  resolveDoctorNextAction,
+  SUBMISSION_READY_THRESHOLD,
   warningNextAction,
   workflowBlockers,
   workflowMissingFields,
@@ -29,7 +33,34 @@ import {
   workflowPriorityReason,
 } from "./workflow.js";
 
+export { SUBMISSION_READY_THRESHOLD, isReportReady } from "./workflow.js";
+
 export type EvidenceStatus = "candidate" | "confirmed" | "blocked";
+export const EVIDENCE_ECOSYSTEMS = [
+  "npm",
+  "python",
+  "go",
+  "rust",
+  "java",
+  "ruby",
+  "php",
+  "csharp",
+  "swift",
+  "dart",
+  "elixir",
+  "perl",
+  "r",
+  "lua",
+] as const;
+export type EvidenceEcosystem = (typeof EVIDENCE_ECOSYSTEMS)[number];
+export type EvidenceResearcherGoal = "VulDB" | "CVE" | "advisory" | "triage";
+
+export interface FindingTemplateSeed {
+  researcherGoal: EvidenceResearcherGoal;
+  product: string;
+  ecosystem: EvidenceEcosystem;
+  vulnerabilityClass: string;
+}
 
 export interface FindingSummary {
   id: string;
@@ -131,6 +162,10 @@ export interface ReportArtifactsResult {
   listedReproArtifacts: string[];
   existingReproArtifacts: string[];
   missingReproArtifacts: string[];
+  provenanceManifestPath?: string;
+  provenanceManifestExists?: boolean;
+  provenanceFresh?: boolean | null;
+  provenance?: ReportProvenanceValidation;
   errors: string[];
   warnings: string[];
 }
@@ -171,28 +206,14 @@ export interface CreateFindingTemplateOptions {
   status?: EvidenceStatus;
   force?: boolean;
   projectRoot?: string;
+  seed?: FindingTemplateSeed;
 }
 
 export { writeThreatMap, type ThreatMapWriteResult };
 
 const VALID_STATUSES = new Set<EvidenceStatus>(["candidate", "confirmed", "blocked"]);
 const FINDING_EXTENSIONS = new Set([".yaml", ".yml"]);
-const VALID_ECOSYSTEMS = new Set([
-  "npm",
-  "python",
-  "go",
-  "rust",
-  "java",
-  "ruby",
-  "php",
-  "csharp",
-  "swift",
-  "dart",
-  "elixir",
-  "perl",
-  "r",
-  "lua",
-]);
+const VALID_ECOSYSTEMS = new Set<string>(EVIDENCE_ECOSYSTEMS);
 const VALID_SEVERITIES = new Set(["Critical", "High", "Medium", "Low", "None", "unknown"]);
 const VALID_ATTACK_VECTORS = new Set(["Network", "Local", "Physical", "Adjacent", "unknown"]);
 const VALID_TRI_STATE = new Set(["true", "false", "unknown"]);
@@ -236,7 +257,6 @@ const UNKNOWN_ACCOUNTING_FIELDS = [
   "verdict.confidence",
   "verdict.reason",
 ];
-const SUBMISSION_READY_THRESHOLD = 75;
 const SUBMISSION_DEDUCTIONS = {
   missingObservedResult: 25,
   unresolvedBlockers: 30,
@@ -506,7 +526,7 @@ export async function doctorFinding(
     ? await validateVerification(id, projectRoot, { requireExisting: strictVerification })
     : undefined;
   const missingFields = workflowMissingFields(validation);
-  const nextAction = workflowNextAction(summary, validation, missingFields);
+  const fallbackNextAction = workflowNextAction(summary, validation, missingFields);
   const issues: FindingDoctorIssue[] = [];
 
   issues.push(...validation.errors.map((message) => ({
@@ -523,7 +543,7 @@ export async function doctorFinding(
     fields: extractFieldRefs(message),
     nextAction: warningNextAction(message, id),
   })));
-  issues.push(...submissionDeductions(parsed, validation.status, projectRoot).map((deduction) => ({
+  issues.push(...submissionDeductions(parsed, projectRoot).map((deduction) => ({
     id: deduction.id,
     severity: deduction.points >= 25 ? "error" as const : "warning" as const,
     message: `${deduction.message} (-${deduction.points})`,
@@ -590,14 +610,18 @@ export async function doctorFinding(
   const dedupedIssues = dedupeIssues(issues);
   const threatMapReady = !threatMap || threatMap.ok;
   const verificationReady = !strictVerification || verificationPasses(verification);
-  const reportReady = validation.ok && threatMapReady && verificationReady && validation.status === "confirmed" && validation.submissionScore >= SUBMISSION_READY_THRESHOLD;
-  const doctorNextAction = reportReady
-    ? `/omv-report ${id}`
-    : strictVerification && !verificationReady
-      ? existsSync(verificationPath(id, projectRoot))
-        ? `omv verification validate ${id}`
-        : `omv verification init ${id}`
-      : nextAction;
+  const reportReady = isReportReady({
+    status: validation.status,
+    validationOk: validation.ok,
+    submissionScore: validation.submissionScore,
+    threatMapOk: threatMapReady,
+    verificationOk: verificationReady,
+  });
+  const doctorNextAction = resolveDoctorNextAction(id, reportReady, fallbackNextAction, {
+    strictVerification,
+    verificationReady,
+    verificationExists: existsSync(verificationPath(id, projectRoot)),
+  });
   return {
     id,
     path,
@@ -652,6 +676,29 @@ export async function checkReportArtifacts(id: string, projectRoot = process.cwd
     addMissing(`Evidence.v1 references a missing reproduction artifact: ${path}`);
   }
 
+  const provenanceManifestPath = reportProvenancePath(normalizedId, projectRoot);
+  const provenanceManifestExists = existsSync(provenanceManifestPath);
+  let provenance: ReportProvenanceValidation | undefined;
+  let provenanceFresh: boolean | null = null;
+  if (!provenanceManifestExists) {
+    warnings.push(`report provenance manifest is missing: ${provenanceManifestPath}`);
+  } else {
+    try {
+      provenance = await validateReportProvenance(normalizedId, projectRoot);
+      provenanceFresh = provenance.fresh;
+      if (!provenance.fresh) {
+        addMissing(
+          `report provenance is stale: ${[
+            ...provenance.staleInputs.map((path) => `changed ${path}`),
+            ...provenance.missingInputs.map((path) => `missing ${path}`),
+          ].join(", ")}`,
+        );
+      }
+    } catch (error) {
+      addMissing(`report provenance is invalid: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   return {
     id: normalizedId,
     status,
@@ -662,6 +709,10 @@ export async function checkReportArtifacts(id: string, projectRoot = process.cwd
     listedReproArtifacts,
     existingReproArtifacts,
     missingReproArtifacts,
+    provenanceManifestPath,
+    provenanceManifestExists,
+    provenanceFresh,
+    provenance,
     errors,
     warnings,
   };
@@ -675,6 +726,12 @@ export async function createFindingTemplate(
   if (!VALID_STATUSES.has(status)) {
     throw new Error("status must be candidate, confirmed, or blocked");
   }
+  if (options.seed && status !== "candidate") {
+    throw new Error("seeded findings must use candidate status");
+  }
+  if (options.seed && options.force) {
+    throw new Error("seeded findings never overwrite existing files");
+  }
 
   const normalizedId = normalizeFindingId(id);
   const projectRoot = options.projectRoot ?? process.cwd();
@@ -685,8 +742,17 @@ export async function createFindingTemplate(
     throw new Error(`${path} already exists; use --force to overwrite`);
   }
 
-  const template = await readFindingTemplate(status);
-  await writeFile(path, template, "utf-8");
+  const template = await readFindingTemplate(status, options.seed);
+  try {
+    await writeFile(path, template, options.force
+      ? { encoding: "utf-8" }
+      : { encoding: "utf-8", flag: "wx" });
+  } catch (error) {
+    if (!options.force && isNodeError(error, "EEXIST")) {
+      throw new Error(`${path} already exists; use --force to overwrite`);
+    }
+    throw error;
+  }
   await touchWorkspaceFinding(normalizedId, status, projectRoot);
   await appendWorkspaceActivity({ action: "finding.init", id: normalizedId, status, path }, projectRoot);
   return { id: normalizedId, path, status, created: true };
@@ -892,10 +958,45 @@ export async function ensureFindingsDir(projectRoot = process.cwd()): Promise<st
   return dir;
 }
 
-async function readFindingTemplate(status: EvidenceStatus): Promise<string> {
+async function readFindingTemplate(
+  status: EvidenceStatus,
+  seed?: FindingTemplateSeed,
+): Promise<string> {
   const templatePath = join(packageRoot(), "contracts", "evidence.v1.yaml");
   const text = await readFile(templatePath, "utf-8");
-  return text.replace(/^status:\s*.*$/m, `status: ${status}          # candidate | confirmed | blocked`);
+  const statusTemplate = text.replace(/^status:\s*.*$/m, `status: ${status}          # candidate | confirmed | blocked`);
+  if (!seed) {
+    return statusTemplate;
+  }
+
+  const parsed = parseYaml(statusTemplate);
+  if (!isRecord(parsed)) {
+    throw new Error("canonical Evidence.v1 template must be a mapping");
+  }
+  const packageData = parsed.package;
+  const versions = parsed.versions;
+  const vulnerability = parsed.vulnerability;
+  const provenance = parsed.provenance;
+  if (!isRecord(packageData) || !isRecord(versions) || !isRecord(vulnerability) || !isRecord(provenance)) {
+    throw new Error("canonical Evidence.v1 template is missing required mappings");
+  }
+  parsed.status = "candidate";
+  parsed.researcher_goal = seed.researcherGoal;
+  packageData.ecosystem = seed.ecosystem;
+  packageData.registry_name = "";
+  packageData.repository_url = "";
+  packageData.vendor = "";
+  packageData.product = seed.product;
+  versions.tested = "unknown";
+  vulnerability.class = seed.vulnerabilityClass;
+  provenance.unverified_fields = UNKNOWN_ACCOUNTING_FIELDS.filter(
+    (path) => getString(parsed, path) === "unknown",
+  );
+  return stringifyYaml(parsed, { lineWidth: 0 });
+}
+
+function isNodeError(error: unknown, code: string): boolean {
+  return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === code;
 }
 
 function parseEvidenceYaml(text: string): { data: Record<string, unknown>; errors: string[] } {
@@ -939,7 +1040,7 @@ function computeEvidenceScore(data: Record<string, unknown>): number {
 
 function computeSubmissionScore(data: Record<string, unknown>, status: string, projectRoot: string): number {
   let score = computeEvidenceScore(data);
-  for (const deduction of submissionDeductions(data, status, projectRoot)) {
+  for (const deduction of submissionDeductions(data, projectRoot)) {
     score -= deduction.points;
   }
   score -= cvssConfidencePenalty(data);
@@ -948,7 +1049,7 @@ function computeSubmissionScore(data: Record<string, unknown>, status: string, p
   return Math.max(0, Math.min(100, score));
 }
 
-function submissionDeductions(data: Record<string, unknown>, status: string, projectRoot: string): SubmissionDeduction[] {
+function submissionDeductions(data: Record<string, unknown>, projectRoot: string): SubmissionDeduction[] {
   const deductions: SubmissionDeduction[] = [];
   if (!isKnown(getString(data, "evidence.observed_result"))) {
     deductions.push({
@@ -1065,7 +1166,7 @@ async function collectReportArtifacts(dir: string, paths: string[]): Promise<voi
       await collectReportArtifacts(path, paths);
       continue;
     }
-    if (dirent.isFile() && (await stat(path)).size > 0) {
+    if (dirent.isFile() && dirent.name !== "provenance.json" && (await stat(path)).size > 0) {
       paths.push(path);
     }
   }
@@ -1087,7 +1188,7 @@ async function collectEmptyReportArtifacts(dir: string, paths: string[]): Promis
       await collectEmptyReportArtifacts(path, paths);
       continue;
     }
-    if (dirent.isFile() && (await stat(path)).size === 0) {
+    if (dirent.isFile() && dirent.name !== "provenance.json" && (await stat(path)).size === 0) {
       paths.push(path);
     }
   }
@@ -1333,11 +1434,6 @@ function getValue(data: Record<string, unknown>, path: string): unknown {
     current = (current as Record<string, unknown>)[part];
   }
   return current;
-}
-
-function getRecordString(data: Record<string, unknown>, key: string): string {
-  const value = data[key];
-  return typeof value === "string" ? value : value === undefined || value === null ? "" : String(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

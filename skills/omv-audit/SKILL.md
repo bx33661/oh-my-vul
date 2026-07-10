@@ -25,7 +25,7 @@ Stay in passive research mode: read public source code only. Do not send request
 
 - 审计方法论与置信度框架：`references/audit-playbook.md`
 - CVSS v3.1 度量决策表：`references/shared/cvss-builder.md`
-- 生态系统 sink registry（npm/Python/Go/Rust/Java/Ruby）：`references/patterns/npm.md` 等同目录文件
+- 14 个生态的 PatternPack manifest 位于 `references/pattern-packs/`，对应 Markdown registry 位于 `references/patterns/`
 - Evidence.v1 字段定义与 evidence/submission 评分规则：`contracts/evidence.v1.yaml`
 - ThreatMap.v1 图证据字段：`contracts/threat-map.v1.yaml`
 - Verification.v1 对抗复核 sidecar：`contracts/verification.v1.yaml`
@@ -47,7 +47,7 @@ Stay in passive research mode: read public source code only. Do not send request
 
 **如何达到目标，由你自主决定。** 根据 finding 的实际情况——漏洞类别、已有线索、代码结构——自主选择切入点、阅读哪些文件、花多少精力在每个环节。参考 `references/audit-playbook.md` 获取思维框架，但不要把它当作执行脚本。
 
-如果 finding 属于 npm、Python、Go、Rust、Java 或 Ruby，按需加载 `references/patterns/` 下对应生态文件，用其中的 source pattern、sink signature、expected guard、evidence criteria、false-positive checks 和 CWE 映射辅助判断。Pattern registry 是方法论，不是真实漏洞案例库；不要加载无关生态 registry。
+如果 finding 属于任一受支持生态，先加载 `references/pattern-packs/` 下对应 JSON，再按需加载 `references/patterns/` 下对应 Markdown registry，用其中的 source pattern、sink signature、expected guard、evidence criteria、false-positive checks 和 CWE 映射辅助判断。Pattern registry 是方法论，不是真实漏洞案例库；不要加载无关生态 registry。
 
 当证据链足够清楚时，生成可选 ThreatMap.v1 sidecar，记录 source → transform → sink 的 dataflow 路径：
 
@@ -109,15 +109,6 @@ stage 6: synthesize         → 汇聚后写 Evidence.v1 + ThreatMap.v1 + Verifi
 ### Subagent 定义位置
 
 每个 subagent 的定义文件在 `.claude/agents/` 目录，frontmatter 声明了 tools 白名单、model、以及行为描述。Claude Code 根据描述自动将自然语言委托请求路由到正确的 subagent。
-
-以下是硬约束，不可逾越：
-
-1. **不攻击线上服务** — 所有分析基于公开源代码和本地环境
-2. **不自动执行 PoC** — `evidence.reproducer` 只写步骤描述，不自动运行
-3. **submission score < 75 时不得升为 confirmed** — 低分时保留 `candidate` 状态并列出缺失项
-4. **blocked 必须填写 `blockers` 列表** — 每条 blocker 说明具体原因
-5. **不伪造证据** — 无法验证的字段保留 `unknown`，在 `provenance.unverified_fields` 中列出
-6. **CLI validation 是硬门槛** — 只有 `omv findings validate <id>` 返回 OK 时，才允许把结论作为 confirmed 交给 `/omv-report`
 
 ## 结论规则
 

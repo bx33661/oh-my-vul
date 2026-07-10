@@ -26,6 +26,12 @@ import { recordSubmission } from "../submissions.js";
 import { validateThreatMap } from "../threatmap.js";
 import { initVerification, validateVerification } from "../verification.js";
 import { reviewFinding } from "../review.js";
+import {
+  isReportReady,
+  isSubmissionScoreReady,
+  resolveDoctorNextAction,
+  SUBMISSION_READY_THRESHOLD,
+} from "../workflow.js";
 import { readWorkspaceActivity } from "../workspace.js";
 
 const BASE_FINDING = `schema_version: "1"
@@ -294,6 +300,32 @@ test("finding workflow recommends audit, repro, report, and archive next actions
       workflow.find((finding) => finding.id === "blocked")?.nextAction,
       "omv findings archive blocked --reason blocked",
     );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("confirmed findings below the submission threshold stay out of the report queue", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-findings-"));
+
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    const lowConfidence = `${BASE_FINDING.replace("status: candidate", "status: confirmed")}
+verdict:
+  exploitability: plausible
+  confidence: low
+  reason: incomplete confidence
+`;
+    await writeFile(join(dir, "low-confidence.yaml"), lowConfidence, "utf-8");
+
+    const validation = await validateFinding("low-confidence", projectRoot);
+    assert.equal(validation.ok, true);
+    assert.ok(validation.submissionScore < 75);
+
+    const [finding] = await listFindingWorkflow(projectRoot);
+    assert.notEqual(finding.nextAction, "/omv-report low-confidence");
+    assert.match(finding.nextAction, /^\/omv-(?:audit|repro) /);
+    assert.ok(finding.priority < 100);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -588,6 +620,61 @@ provenance:
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
+});
+
+test("readiness helpers share one report-ready policy", () => {
+  assert.equal(SUBMISSION_READY_THRESHOLD, 75);
+  assert.equal(isSubmissionScoreReady("confirmed", true, 75), true);
+  assert.equal(isSubmissionScoreReady("confirmed", true, 74), false);
+  assert.equal(isSubmissionScoreReady("candidate", true, 90), false);
+
+  assert.equal(
+    isReportReady({ status: "confirmed", validationOk: true, submissionScore: 80 }),
+    true,
+  );
+  assert.equal(
+    isReportReady({
+      status: "confirmed",
+      validationOk: true,
+      submissionScore: 80,
+      threatMapOk: false,
+    }),
+    false,
+  );
+  assert.equal(
+    isReportReady({
+      status: "confirmed",
+      validationOk: true,
+      submissionScore: 80,
+      verificationOk: false,
+    }),
+    false,
+  );
+
+  assert.equal(
+    resolveDoctorNextAction("demo", true, "/omv-audit demo"),
+    "/omv-report demo",
+  );
+  assert.equal(
+    resolveDoctorNextAction("demo", false, "/omv-audit demo", {
+      strictVerification: true,
+      verificationReady: false,
+      verificationExists: false,
+    }),
+    "omv verification init demo",
+  );
+  assert.equal(
+    resolveDoctorNextAction("demo", false, "/omv-audit demo", {
+      strictVerification: true,
+      verificationReady: false,
+      verificationExists: true,
+    }),
+    "omv verification validate demo",
+  );
+  assert.equal(
+    resolveDoctorNextAction("demo", false, "/omv-repro demo"),
+    "/omv-repro demo",
+  );
 });
 
 test("reviewFinding classifies report readiness verdicts", async () => {

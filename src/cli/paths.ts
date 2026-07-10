@@ -29,6 +29,31 @@ export function omvStateDir(projectRoot = process.cwd()): string {
   return join(projectRoot, ".omv");
 }
 
+/** .omv/campaigns/ — project-scoped Campaign.v1 artifacts. */
+export function campaignsDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "campaigns");
+}
+
+/** .omv/campaigns/<id>.yaml — Campaign.v1 source of truth. */
+export function campaignPath(id: string, projectRoot = process.cwd()): string {
+  return join(campaignsDir(projectRoot), `${id}.yaml`);
+}
+
+/** .omv/campaigns/<id>.md — deterministic Campaign.v1 runbook. */
+export function campaignRunbookPath(id: string, projectRoot = process.cwd()): string {
+  return join(campaignsDir(projectRoot), `${id}.md`);
+}
+
+/** .omv/sources/ — optional SourceRef.v1 sidecars keyed by finding id. */
+export function sourcesDir(projectRoot = process.cwd()): string {
+  return join(omvStateDir(projectRoot), "sources");
+}
+
+/** .omv/sources/<id>.yaml — SourceRef.v1 sidecar for one finding. */
+export function sourceRefPath(id: string, projectRoot = process.cwd()): string {
+  return join(sourcesDir(projectRoot), `${id}.yaml`);
+}
+
 /** .omv/findings/ — project-scoped Evidence.v1 finding ledger. */
 export function findingsDir(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "findings");
@@ -72,6 +97,11 @@ export function reportsDir(projectRoot = process.cwd()): string {
 /** .omv/reports/<id>/ — report artifacts for one finding. */
 export function findingReportsDir(id: string, projectRoot = process.cwd()): string {
   return join(reportsDir(projectRoot), id);
+}
+
+/** .omv/reports/<id>/provenance.json — generated report input hashes. */
+export function reportProvenancePath(id: string, projectRoot = process.cwd()): string {
+  return join(findingReportsDir(id, projectRoot), "provenance.json");
 }
 
 /** .omv/repro/ — project-scoped local reproduction artifacts. */
