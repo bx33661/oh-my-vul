@@ -1,124 +1,133 @@
+<div align="center">
+
 # oh-my-vul
 
-Evidence-first vulnerability research skills for Claude Code.
+**Evidence-first vulnerability research for Claude Code.**
+
+Plan the research, trace the evidence, reproduce locally, and turn confirmed findings into review-ready reports.
 
 [![validate](https://github.com/bx33661/oh-my-vul/actions/workflows/validate.yml/badge.svg)](https://github.com/bx33661/oh-my-vul/actions/workflows/validate.yml)
 [![npm](https://img.shields.io/npm/v/oh-my-vul)](https://www.npmjs.com/package/oh-my-vul)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`oh-my-vul` is a local-first workbench for passive CVE-style research:
+[简体中文](README.zh-CN.md) · [Example workflow](docs/examples/demo-finding-flow.md) · [Changelog](CHANGELOG.md)
 
-1. **Find** audit targets (`/omv-find`)
-2. **Prove** source → sink → guard with Evidence.v1 (`/omv-audit`, `/omv-repro`)
-3. **Gate** readiness (`omv review --strict`)
-4. **Report** VulDB / GHSA / OSV drafts (`/omv-report`)
+</div>
 
-It does **not** attack live third-party services. Keep real findings under private `.omv/` state; never invent proof from weak evidence.
+---
 
-**Quality over sprawl:** research sessions follow `using-omv` discipline — process and CLI gates before “confirmed” or “ready to submit”. Prefer deeper evidence and attack-surface cards over adding more skill names.
+`oh-my-vul` combines Claude Code skills with a local CLI to make open-source vulnerability research repeatable:
 
-| | |
-|---|---|
-| Install | `npx oh-my-vul setup` then `omv doctor` |
-| Docs (zh) | [README.zh-CN.md](README.zh-CN.md) |
-| Community | [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) |
-| Security | [SECURITY.md](SECURITY.md) |
+- **Start with a clear scope.** Campaigns and attack-surface cards turn a broad target into focused research questions.
+- **Keep claims tied to evidence.** Findings record the tested version, source, sink, guards, reproduction, and remaining unknowns.
+- **Report only when ready.** Local reproduction, duplicate checks, and strict review stop weak findings from becoming confident reports.
 
-> **Current release:** **v0.10.1** — campaign first-mile, attack-surface cards, `using-omv` discipline. See [CHANGELOG.md](CHANGELOG.md).
+Research state stays in a private `.omv/` workspace. The project is designed for passive research and local validation, not live attacks against third-party services.
 
-## Install (one step → Claude Code)
+## Quick Start
+
+**Requirements:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and Node.js 20 or later.
+
+Install the CLI, then add the skills and agents to Claude Code:
 
 ```sh
-npx -y oh-my-vul setup
+npm install --global oh-my-vul
+omv setup
 ```
 
-That single command installs all skills + agents into `~/.claude/skills/` and `~/.claude/agents/`. Then open Claude Code and use `/omv`, `/using-omv`, `/omv-find`, etc.
+Check the installation:
 
 ```sh
-# optional checks
-npx -y -p oh-my-vul omv doctor
-npx -y -p oh-my-vul omv version
+omv doctor
 ```
 
-Project-local install (skills live in `./.claude/`):
+From the root of the project you want to research, initialize the private workspace and add it to `.gitignore`:
 
 ```sh
-npx -y oh-my-vul setup --scope project
+omv workspace init --gitignore
 ```
 
-Reinstall / upgrade:
-
-```sh
-npx -y oh-my-vul setup --force
-```
-
-> **Do not pin the version in the npx package name** (avoid `npx oh-my-vul@0.10.1 …`). npm can fail with `command not found` for hyphenated package names when `@version` is attached that way. Prefer `npx -y oh-my-vul setup` (latest) or `npx -y -p oh-my-vul@0.10.1 omv setup` if you must pin.
-
-## Fast Workflow
+Open that project in Claude Code, then run:
 
 ```text
-omv first --target acme --ecosystem npm --vuln xss,ssrf --no-interactive
-  -> .omv/campaigns/acme.yaml + deterministic runbook
-
-omv campaign surfaces propose acme
-  -> attack-surface cards (renderer, webhook, …) as research topics
-
-omv campaign surfaces select acme --cards renderer-pipeline,webhook-client
-  -> pick which hypotheses to pursue
-
-omv campaign seed acme
-  -> candidate Evidence.v1 files for selected cards only
-
-/omv-find --lang npm --vuln xss --count 10
-  -> optional: discover more packages to attach to the campaign
-/omv-audit <id>
-  -> prove or block source -> sink -> guard
-
-omv repro init <id>
-/omv-repro <id>
-  -> record local observed_result
-
-omv review <id> --strict
-  -> ready | needs-repro | needs-audit | needs-verification | blocked
-
-/omv-report <id>
-/omv-critic <id>
-omv sources init <id>
-omv report provenance <id>
-omv report artifacts <id>
-omv submissions record <id> --platform vuldb --submission-id 12345 --url https://example.test/submission/12345
-omv findings archive <id> --reason reported
+/using-omv
+/omv
 ```
 
-Use `omv dashboard` or `/omv next` whenever you are unsure what to do next.
+`/using-omv` applies the evidence and review gates for the session. `/omv` is the main workspace entry point: it shows the active queue and recommends the next action.
 
-## Core Commands
+<details>
+<summary><strong>Installation options</strong></summary>
+
+Install only for the current project:
 
 ```sh
-omv dashboard
-omv campaign list
-omv campaign show <id>
-omv findings workflow
-omv findings show <id>
-omv findings validate <id>
-omv review <id> --strict
-omv sources validate <id>
-omv report provenance <id>
-omv report artifacts <id>
-omv submissions track <id>
-omv eval --json
+omv setup --scope project
 ```
 
-Useful setup and health checks:
+Upgrade the package, then refresh a user-level or project-level install:
 
 ```sh
-omv doctor --strict
-omv request preflight
-omv version --json
-omv eval --junit
+npm install --global oh-my-vul@latest
+# Choose the scope you use:
+omv setup --scope user --force
+omv setup --scope project --force
 ```
 
-## Skills
+Preview either scope without writing files:
+
+```sh
+# Choose the scope you use:
+omv setup --scope user --dry-run
+omv setup --scope project --dry-run
+```
+
+</details>
+
+## The Workflow
+
+```text
+/using-omv
+  -> apply evidence-before-claims rules for the session
+
+/omv
+  -> start or resume a research campaign
+
+/omv-find
+  -> discover and rank open-source audit targets
+
+/omv-audit <finding-id>
+  -> prove or block the source -> sink -> guard path
+
+/omv-repro <finding-id>
+  -> record what actually happens in a local test
+
+/omv review <finding-id> --strict
+  -> check whether the evidence is report-ready
+
+/omv-report <finding-id>
+  -> generate a VulDB, CVE, GHSA, OSV, or Markdown draft
+```
+
+The review gate can send a finding back for more audit, reproduction, deduplication, or adversarial verification. A candidate is never promoted just because a sink looks dangerous.
+
+## Core Capabilities
+
+| Goal | Command |
+|---|---|
+| Apply the research evidence gates | `/using-omv` |
+| Start, resume, or inspect work | `/omv`, `/omv next` |
+| Find packages worth auditing | `/omv-find` |
+| Trace data flow and evaluate guards | `/omv-audit <id>` |
+| Guide a local reproduction | `/omv-repro <id>` |
+| Check duplicate and rejection risk | `/omv-dedup <id>`, `/omv-critic <id>` |
+| Prepare reports and disclosure | `/omv-report <id>`, `/omv-disclose <id>` |
+| Watch releases and advisories | `/omv-radar` |
+
+Supported ecosystems: npm, Python, Go, Rust, Java, Ruby, PHP, C#, Swift, Dart, Elixir, Perl, R, and Lua.
+
+<details>
+<summary><strong>All installed skills</strong></summary>
 
 <!-- omv:skills:start -->
 | Skill | Command | Category | Purpose |
@@ -135,85 +144,44 @@ omv eval --junit
 | `omv-critic` | `/omv-critic` | reporting | Adversarial pre-submission review — identify likely CNA rejection reasons before report generation |
 <!-- omv:skills:end -->
 
-## Target Search
+</details>
 
-```text
-/omv-find --lang npm --vuln proto --count 10
-/omv-find --lang python --vuln injection keyword
-/omv-find --lang all --count 12 markdown parser
-```
+## Local Workspace
 
-Supported `--lang` values:
+All research artifacts live under `.omv/` in the target project:
 
-```text
-npm python go rust java ruby php csharp swift dart elixir perl r lua all
-```
-
-Supported `--vuln` aliases:
-
-```text
-proto traversal ssrf injection xss redos yaml unsafe deser race overflow auth
-csrf xxe sql ssti sandbox redirect upload crypto infoleak
-```
-
-## Local Evidence
-
-Project state lives under `.omv/` and is private by default.
-
-| Path | Purpose |
+| Path | Contains |
 |---|---|
-| `.omv/campaigns/<id>.yaml` | Campaign.v1 target, scope, priorities, and lanes |
-| `.omv/campaigns/<id>.md` | deterministic campaign runbook |
-| `.omv/findings/<id>.yaml` | Evidence.v1 finding ledger |
-| `.omv/sources/<id>.yaml` | SourceRef.v1 local source identity and Evidence hash |
-| `.omv/threatmaps/<id>.yaml` | ThreatMap.v1 source -> sink -> guard graph |
-| `.omv/verifications/<id>.yaml` | Verification.v1 adversarial review result |
-| `.omv/repro/<id>/` | local reproduction notes and artifacts |
-| `.omv/reports/<id>/` | generated report drafts and `provenance.json` input hashes |
-| `.omv/submissions/<id>.yaml` | submission tracking |
+| `.omv/campaigns/` | Scope, priorities, and selected attack surfaces |
+| `.omv/findings/` | Evidence.v1 records for active findings |
+| `.omv/repro/` | Local reproduction notes and artifacts |
+| `.omv/reports/` | Generated drafts and provenance manifests |
+| `.omv/submissions/` | Disclosure and submission tracking |
 
-Create or inspect findings:
+Keep `.omv/` out of Git. Real findings may contain sensitive research notes and should remain private until disclosure is complete.
 
-```sh
-omv findings init <id>
-omv findings open <id>
-omv findings promote <id> --status confirmed
-omv findings promote <id> --status blocked
-```
+## Safety
 
-## Review Gate
+- Use public metadata and source code for discovery.
+- Reproduce only in local or explicitly authorized environments.
+- Do not target live third-party services.
+- Keep unknown or unverified facts marked as unknown.
+- Treat generated reports as drafts until a human reviews the evidence.
 
-`omv review` is the main pre-report check:
+See the [vulnerability research best practices](docs/vulnerability-research-best-practices.zh-CN.md) for the full research boundary.
 
-```sh
-omv review <id>
-omv review <id> --strict --json
-```
+## Documentation
 
-Verdicts:
-
-| Verdict | Meaning |
+| Guide | Use it for |
 |---|---|
-| `ready` | report generation can start |
-| `needs-repro` | local observed result or proof is incomplete |
-| `needs-audit` | Evidence.v1 fields, CVSS, dedup, or graph evidence need work |
-| `needs-verification` | strict mode needs a passing, non-stale Verification.v1 sidecar |
-| `blocked` | archive or revisit blockers |
+| [Demo finding flow](docs/examples/demo-finding-flow.md) | A sanitized end-to-end example |
+| [Radar to audit](docs/examples/radar-to-audit-walkthrough.md) | Turning passive signals into an audit |
+| [Disclosure and submission](docs/examples/disclosure-submission-walkthrough.md) | Following a confirmed finding through disclosure |
+| [Evidence contracts](contracts/README.md) | Evidence.v1 and related file formats |
+| [Request broker](docs/request-broker.md) | Public metadata requests, caching, and failure handling |
 
-## Docs
-
-| Document | Purpose |
-|---|---|
-| [README.zh-CN.md](README.zh-CN.md) | Chinese guide |
-| [docs/vulnerability-research-best-practices.zh-CN.md](docs/vulnerability-research-best-practices.zh-CN.md) | research method guide |
-| [docs/request-broker.md](docs/request-broker.md) | request broker and cache behavior |
-| [docs/examples/demo-finding-flow.md](docs/examples/demo-finding-flow.md) | sanitized end-to-end example |
-| [docs/examples/radar-to-audit-walkthrough.md](docs/examples/radar-to-audit-walkthrough.md) | radar → audit walkthrough |
-| [docs/examples/disclosure-submission-walkthrough.md](docs/examples/disclosure-submission-walkthrough.md) | disclosure / submission walkthrough |
-| [contracts/README.md](contracts/README.md) | Evidence.v1 and sidecar contracts |
-| [CHANGELOG.md](CHANGELOG.md) | release history |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | community guidelines |
+[Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## License
 
-MIT
+[MIT](LICENSE)
