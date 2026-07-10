@@ -3,3 +3,6 @@
 **/*.pyd
 **/*.pyo
 **/test_*.py
+
+# Keep npm package free of internal agent planning drafts
+docs/superpowers/

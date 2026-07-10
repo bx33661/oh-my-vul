@@ -17,6 +17,9 @@ openspec/changes/
 # Root historical vision draft only (do not match openspec/**/spec.md on case-insensitive FS)
 /SPEC.md
 
+# Agent implementation plans / superseded design drafts (not public product docs)
+docs/superpowers/
+
 # TypeScript build output
 dist/
 node_modules/
