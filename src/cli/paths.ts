@@ -44,6 +44,11 @@ export function campaignRunbookPath(id: string, projectRoot = process.cwd()): st
   return join(campaignsDir(projectRoot), `${id}.md`);
 }
 
+/** .omv/campaigns/<id>.surfaces.yaml — AttackSurfaceList.v1 sidecar. */
+export function campaignSurfacesPath(id: string, projectRoot = process.cwd()): string {
+  return join(campaignsDir(projectRoot), `${id}.surfaces.yaml`);
+}
+
 /** .omv/sources/ — optional SourceRef.v1 sidecars keyed by finding id. */
 export function sourcesDir(projectRoot = process.cwd()): string {
   return join(omvStateDir(projectRoot), "sources");

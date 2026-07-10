@@ -37,6 +37,7 @@ REQUIRED_FILES = {
     "contracts/submission.v1.yaml",
     "contracts/threat-map.v1.yaml",
     "docs/vulnerability-research-best-practices.zh-CN.md",
+    "skills/using-omv/SKILL.md",
     "skills/omv/SKILL.md",
     "skills/omv-find/SKILL.md",
     "skills/omv-audit/SKILL.md",

@@ -2,6 +2,20 @@
   "schema_version": "1",
   "cases": [
     {
+      "id": "using-omv-refuse-premature-report",
+      "skill": "using-omv",
+      "eval_id": 0,
+      "checker": "skills/using-omv/scripts/check_output.py",
+      "output": "skills/using-omv/evals/golden/refuse-premature-report.md"
+    },
+    {
+      "id": "using-omv-open-with-process",
+      "skill": "using-omv",
+      "eval_id": 1,
+      "checker": "skills/using-omv/scripts/check_output.py",
+      "output": "skills/using-omv/evals/golden/open-with-process.md"
+    },
+    {
       "id": "omv-next-workflow",
       "skill": "omv",
       "eval_id": 0,

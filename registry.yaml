@@ -7,6 +7,15 @@ platform: claude-code
 updated: "2026-07-10"
 
 skills:
+  - name: using-omv
+    category: manager
+    path: skills/using-omv
+    invocation: /using-omv
+    status: stable
+    description: Bootstrap research discipline — hard gates, evidence-before-claims, process before improvisation (quality growth, not skill sprawl)
+    produces: []
+    consumes: []
+
   - name: omv
     category: manager
     path: skills/omv

@@ -72,6 +72,20 @@ omv threat-map init <id>
 5. **不伪造证据** — 无法验证的字段保留 `unknown`，在 `provenance.unverified_fields` 中列出
 6. **CLI validation 是硬门槛** — 只有 `omv findings validate <id>` 返回 OK 时，才允许把结论作为 confirmed 交给 `/omv-report`
 
+### HARD-GATE: evidence before confirmed
+
+```text
+NO status: confirmed WITHOUT:
+  - concrete evidence.source / sink / guard (prefer file:line)
+  - omv findings validate <id> OK in this turn when omv is available
+  - submission score ≥ 75
+  - no unresolved blockers
+NO exploitability: proven WITHOUT non-unknown observed_result (or explicit user observation recorded)
+NO "ready to submit" LANGUAGE — that is omv review --strict, not audit
+```
+
+If validate fails after you tried confirmed, **revert to candidate**, list errors, stop.
+
 ## Subagent Team Orchestration
 
 本 skill 支持 Claude Code subagent 编排。你在审计流程中可以显式委托给专门的 subagent 角色，让它们在独立的 context 里并行或串行完成子任务：

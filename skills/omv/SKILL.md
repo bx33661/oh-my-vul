@@ -7,6 +7,8 @@ description: oh-my-vul local-first vulnerability research project manager. Shows
 
 oh-my-vul local-first vulnerability research project manager for Claude Code.
 
+**Process first:** For any vulnerability research session (find / audit / report / “what next”), apply `using-omv` discipline — evidence before claims, CLI gates before “confirmed” or “ready to submit”, prefer campaign + attack-surface cards before bulk hypotheses. Do not invent parallel workflows outside `.omv/` + `omv` CLI.
+
 ## Commands
 
 ```text
@@ -16,7 +18,11 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 /omv first [flags]          — initialize a Campaign.v1 first-mile research plan
 /omv campaign              — list local research campaigns
 /omv campaign show <id>    — show Campaign scope, lanes, and next action
-/omv campaign seed <id>    — create candidate Evidence hypotheses for unseeded lanes
+/omv campaign surfaces propose <id>  — propose attack-surface cards (开题)
+/omv campaign surfaces show <id>     — show proposed/selected surface cards
+/omv campaign surfaces select <id> --cards <id,id>
+                            — select which cards become seed hypotheses
+/omv campaign seed <id>    — create candidate Evidence hypotheses (selected cards or lanes)
 /omv status                 — show local .omv workspace status (delegates to omv CLI)
 /omv log                    — show local workspace activity log (delegates to omv CLI)
 /omv next                   — show active findings and recommended next actions
@@ -97,7 +103,10 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 
 - **first / campaign init** — creates `.omv/campaigns/<id>.yaml` and a deterministic Markdown runbook. Use canonical `omv campaign init` when the user asks how to begin; preserve `/omv first` when explicitly invoked.
 - **campaign list/show** — reads Campaign.v1 files directly and reports generic hypothesis lanes.
-- **campaign seed `<id>`** — creates only candidate Evidence.v1 hypotheses for unseeded lanes. Existing `.yaml`/`.yml` findings are never overwritten. Never claim seed audited, reproduced, verified, or proved a vulnerability, and never create ThreatMap, repro, verification, report, or PoC artifacts manually.
+- **campaign surfaces propose `<id>`** — writes `.omv/campaigns/<id>.surfaces.yaml` with deterministic attack-surface cards from the shared pack catalog, filtered by campaign vulnerability classes. Cards are unproven research topics (开题), not findings.
+- **campaign surfaces show `<id>`** — lists card status (`proposed` / `selected` / `skipped`) and next action.
+- **campaign surfaces select `<id> --cards <id,id>`** — marks chosen cards selected and others skipped. Required before seed when a surfaces file exists.
+- **campaign seed `<id>`** — creates only candidate Evidence.v1 hypotheses. If a surfaces sidecar exists, only **selected** cards are seeded (finding ids like `<campaign>-renderer-pipeline`). Otherwise generic vulnerability-class lanes are used. Existing `.yaml`/`.yml` findings are never overwritten. Never claim seed audited, reproduced, verified, or proved a vulnerability, and never create ThreatMap, repro, verification, report, or PoC artifacts manually.
 - **dashboard** — prints workspace status, active workflow queue, and recent activity in one view.
 - **eval** — runs checked-in deterministic checker/golden pairs through the unified runner. It does not invoke a model or make network requests; `--json` and `--junit` are available for automation.
 - **workspace status** — prints workspace path, active/archive counts, status counts, and privacy warnings.
@@ -125,11 +134,13 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 ## Workflow Overview
 
 ```
-omv campaign init  → records target, scope, priorities, and generic lanes
-omv campaign seed  → optional candidate Evidence.v1 hypotheses only
+omv campaign init              → target, scope, priorities, generic lanes
+omv campaign surfaces propose  → attack-surface cards (pack × class)
+omv campaign surfaces select   → choose which hypotheses to pursue
+omv campaign seed              → candidate Evidence.v1 for selected cards (or lanes)
                         ↓
-/omv-find  →  identifies candidates
-              writes .omv/findings/<id>.yaml  (status: candidate)
+/omv-find  →  identifies packages / entry points for those surfaces
+              writes or updates .omv/findings/<id>.yaml  (status: candidate)
                         ↓
 /omv-audit →  deep-audits the finding: dataflow trace, guard verification,
               PoC description, CVSS scoring, dedup search

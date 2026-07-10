@@ -199,12 +199,53 @@ function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidati
         minPositionals: 1,
         maxPositionals: 1,
       });
+    case "surfaces": {
+      const action = rest[0];
+      const actionRest = rest.slice(1);
+      if (action === undefined || action === "help" || HELP_FLAGS.has(action)) {
+        return actionRest.length === 0 ? ok() : fail("campaign surfaces help accepts no extra arguments");
+      }
+      if (action === "propose") {
+        return validateOptions(actionRest, {
+          command: "campaign surfaces propose",
+          flags: new Set(["--force", "--json", ...HELP_FLAGS]),
+          options: new Map(),
+          minPositionals: 1,
+          maxPositionals: 1,
+        });
+      }
+      if (action === "show") {
+        return validateOptions(actionRest, {
+          command: "campaign surfaces show",
+          flags: new Set(["--json", ...HELP_FLAGS]),
+          options: new Map(),
+          minPositionals: 1,
+          maxPositionals: 1,
+        });
+      }
+      if (action === "select") {
+        const validated = validateOptions(actionRest, {
+          command: "campaign surfaces select",
+          flags: new Set(["--json", ...HELP_FLAGS]),
+          options: new Map(),
+          freeOptions: new Set(["--cards"]),
+          minPositionals: 1,
+          maxPositionals: 1,
+        });
+        if (!validated.ok) return validated;
+        if (!actionRest.includes("--cards")) {
+          return fail("campaign surfaces select requires --cards <id,id>");
+        }
+        return ok();
+      }
+      return fail("Unknown campaign surfaces command. Valid commands: propose, show, select, help");
+    }
     case "help":
     case "--help":
     case "-h":
       return rest.length <= 1 ? ok() : fail(`${firstAlias ? "first" : "campaign"} help accepts at most one topic`);
     default:
-      return fail(`Unknown ${firstAlias ? "first" : "campaign"} command: ${subcommand}. Valid commands: init, list, show, seed, help`);
+      return fail(`Unknown ${firstAlias ? "first" : "campaign"} command: ${subcommand}. Valid commands: init, list, show, seed, surfaces, help`);
   }
 }
 

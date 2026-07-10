@@ -1,0 +1,76 @@
+{
+  "schema_version": "1",
+  "catalog_version": "1",
+  "packs": [
+    {
+      "id": "archive-extractor",
+      "title": "Archive extraction path and size handling",
+      "vulnerability_classes": ["path-traversal", "traversal", "race", "overflow", "unsafe"],
+      "discovery_hints": ["zip", "tar", "unzip", "extract", "archive", "package importer"],
+      "sources": ["archive entry names", "filenames", "symlinks", "external size fields"],
+      "sinks": ["filesystem writes", "path joins", "extraction helpers", "allocation from entry size"],
+      "guards": ["normalize and base-prefix check", "reject absolute paths", "symlink policy", "checked sizes"],
+      "false_positive_checks": ["packages that only read archives without writing files"]
+    },
+    {
+      "id": "renderer-pipeline",
+      "title": "User content through a renderer pipeline",
+      "vulnerability_classes": ["xss", "ssti", "sandbox", "infoleak"],
+      "discovery_hints": ["markdown", "html", "preview", "sanitize", "render", "docs", "email"],
+      "sources": ["markdown/HTML input", "renderer plugins", "user content blocks"],
+      "sinks": ["raw HTML render", "innerHTML", "sanitizer bypass", "template render"],
+      "guards": ["strict sanitizer config", "escaping", "safe renderer mode", "disabled raw HTML"],
+      "false_positive_checks": ["safe markdown renderers that escape raw HTML by default"]
+    },
+    {
+      "id": "template-engine",
+      "title": "Dynamic template evaluation",
+      "vulnerability_classes": ["ssti", "injection", "sandbox", "xss"],
+      "discovery_hints": ["template", "theme", "mail merge", "liquid", "erb", "handlebars", "jinja"],
+      "sources": ["template strings", "theme files", "user-editable snippets"],
+      "sinks": ["dynamic render from strings", "eval-like filters", "helper invocation"],
+      "guards": ["fixed template allowlist", "sandboxed helpers", "disabled dangerous filters", "escaping"],
+      "false_positive_checks": ["developer-owned templates with no user-controlled template strings"]
+    },
+    {
+      "id": "config-loader",
+      "title": "Config and object merge loaders",
+      "vulnerability_classes": ["yaml", "proto", "deser", "auth", "crypto", "prototype-pollution"],
+      "discovery_hints": ["config", "yaml", "json", "dotenv", "rc", "schema", "plugin config"],
+      "sources": ["config files", "environment maps", "CLI overrides", "JSON/YAML objects"],
+      "sinks": ["unsafe loader", "deep merge", "object hook", "secret/key parsing"],
+      "guards": ["schema validation", "safe loader", "key denylist", "null-prototype objects"],
+      "false_positive_checks": ["static app config without a user-controlled import path"]
+    },
+    {
+      "id": "media-tool",
+      "title": "Media parse, thumbnail, or remote fetch",
+      "vulnerability_classes": ["ssrf", "upload", "overflow", "infoleak", "xxe"],
+      "discovery_hints": ["image", "svg", "pdf", "video", "thumbnail", "metadata", "exif"],
+      "sources": ["uploaded files", "remote media URLs", "embedded metadata", "SVG/XML"],
+      "sinks": ["remote fetch", "parser decode", "thumbnailer shell", "XML parser", "native bindings"],
+      "guards": ["URL allowlist", "file magic", "parser sandbox", "DTD disabled", "bounded decode"],
+      "false_positive_checks": ["local-only CLI media tools with no upload or URL-fetch flow"]
+    },
+    {
+      "id": "webhook-client",
+      "title": "User-controlled webhook or callback URLs",
+      "vulnerability_classes": ["ssrf", "redirect", "auth", "crypto"],
+      "discovery_hints": ["webhook", "callback", "integration", "notifier", "bot", "oauth"],
+      "sources": ["user-provided webhook URLs", "callback targets", "token config"],
+      "sinks": ["HTTP client", "redirect follow", "signature verifier", "callback redirect"],
+      "guards": ["scheme/host allowlist", "private-IP block", "redirect policy", "signature validation"],
+      "false_positive_checks": ["admin-only callback URLs in single-tenant tools"]
+    },
+    {
+      "id": "upload-handler",
+      "title": "Multipart upload and storage placement",
+      "vulnerability_classes": ["upload", "path-traversal", "traversal", "race", "infoleak"],
+      "discovery_hints": ["upload", "multipart", "avatar", "import", "attachment", "file manager"],
+      "sources": ["multipart filenames", "content types", "temp files", "user-supplied paths"],
+      "sinks": ["extension checks", "move/write", "public storage", "post-process parser"],
+      "guards": ["extension allowlist", "content sniffing", "hash rename", "quarantine", "atomic move"],
+      "false_positive_checks": ["client-side-only validation without server-side storage isolation"]
+    }
+  ]
+}

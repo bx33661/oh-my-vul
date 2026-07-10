@@ -15,6 +15,8 @@ Evidence-first vulnerability research skills for Claude Code.
 
 It does **not** attack live third-party services. Keep real findings under private `.omv/` state; never invent proof from weak evidence.
 
+**Quality over sprawl:** research sessions follow `using-omv` discipline — process and CLI gates before “confirmed” or “ready to submit”. Prefer deeper evidence and attack-surface cards over adding more skill names.
+
 | | |
 |---|---|
 | Install | `npx oh-my-vul setup` then `omv doctor` |
@@ -31,7 +33,7 @@ npx oh-my-vul setup
 omv doctor
 ```
 
-This installs 9 self-contained skills for Claude Code. If `omv` is not on your `PATH`, run it through npx:
+This installs 10 self-contained skills for Claude Code. If `omv` is not on your `PATH`, run it through npx:
 
 ```sh
 npx -p oh-my-vul omv doctor
@@ -46,15 +48,20 @@ npx oh-my-vul setup --scope project
 ## Fast Workflow
 
 ```text
-omv first --target acme --ecosystem npm --vuln traversal,auth --no-interactive
+omv first --target acme --ecosystem npm --vuln xss,ssrf --no-interactive
   -> .omv/campaigns/acme.yaml + deterministic runbook
 
+omv campaign surfaces propose acme
+  -> attack-surface cards (renderer, webhook, …) as research topics
+
+omv campaign surfaces select acme --cards renderer-pipeline,webhook-client
+  -> pick which hypotheses to pursue
+
 omv campaign seed acme
-  -> candidate Evidence.v1 hypotheses only
+  -> candidate Evidence.v1 files for selected cards only
 
-/omv-find --lang npm --vuln traversal --count 10
-  -> choose a candidate
-
+/omv-find --lang npm --vuln xss --count 10
+  -> optional: discover more packages to attach to the campaign
 /omv-audit <id>
   -> prove or block source -> sink -> guard
 
@@ -107,6 +114,7 @@ omv eval --junit
 <!-- omv:skills:start -->
 | Skill | Command | Category | Purpose |
 |---|---|---|---|
+| `using-omv` | `/using-omv` | manager | Bootstrap research discipline — hard gates, evidence-before-claims, process before improvisation (quality growth, not skill sprawl) |
 | `omv` | `/omv` | manager | Local-first project manager — creates research campaigns, shows workspace status, and delegates finding lifecycle actions |
 | `omv-find` | `/omv-find` | research | Find and rank open-source packages worth auditing for passive CVE research |
 | `omv-audit` | `/omv-audit` | audit | Deep-audit a candidate finding — prove or disprove the vulnerability, fill Evidence.v1 fields for omv-report |

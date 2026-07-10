@@ -9,6 +9,7 @@ test("registry catalog exposes installable skills", async () => {
 
   const skills = getInstallableSkills(catalog);
   assert.deepEqual(skills.map((skill) => skill.name), [
+    "using-omv",
     "omv",
     "omv-find",
     "omv-audit",
@@ -21,6 +22,7 @@ test("registry catalog exposes installable skills", async () => {
   ]);
   assert.deepEqual(skills.map((skill) => skill.category), [
     "manager",
+    "manager",
     "research",
     "audit",
     "audit",
@@ -30,6 +32,7 @@ test("registry catalog exposes installable skills", async () => {
     "disclosure",
     "reporting",
   ]);
-  assert.equal(skills[1].invocation, "/omv-find");
-  assert.deepEqual(skills[1].produces, ["CandidateList.v1", "Evidence.v1"]);
+  assert.equal(skills[0].invocation, "/using-omv");
+  assert.equal(skills[2].invocation, "/omv-find");
+  assert.deepEqual(skills[2].produces, ["CandidateList.v1", "Evidence.v1"]);
 });

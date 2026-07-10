@@ -23,6 +23,20 @@ Load these when needed — do not load all at once:
 
 ---
 
+## HARD-GATE: verification before submission-ready claims
+
+```text
+NO submission-ready VulDB / CVE / GHSA / OSV prose WITHOUT fresh gate evidence:
+  1. omv findings validate <id> OK (when CLI available)
+  2. status: confirmed
+  3. submissionScore ≥ 75
+  4. omv review <id> --strict → ready   (or user explicitly asks for triage draft only)
+```
+
+If the gate fails: explain gaps, suggest `/omv-audit`, `/omv-repro`, `/omv-critic`, or `omv review`.  
+Label any incomplete output **triage draft — not for submission**.  
+Do not rationalize “almost ready” into submission-ready wording.
+
 ## Validity Check
 
 Flag these patterns before writing — each one is a common rejection reason:

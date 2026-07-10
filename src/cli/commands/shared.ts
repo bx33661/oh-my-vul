@@ -26,6 +26,7 @@ const VALUE_FLAGS = new Set([
   "--vuln",
   "--local-lab",
   "--id",
+  "--cards",
   "--skill",
   "--eval-id",
   "--output",

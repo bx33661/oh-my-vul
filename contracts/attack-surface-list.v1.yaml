@@ -1,0 +1,42 @@
+# AttackSurfaceList.v1 — proposed attack-surface cards for a Campaign
+# Produced by: omv campaign surfaces propose
+# Consumed by: omv campaign surfaces select, omv campaign seed
+#
+# Storage: .omv/campaigns/<campaign-id>.surfaces.yaml
+#
+# Cards are unproven research hypotheses. Selecting a card does not claim a
+# vulnerability exists. Seeding only creates candidate Evidence.v1 templates.
+
+schema_version: "1"
+campaign_id: acme-1-2
+generated_at: "2026-07-10T00:00:00.000Z"
+updated_at: "2026-07-10T00:00:00.000Z"
+catalog_version: "1"
+
+cards:
+  - id: renderer-pipeline
+    title: User content through a renderer pipeline
+    pack: renderer-pipeline
+    vulnerability_class: xss
+    status: proposed          # proposed | selected | skipped
+    finding_id: acme-1-2-renderer-pipeline
+    sources:
+      - markdown or HTML input
+      - renderer plugins
+      - user content blocks
+    sinks:
+      - raw HTML render
+      - innerHTML assignment
+      - sanitizer bypass paths
+    guards:
+      - strict sanitizer config
+      - output escaping
+      - safe renderer mode
+    discovery_hints:
+      - markdown
+      - html
+      - preview
+      - sanitize
+    false_positive_checks:
+      - default-safe markdown that escapes raw HTML without plugins
+    why: Priority class xss intersects pack renderer-pipeline
