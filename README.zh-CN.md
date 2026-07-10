@@ -20,7 +20,11 @@
 
 > **定位：** `oh-my-vul` 用来辅助研究员发现值得审计的开源项目，整理 **source -> sink -> guard** 证据链，并把已确认的问题转成适合提交给 **VulDB**、**CVE**、**GHSA**、**OSV** 或 Markdown advisory 的报告草稿。
 >
-> **安全边界：** 本项目只面向*被动研究*和*本地验证*。它不是批量扫描器，也不是线上攻击工具。
+> **安全边界：** 本项目只面向*被动研究*和*本地验证*。它不是批量扫描器，也不是线上攻击工具。真实 finding 放在私有 `.omv/` 中，不要提交到 Git。
+>
+> **版本说明：** npm 当前为 **0.9.x**；Campaign / PatternPack / provenance 等能力在 CHANGELOG 中记为 **Unreleased（面向 0.10）**。
+>
+> **社区：** [贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md) · [安全政策](SECURITY.md) · [行为规格](openspec/specs/)
 
 ---
 

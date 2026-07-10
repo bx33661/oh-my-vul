@@ -6,9 +6,24 @@ Evidence-first vulnerability research skills for Claude Code.
 [![npm](https://img.shields.io/npm/v/oh-my-vul)](https://www.npmjs.com/package/oh-my-vul)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`oh-my-vul` helps you find open-source audit targets, keep evidence in local YAML files, review source -> sink -> guard claims, and draft VulDB/CVE/GHSA/OSV reports from confirmed findings.
+`oh-my-vul` is a local-first workbench for passive CVE-style research:
 
-It is built for passive research and local verification. Do not use it to attack live third-party services or invent findings from weak evidence.
+1. **Find** audit targets (`/omv-find`)
+2. **Prove** source → sink → guard with Evidence.v1 (`/omv-audit`, `/omv-repro`)
+3. **Gate** readiness (`omv review --strict`)
+4. **Report** VulDB / GHSA / OSV drafts (`/omv-report`)
+
+It does **not** attack live third-party services. Keep real findings under private `.omv/` state; never invent proof from weak evidence.
+
+| | |
+|---|---|
+| Install | `npx oh-my-vul setup` then `omv doctor` |
+| Docs (zh) | [README.zh-CN.md](README.zh-CN.md) |
+| Contribute | [CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) |
+| Security | [SECURITY.md](SECURITY.md) |
+| Specs | [`openspec/specs/`](openspec/specs/) (accepted behavior) |
+
+> **Version note:** npm package is currently **0.9.x**. Campaign / PatternPack / provenance work in this branch is **Unreleased** toward 0.10 — see [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 

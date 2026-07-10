@@ -1,0 +1,35 @@
+schema: spec-driven
+
+context: |
+  Project: oh-my-vul — a modular collection of LLM-friendly vulnerability research skills for Claude Code.
+
+  Tech stack:
+  - TypeScript CLI (src/cli/) built with tsc; entry point dist/cli/omv.js
+  - Python scripts (shared/scripts/, skills/*/scripts/) using stdlib only — no third-party deps
+  - Skill definitions: Markdown files (SKILL.md) with YAML frontmatter, installed to ~/.claude/skills/
+  - Contracts: YAML schemas (contracts/*.yaml) defining typed handoff objects between skills
+
+  Distribution: npm package `oh-my-vul`, installed via `npx oh-my-vul setup`
+  Skills installed to: ~/.claude/skills/ (user scope) or ./.claude/skills/ (project scope)
+
+  Domain: passive CVE/VulDB security research — find open-source packages with potential vulnerabilities,
+  build source→sink→guard evidence chains, generate advisory reports. No live exploitation.
+
+  Key conventions:
+  - Skill files are concise; ecosystem-specific detail lives in references/ subdirectories
+  - Scripts use only Python stdlib (no pip install required in skill sessions)
+  - Contracts define the typed boundary between omv-find (output) and omv-report (input)
+  - Evidence.v1 is the canonical finding schema: candidate → confirmed → blocked statuses
+  - Validate with: python3 scripts/validate_skill.py; release with: python3 scripts/release_check.py
+
+  Active skills: omv, omv-find, omv-audit, omv-repro, omv-report, omv-radar, omv-dedup,
+  omv-disclose, and omv-critic.
+
+rules:
+  proposal:
+    - Keep proposals under 400 words
+    - Always include a Non-goals section
+    - Specify whether changes touch CLI (TypeScript), skills (Markdown), scripts (Python), or contracts (YAML)
+  tasks:
+    - Group tasks by file/component (one group per file changed)
+    - Include a validation task (validate_skill.py or typecheck) and a reinstall task (omv setup --force) in every change that touches skills or CLI

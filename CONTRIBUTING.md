@@ -2,6 +2,12 @@
 
 Thanks for helping improve `oh-my-vul`. This project is a Claude Code skill collection, so the most important contribution quality is reproducibility: installed skills, `.skill` archives, and source checkout behavior should all match.
 
+By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+**Do not commit** local research state (`.omv/`), secrets, live target data, or unreleased vulnerability details. Use sanitized fixtures in issues and pull requests.
+
+Accepted behavior specs live under [`openspec/specs/`](openspec/specs/). In-progress OpenSpec change drafts stay local (`openspec/changes/` is gitignored).
+
 ## Development Setup
 
 ```sh
