@@ -1,10 +1,11 @@
 {
   "name": "oh-my-vul",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "LLM-friendly vulnerability research skills for Claude Code",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "oh-my-vul": "dist/cli/omv.js",
     "omv": "dist/cli/omv.js",
     "omv-mcp": "dist/cli/omv-mcp.js"
   },

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.10.1 - npx package binary alias
+
+- Register `oh-my-vul` as a package bin alias for `omv`, so `npx oh-my-vul setup` works. Previously only `omv` / `omv-mcp` were exported, which made npx report "could not determine executable to run".
+
 ## v0.10.0 - Campaign first-mile, surfaces, and research discipline
 
 First-mile research and quality gates for evidence-first work:
