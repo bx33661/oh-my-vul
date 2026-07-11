@@ -467,8 +467,10 @@ test("guided start preserves an inline-submitted scope after failure", async () 
   });
   const screen = render(<InteractiveApp initialModel={uninitializedModel()} services={services} dimensions={{ columns: 88, rows: 28 }} />);
   screen.stdin.write("xss\r");
-  await tick();
-  await tick();
+  await waitFor(() => {
+    const frame = screen.lastFrame() ?? "";
+    return frame.includes("› xss") && frame.includes("paste submission failed");
+  });
   assert.deepEqual(submitted, ["xss"]);
   assert.match(screen.lastFrame() ?? "", /› xss/);
   assert.match(screen.lastFrame() ?? "", /paste submission failed/);
@@ -616,4 +618,12 @@ function finding(input: {
 
 function tick(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 20));
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error(`condition not met within ${timeoutMs}ms`);
+    await tick();
+  }
 }
