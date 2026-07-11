@@ -85,7 +85,7 @@ async function runFindingsWorkflow(json: boolean): Promise<void> {
     return;
   }
   if (findings.length === 0) {
-    console.log("No active findings. Run /omv-find or omv findings init <id> to add one.");
+    console.log("No active findings. Run omv dashboard to continue a campaign or omv start to begin.");
     return;
   }
   printWorkflowSummaries(findings);

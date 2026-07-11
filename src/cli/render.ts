@@ -29,6 +29,7 @@ import type { ReportProvenanceResult } from "./report-provenance.js";
 import type { SourceRefInitResult, SourceRefValidation } from "./source-ref.js";
 import type { SetupResult, UninstallResult } from "./setup.js";
 import type { WorkspaceActivityEntry, WorkspaceStatus } from "./workspace.js";
+import type { StartResearchResult } from "./start.js";
 import {
   command as cmd,
   empty,
@@ -47,6 +48,11 @@ import {
   validationBadge,
   warn,
 } from "./tui.js";
+import type { WorkflowAction } from "./workflow.js";
+
+function renderedAction(action: WorkflowAction): string {
+  return `${action.surface === "claude" ? "CLAUDE" : "CLI"}  ${action.command}`;
+}
 
 export function printCampaignInitResult(result: InitCampaignResult): void {
   console.log(
@@ -60,6 +66,27 @@ export function printCampaignInitResult(result: InitCampaignResult): void {
         ["next", cmd(result.nextAction)],
       ]),
       ...result.warnings.map((message) => warn(`warning  ${message}`)),
+    ]),
+  );
+}
+
+export function printStartResearchResult(result: StartResearchResult): void {
+  console.log(title("oh-my-vul start"));
+  console.log(
+    panel("research workspace ready", [
+      ...kv([
+        ["target", result.campaign.campaign.target.name],
+        ["version", result.campaign.campaign.target.version],
+        ["ecosystem", result.campaign.campaign.target.ecosystem],
+        ["source", result.campaign.campaign.target.source],
+        ["detected", result.project.detectedFrom.join(", ")],
+        ["workspace", result.workspace.root],
+        ["campaign", result.campaign.yamlPath],
+        ["next", cmd(`CLI  ${result.campaign.nextAction}`)],
+      ]),
+      ...result.project.warnings.map((message) => warn(`warning  ${message}`)),
+      ...result.workspace.warnings.map((message) => warn(`warning  ${message}`)),
+      ...result.campaign.warnings.map((message) => warn(`warning  ${message}`)),
     ]),
   );
 }
@@ -270,7 +297,7 @@ export function printDoctorResult(result: DoctorResult, strict: boolean): void {
   const next = failed > 0
     ? `omv setup --scope ${result.scope} --force`
     : warned > 0
-      ? `omv doctor --scope ${result.scope} --strict`
+      ? result.checks.find((item) => item.status === "warn" && item.remediation)?.remediation ?? "omv dashboard"
       : "omv dashboard";
 
   console.log(title("oh-my-vul doctor"));
@@ -334,6 +361,7 @@ export function printWorkspaceStatus(result: WorkspaceStatus): void {
 
 export function printDashboard(
   status: WorkspaceStatus,
+  campaigns: CampaignSummary[],
   workflow: FindingWorkflowSummary[],
   activity: WorkspaceActivityEntry[],
 ): void {
@@ -348,18 +376,27 @@ export function printDashboard(
         ["active", String(status.activeCount)],
         ["archived", String(status.archivedCount)],
         ["statuses", statuses || "none"],
-        ["next", workflow[0] ? cmd(workflow[0].nextAction) : cmd("omv findings init <id>")],
+        ["campaigns", String(campaigns.length)],
+        ["next", workflow[0]
+          ? cmd(renderedAction(workflow[0].action))
+          : campaigns[0]
+            ? cmd(`CLI  ${campaigns[0].nextAction}`)
+            : cmd("CLI  omv start")],
       ]),
       ...status.warnings.map((item) => warn(`warning  ${item}`)),
     ]),
   );
 
   if (workflow.length === 0) {
-    console.log(empty("No active findings. Start with omv findings init <id> or /omv-find."));
+    if (campaigns[0]) {
+      console.log(empty(`No active findings. Continue campaign ${campaigns[0].id}: ${campaigns[0].nextAction}`));
+    } else {
+      console.log(empty("No campaign yet. Run omv start to create a guided research plan."));
+    }
   } else {
     console.log(
       table(
-        ["id", "status", "evidence", "submission", "verdict", "blocker", "next action"],
+        ["id", "status", "evidence", "submission", "verdict", "blocker", "run"],
         workflow.slice(0, 8).map((finding) => [
           truncate(finding.id, 30),
           statusBadge(finding.status),
@@ -367,15 +404,15 @@ export function printDashboard(
           readiness(finding.submissionScore),
           truncate(finding.verdict.exploitability, 14),
           truncate(finding.blockers[0] ?? finding.priorityReason, 30),
-          cmd(truncate(finding.nextAction, 54)),
+          cmd(truncate(renderedAction(finding.action), 54)),
         ]),
       ),
     );
     const truncatedActions = workflow
       .slice(0, 8)
-      .filter((finding) => finding.nextAction.length > 54);
+      .filter((finding) => renderedAction(finding.action).length > 54);
     if (truncatedActions.length > 0) {
-      console.log(panel("full next actions", truncatedActions.map((finding) => `${finding.id}: ${cmd(finding.nextAction)}`)));
+      console.log(panel("full next actions", truncatedActions.map((finding) => `${finding.id}: ${cmd(renderedAction(finding.action))}`)));
     }
   }
 
@@ -391,6 +428,23 @@ export function printDashboard(
       ),
     );
   }
+}
+
+export function printWelcome(): void {
+  console.log(title("oh-my-vul"));
+  console.log(
+    panel("start here", [
+      "Evidence-first vulnerability research for Claude Code.",
+      "",
+      ...kv([
+        ["start", cmd("omv start")],
+        ["check", cmd("omv doctor")],
+        ["help", cmd("omv help")],
+      ]),
+      "",
+      muted("No workspace changes were made."),
+    ]),
+  );
 }
 
 export function printWorkspaceActivity(entries: WorkspaceActivityEntry[]): void {
@@ -433,14 +487,14 @@ export function printWorkflowSummaries(findings: FindingWorkflowSummary[]): void
   console.log(title("workflow queue"));
   console.log(
     table(
-      ["id", "priority", "status", "evidence", "submission", "next action", "package", "vulnerability"],
+      ["id", "priority", "status", "evidence", "submission", "run", "package", "vulnerability"],
       findings.map((finding) => [
         truncate(finding.id, 30),
         String(finding.priority),
         statusBadge(finding.status),
         readiness(finding.evidenceScore),
         readiness(finding.submissionScore),
-        cmd(truncate(finding.nextAction, 46)),
+        cmd(truncate(renderedAction(finding.action), 46)),
         truncate(`${finding.ecosystem}:${finding.package}`, 34),
         truncate(finding.vulnerability, 30),
       ]),
@@ -470,7 +524,7 @@ export function printFindingDetail(finding: FindingDetail): void {
       ["reason", finding.archiveReason ?? "unknown"],
     ]));
   }
-  lines.push(...kv([["next", cmd(finding.nextAction)]]));
+  lines.push(...kv([["next", cmd(renderedAction(finding.action))]]));
   if (finding.validation.errors.length > 0) {
     lines.push("", tuiError("errors"));
     lines.push(...finding.validation.errors.map((item) => `  ${item}`));
@@ -769,5 +823,5 @@ export function printDeleteResult(result: FindingDeleteResult): void {
 }
 
 function formatCheckDetail(check: Check): string {
-  return `${statusIcon(check.status)} ${check.name}: ${check.message}`;
+  return `${statusIcon(check.status)} ${check.name}: ${check.message}${check.remediation ? ` -> ${cmd(check.remediation)}` : ""}`;
 }

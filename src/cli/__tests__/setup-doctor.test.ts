@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -55,6 +55,14 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     assert.equal(check.ok, true);
     assert.equal(check.checks.find((item) => item.name === "install manifest")?.status, "pass");
     assert.equal(check.checks.find((item) => item.name === "agents")?.status, "pass");
+    const warningsBeforeUnrelatedSkill = check.checks.filter((item) => item.status === "warn").length;
+
+    const unrelatedSkill = join(claudeHome, "skills", "personal-helper");
+    await mkdir(unrelatedSkill, { recursive: true });
+    await writeFile(join(unrelatedSkill, "SKILL.md"), "# Personal helper\n", "utf-8");
+    check = await doctor({ scope: "user" });
+    assert.equal(check.checks.filter((item) => item.status === "warn").length, warningsBeforeUnrelatedSkill);
+    assert.equal(check.checks.some((item) => item.name === "unexpected skills"), false);
 
     await writeFile(
       join(claudeHome, "skills", "omv-find", "SKILL.md"),
@@ -63,6 +71,7 @@ test("setup installs self-contained Claude Code skills and doctor checks runtime
     );
     check = await doctor({ scope: "user" });
     assert.equal(check.ok, true);
+    assert.equal(check.checks.find((item) => item.name === "modified installed files")?.remediation, "omv setup --scope user --force");
     assert.match(
       check.checks.find((item) => item.name === "modified installed files")?.message ?? "",
       /omv-find[/\\]SKILL\.md/,

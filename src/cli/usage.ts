@@ -1,7 +1,36 @@
 export function usage(): void {
+  console.log(`oh-my-vul — evidence-first vulnerability research for Claude Code
+
+Usage: omv <command>
+
+Start
+  omv start [flags]                 Initialize a workspace and first campaign
+  omv setup                         Install Claude Code skills and agents
+  omv doctor                        Check installation health
+
+Continue
+  omv dashboard                     Show campaigns, findings, and the next action
+  omv campaign                      Inspect research campaigns
+  omv findings workflow             Continue the active finding queue
+
+Validate
+  omv review <id> --strict          Check report readiness
+  omv findings validate [id]        Validate Evidence.v1 files
+
+Maintain
+  omv workspace status              Inspect private local state
+  omv radar brief                   Summarize passive intelligence
+
+Run 'omv help <command>' for command help or 'omv help --all' for the complete reference.
+`);
+}
+
+export function fullUsage(): void {
   console.log(`oh-my-vul — vulnerability research skills for Claude Code
 
 Usage:
+  omv start --vuln <classes> [flags]
+                                     Initialize workspace and first campaign
   omv setup [--scope user|project] [--force] [--dry-run]
                                      Install skills to ~/.claude/skills/ or ./.claude/skills/
   omv uninstall [--scope user|project] [--json]
@@ -25,7 +54,8 @@ Usage:
   omv first [flags]                 Alias for campaign init
   omv review <id> [--strict] [--json]
                                      Review a finding and recommend report readiness
-  omv workspace init [--json]        Initialize local .omv workspace
+  omv workspace init [--gitignore] [--json]
+                                     Initialize local .omv workspace
   omv workspace status [--json]      Show local .omv workspace status
   omv workspace log [--json]         Show local workspace activity log
   omv findings list [--json]        List .omv/findings evidence files
@@ -91,6 +121,8 @@ Usage:
   omv help                           Show this message
 
 Examples:
+  omv start
+  omv start --vuln xss,auth --no-interactive
   npx oh-my-vul setup
   npx oh-my-vul setup --scope project
   npx oh-my-vul setup --force
@@ -119,10 +151,20 @@ Examples:
 
 export function commandUsage(topic: string | undefined, subcommand: string | undefined): void {
   switch (topic) {
+    case "--all":
+      fullUsage();
+      return;
     case "setup":
       console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
 
 Install all registry-marked skills and write an install manifest.`);
+      return;
+    case "start":
+      console.log(`Usage: omv start --vuln <comma-list> [options]
+
+Initialize a private workspace, detect local project metadata, and create the first campaign.
+Options: --id, --target, --version, --source, --ecosystem, --mode, --goal,
+--budget, --local-lab, --force, --no-interactive, --json.`);
       return;
     case "uninstall":
       console.log(`Usage: omv uninstall [--scope user|project] [--json]
@@ -206,6 +248,48 @@ sidecar.`);
       usage();
       return;
   }
+}
+
+const TOP_LEVEL_COMMANDS = [
+  "start", "setup", "uninstall", "config", "doctor", "dashboard", "eval", "campaign", "first",
+  "review", "workspace", "findings", "sources", "radar", "request", "dedup", "disclose",
+  "submissions", "repro", "report", "threat-map", "verification", "version", "help",
+] as const;
+
+const PRODUCT_ALIASES: Record<string, string[]> = {
+  find: ["/omv-find", "omv findings"],
+  audit: ["/omv-audit <id>", "omv findings workflow"],
+  next: ["omv dashboard", "omv findings workflow"],
+  status: ["omv dashboard", "omv workspace status"],
+};
+
+export function commandSuggestions(input: string): string[] {
+  const direct = PRODUCT_ALIASES[input.toLowerCase()];
+  if (direct) return direct;
+  return TOP_LEVEL_COMMANDS
+    .map((candidate) => ({ candidate, distance: editDistance(input.toLowerCase(), candidate) }))
+    .filter(({ candidate, distance }) => distance <= Math.max(2, Math.floor(candidate.length / 3)))
+    .sort((left, right) => left.distance - right.distance || left.candidate.localeCompare(right.candidate))
+    .slice(0, 3)
+    .map(({ candidate }) => `omv ${candidate}`);
+}
+
+function editDistance(left: string, right: string): number {
+  const row = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    let previous = row[0];
+    row[0] = leftIndex;
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const current = row[rightIndex];
+      row[rightIndex] = Math.min(
+        row[rightIndex] + 1,
+        row[rightIndex - 1] + 1,
+        previous + Number(left[leftIndex - 1] !== right[rightIndex - 1]),
+      );
+      previous = current;
+    }
+  }
+  return row[right.length];
 }
 
 export function evalUsage(): void {

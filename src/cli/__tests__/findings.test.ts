@@ -293,6 +293,11 @@ test("finding workflow recommends audit, repro, report, and archive next actions
       ["ready-report", "needs-repro", "needs-audit", "blocked"],
     );
     assert.equal(workflow.find((finding) => finding.id === "needs-audit")?.nextAction, "/omv-audit needs-audit");
+    assert.deepEqual(workflow.find((finding) => finding.id === "needs-audit")?.action, {
+      surface: "claude",
+      command: "/omv-audit needs-audit",
+      reason: "audit evidence still missing",
+    });
     assert.equal(workflow.find((finding) => finding.id === "needs-repro")?.nextAction, "/omv-repro needs-repro");
     assert.equal(workflow.find((finding) => finding.id === "ready-report")?.nextAction, "/omv-report ready-report");
     assert.equal(workflow.find((finding) => finding.id === "ready-report")?.priorityReason, "confirmed finding ready for report");
@@ -300,6 +305,10 @@ test("finding workflow recommends audit, repro, report, and archive next actions
       workflow.find((finding) => finding.id === "blocked")?.nextAction,
       "omv findings archive blocked --reason blocked",
     );
+    assert.equal(workflow.find((finding) => finding.id === "blocked")?.action.surface, "cli");
+    for (const finding of workflow) {
+      assert.equal(finding.nextAction, finding.action.command);
+    }
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

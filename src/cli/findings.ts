@@ -20,6 +20,7 @@ import {
 import { rm } from "fs/promises";
 import {
   classifyWarning,
+  createWorkflowAction,
   dedupeIssues,
   extractFieldRefs,
   isReportReady,
@@ -31,6 +32,7 @@ import {
   workflowNextAction,
   workflowPriority,
   workflowPriorityReason,
+  type WorkflowAction,
 } from "./workflow.js";
 
 export { SUBMISSION_READY_THRESHOLD, isReportReady } from "./workflow.js";
@@ -90,6 +92,7 @@ export interface FindingValidation {
 
 export interface FindingWorkflowSummary extends FindingSummary {
   nextAction: string;
+  action: WorkflowAction;
   missingFields: string[];
   blockers: string[];
   priority: number;
@@ -298,13 +301,15 @@ export async function listFindingWorkflow(projectRoot = process.cwd()): Promise<
       const blockers = workflowBlockers(validation);
       const nextAction = workflowNextAction(finding, validation, missingFields);
       const priority = workflowPriority(finding, validation, missingFields, nextAction);
+      const priorityReason = workflowPriorityReason(priority, nextAction);
       return {
         ...finding,
         nextAction,
+        action: createWorkflowAction(nextAction, priorityReason),
         missingFields,
         blockers,
         priority,
-        priorityReason: workflowPriorityReason(priority, nextAction),
+        priorityReason,
       };
     }),
   );
@@ -327,6 +332,9 @@ export async function showFinding(
   const missingFields = workflowMissingFields(validation);
   const metadata = archived ? await readArchiveMetadata(id, projectRoot) : undefined;
   const threatMap = await readThreatMap(id, projectRoot);
+  const nextAction = archived ? `omv findings restore ${id}` : workflowNextAction(summary, validation, missingFields);
+  const priority = archived ? 0 : workflowPriority(summary, validation, missingFields, nextAction);
+  const priorityReason = archived ? "archived" : workflowPriorityReason(priority, nextAction);
   return {
     ...summary,
     archived,
@@ -334,12 +342,10 @@ export async function showFinding(
     threatMap,
     missingFields,
     blockers: workflowBlockers(validation),
-    nextAction: archived ? `omv findings restore ${id}` : workflowNextAction(summary, validation, missingFields),
-    priority: archived ? 0 : workflowPriority(summary, validation, missingFields, workflowNextAction(summary, validation, missingFields)),
-    priorityReason: archived ? "archived" : workflowPriorityReason(
-      workflowPriority(summary, validation, missingFields, workflowNextAction(summary, validation, missingFields)),
-      workflowNextAction(summary, validation, missingFields),
-    ),
+    nextAction,
+    action: createWorkflowAction(nextAction, priorityReason),
+    priority,
+    priorityReason,
     archivedAt: metadata?.archivedAt,
     archiveReason: metadata?.archiveReason,
   };

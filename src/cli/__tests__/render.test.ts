@@ -8,6 +8,7 @@ import {
   printReportArtifacts,
   printReproInitResult,
   printUninstallResult,
+  printDoctorResult,
 } from "../render.js";
 import { buildCampaign } from "../campaign.js";
 
@@ -27,6 +28,24 @@ test("canonical uninstall renderer summarizes removed skills and manifest state"
   assert.match(output, /oh-my-vul uninstall/);
   assert.match(output, /1\/2 skill\(s\) removed/);
   assert.match(output, /manifest\s+removed/);
+});
+
+test("doctor renderer recommends remediation instead of strict mode", () => {
+  const output = captureOutput(() => printDoctorResult({
+    ok: true,
+    warnings: true,
+    scope: "user",
+    skillsDir: "/tmp/skills",
+    checks: [{
+      name: "install manifest",
+      status: "warn",
+      passed: true,
+      message: "stale version",
+      remediation: "omv setup --scope user --force",
+    }],
+  }, false));
+  assert.match(output, /next\s+omv setup --scope user --force/);
+  assert.doesNotMatch(output, /next\s+.*--strict/);
 });
 
 test("canonical repro renderer owns evidence and next-action output", () => {

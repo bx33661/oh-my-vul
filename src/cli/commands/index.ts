@@ -1,8 +1,12 @@
 import { validateArgs } from "../args.js";
-import { usage, commandUsage } from "../usage.js";
+import { usage, commandUsage, commandSuggestions } from "../usage.js";
 import { wantsHelp, handleError } from "./shared.js";
+import { existsSync } from "node:fs";
+import { omvStateDir } from "../paths.js";
+import { printWelcome } from "../render.js";
 
 import * as version from "./version.js";
+import * as start from "./start.js";
 import * as setup from "./setup.js";
 import * as doctor from "./doctor.js";
 import * as dashboard from "./dashboard.js";
@@ -24,6 +28,7 @@ import * as threatMap from "./threat-map.js";
 import * as verification from "./verification.js";
 
 const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
+  start: start.run,
   version: version.run,
   setup: setup.run,
   uninstall: setup.runUninstall,
@@ -54,8 +59,14 @@ export async function run(): Promise<void> {
 
   const validation = validateArgs(args);
   if (!validation.ok) {
-    console.error(`${validation.error}\n`);
-    usage();
+    console.error(validation.error);
+    if (command && validation.error?.startsWith("Unknown command:")) {
+      const suggestions = commandSuggestions(command);
+      if (suggestions.length > 0) {
+        console.error(`\nDid you mean:\n${suggestions.map((item) => `  ${item}`).join("\n")}`);
+      }
+    }
+    console.error("\nRun 'omv help' to see the main commands.");
     process.exit(1);
   }
 
@@ -67,7 +78,11 @@ export async function run(): Promise<void> {
   }
 
   if (command === undefined) {
-    usage();
+    if (existsSync(omvStateDir())) {
+      await dashboard.run([]).catch(handleError);
+    } else {
+      printWelcome();
+    }
     return;
   }
 

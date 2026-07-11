@@ -11,8 +11,24 @@
 
 import type { FindingSummary, FindingValidation, FindingDoctorIssue } from "./findings.js";
 
+export type WorkflowActionSurface = "cli" | "claude";
+
+export interface WorkflowAction {
+  surface: WorkflowActionSurface;
+  command: string;
+  reason: string;
+}
+
 /** Minimum submission score before recommending /omv-report or priority 100. */
 export const SUBMISSION_READY_THRESHOLD = 75;
+
+export function createWorkflowAction(command: string, reason: string): WorkflowAction {
+  return {
+    surface: command.startsWith("/") ? "claude" : "cli",
+    command,
+    reason,
+  };
+}
 
 export interface ReportReadinessInput {
   status: string;

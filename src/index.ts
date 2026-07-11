@@ -1,4 +1,5 @@
 export { setup } from "./cli/setup.js";
+export { detectProjectContext, startResearch } from "./cli/start.js";
 export { doctor } from "./cli/doctor.js";
 export { readCatalog, getInstallableSkills, parseCatalog } from "./cli/catalog.js";
 export {
@@ -79,6 +80,7 @@ export {
   readWorkspaceActivity,
 } from "./cli/workspace.js";
 export type { SetupOptions, SetupResult } from "./cli/setup.js";
+export type { ProjectContext, StartResearchOptions, StartResearchResult } from "./cli/start.js";
 export type { DoctorResult } from "./cli/doctor.js";
 export type { OmvCatalog, SkillCatalogEntry } from "./cli/catalog.js";
 export type {
@@ -133,3 +135,5 @@ export type {
   CreateFindingTemplateOptions,
   FindingVerdict,
 } from "./cli/findings.js";
+export { createWorkflowAction } from "./cli/workflow.js";
+export type { WorkflowAction, WorkflowActionSurface } from "./cli/workflow.js";

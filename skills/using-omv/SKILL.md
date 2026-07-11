@@ -134,4 +134,4 @@ omv findings validate <id>
 omv review <id> --strict
 ```
 
-If `omv` is missing: `npx oh-my-vul setup` then re-check with `omv doctor`.
+If `omv` is missing: `npm install --global oh-my-vul && omv setup`, then re-check with `omv doctor`.

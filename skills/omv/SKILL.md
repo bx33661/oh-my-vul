@@ -14,6 +14,7 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 ```text
 /omv list                   — list all installed omv-* skills with one-line descriptions
 /omv dashboard              — show workspace, active workflow queue, and recent activity
+/omv start [flags]          — initialize the private workspace and first campaign
 /omv eval                   — run deterministic stable skill eval checks
 /omv first [flags]          — initialize a Campaign.v1 first-mile research plan
 /omv campaign              — list local research campaigns
@@ -78,6 +79,7 @@ When the user invokes campaign, workspace, lifecycle, repro scaffold, artifact c
 Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `omv help report` as the source of truth for exact CLI signatures. For direct aliases:
 
 - `/omv dashboard` -> `omv dashboard`
+- `/omv start ...` -> `omv start ...`
 - `/omv eval ...` -> `omv eval ...`
 - `/omv first ...` -> `omv first ...`
 - `/omv campaign ...` -> `omv campaign ...`
@@ -97,7 +99,7 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 - `/omv restore <id>` -> `omv findings restore <id>`
 - `/omv findings ...` -> `omv findings ...`
 
-**If `omv` is not found on PATH**, output: "`omv` is not installed. Run: `npx oh-my-vul setup`"
+**If `omv` is not found on PATH**, output: "`omv` is not installed. Run: `npm install --global oh-my-vul && omv setup`"
 
 ### Subcommand reference
 
@@ -134,6 +136,7 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 ## Workflow Overview
 
 ```
+omv start                      → private workspace + detected target + first campaign
 omv campaign init              → target, scope, priorities, generic lanes
 omv campaign surfaces propose  → attack-surface cards (pack × class)
 omv campaign surfaces select   → choose which hypotheses to pursue

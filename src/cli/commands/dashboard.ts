@@ -1,19 +1,21 @@
 import { listFindingWorkflow } from "../findings.js";
 import { printDashboard } from "../render.js";
 import { readWorkspaceActivity, workspaceStatus } from "../workspace.js";
+import { listCampaigns } from "../campaign.js";
 import { wantsJson } from "./shared.js";
 
 export async function run(args: string[]): Promise<void> {
   const json = wantsJson(args);
-  const [status, workflow, activity] = await Promise.all([
+  const [status, campaigns, workflow, activity] = await Promise.all([
     workspaceStatus(),
+    listCampaigns(),
     listFindingWorkflow(),
     readWorkspaceActivity(),
   ]);
-  const result = { status, workflow, activity: activity.slice(-8) };
+  const result = { status, campaigns, workflow, activity: activity.slice(-8) };
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-  printDashboard(status, workflow, activity.slice(-8));
+  printDashboard(status, campaigns, workflow, activity.slice(-8));
 }

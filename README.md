@@ -28,33 +28,32 @@ Research state stays in a private `.omv/` workspace. The project is designed for
 
 **Requirements:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and Node.js 20 or later.
 
-Install the CLI, then add the skills and agents to Claude Code:
+Install the CLI and add the skills and agents to Claude Code:
 
 ```sh
 npm install --global oh-my-vul
 omv setup
 ```
 
-Check the installation:
+From the root of the project you want to research, start a guided workspace:
 
 ```sh
-omv doctor
+omv start
 ```
 
-From the root of the project you want to research, initialize the private workspace and add it to `.gitignore`:
+`omv start` adds `.omv/` to `.gitignore`, detects local project metadata, and asks which vulnerability classes to investigate. To provide the scope non-interactively:
 
 ```sh
-omv workspace init --gitignore
+omv start --vuln xss,auth --no-interactive
 ```
 
 Open that project in Claude Code, then run:
 
 ```text
-/using-omv
 /omv
 ```
 
-`/using-omv` applies the evidence and review gates for the session. `/omv` is the main workspace entry point: it shows the active queue and recommends the next action.
+`/omv` applies the evidence and review gates, shows the active queue, and recommends the next action. From the shell, bare `omv` opens the same contextual workspace view.
 
 <details>
 <summary><strong>Installation options</strong></summary>
@@ -87,11 +86,11 @@ omv setup --scope project --dry-run
 ## The Workflow
 
 ```text
-/using-omv
-  -> apply evidence-before-claims rules for the session
+omv start
+  -> initialize private state and create the first research campaign
 
 /omv
-  -> start or resume a research campaign
+  -> resume the campaign with evidence-before-claims rules
 
 /omv-find
   -> discover and rank open-source audit targets
@@ -115,8 +114,8 @@ The review gate can send a finding back for more audit, reproduction, deduplicat
 
 | Goal | Command |
 |---|---|
-| Apply the research evidence gates | `/using-omv` |
-| Start, resume, or inspect work | `/omv`, `/omv next` |
+| Start a guided local research workspace | `omv start` |
+| Resume or inspect work with evidence gates | `/omv`, `omv` |
 | Find packages worth auditing | `/omv-find` |
 | Trace data flow and evaluate guards | `/omv-audit <id>` |
 | Guide a local reproduction | `/omv-repro <id>` |

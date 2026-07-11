@@ -37,6 +37,7 @@ export interface Check {
   status: "pass" | "warn" | "fail";
   passed: boolean;
   message: string;
+  remediation?: string;
 }
 
 export interface DoctorOptions {
@@ -60,13 +61,22 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
     skillsDirExists ? skillsDir : `not found: ${skillsDir} (run: omv setup --scope ${scope})`,
   ));
 
-  if (scope === "user" && existsSync(projectSkillsDir(projectRoot))) {
-    checks.push(check("project skills", "warn", `project skills also exist: ${projectSkillsDir(projectRoot)}`));
-  }
-
   const catalog = await readCatalog();
   const installableSkills = getInstallableSkills(catalog);
   checks.push(check("registry", installableSkills.length > 0 ? "pass" : "fail", `${catalog.version} (${installableSkills.length} installable skills)`));
+
+  const projectSkills = projectSkillsDir(projectRoot);
+  if (
+    scope === "user"
+    && installableSkills.some((skill) => existsSync(join(projectSkills, skill.name, "SKILL.md")))
+  ) {
+    checks.push(check(
+      "project install",
+      "warn",
+      `oh-my-vul skills also exist at project scope: ${projectSkills}`,
+      "omv doctor --scope project",
+    ));
+  }
 
   if (skillsDirExists) {
     for (const skill of installableSkills) {
@@ -82,13 +92,9 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
         problems.length === 0 ? "pass" : "fail",
         problems.length === 0
           ? `installed (${skill.invocation})`
-          : `${problems.slice(0, 3).join(", ")}${problems.length > 3 ? ", ..." : ""} (run: omv setup --scope ${scope} --force)`,
+          : `${problems.slice(0, 3).join(", ")}${problems.length > 3 ? ", ..." : ""}`,
+        problems.length === 0 ? undefined : `omv setup --scope ${scope} --force`,
       ));
-    }
-
-    const unexpected = await findUnexpectedInstalledSkills(skillsDir, installableSkills.map((skill) => skill.name));
-    if (unexpected.length > 0) {
-      checks.push(check("unexpected skills", "warn", unexpected.join(", ")));
     }
 
     checks.push(...(await validateInstallManifest(scope, projectRoot, skillsDir, catalog.version)));
@@ -96,7 +102,7 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
 
   // Verify bundled subagents are installed.
   const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
-  const agentCheck = await validateInstalledAgents(agentsDir);
+  const agentCheck = await validateInstalledAgents(agentsDir, scope);
   checks.push(agentCheck);
 
   const failCount = checks.filter((item) => item.status === "fail").length;
@@ -111,12 +117,13 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
   };
 }
 
-function check(name: string, status: Check["status"], message: string): Check {
+function check(name: string, status: Check["status"], message: string, remediation?: string): Check {
   return {
     name,
     status,
     passed: status !== "fail",
     message,
+    remediation,
   };
 }
 
@@ -132,16 +139,6 @@ async function resolveDoctorScope(projectRoot: string): Promise<SetupScope> {
   }
   const config = await readConfig();
   return config.scope === "project" ? "project" : "user";
-}
-
-async function findUnexpectedInstalledSkills(skillsDir: string, expected: string[]): Promise<string[]> {
-  const expectedSet = new Set(expected);
-  const dirents = await readdir(skillsDir, { withFileTypes: true }).catch(() => []);
-  return dirents
-    .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => dirent.name)
-    .filter((name) => !expectedSet.has(name) && existsSync(join(skillsDir, name, "SKILL.md")))
-    .sort();
 }
 
 async function validateInstalledReferences(skillDir: string): Promise<string[]> {
@@ -186,19 +183,25 @@ async function validateInstallManifest(
   const path = installManifestPath(scope, projectRoot);
   const manifest = await readInstallManifest(path);
   if (!manifest) {
-    return [check("install manifest", "warn", `not found or unreadable: ${path} (run: omv setup --scope ${scope} --force)`)];
+    return [check("install manifest", "warn", `not found or unreadable: ${path}`, `omv setup --scope ${scope} --force`)];
   }
 
   const checks: Check[] = [];
   const packageJson = JSON.parse(await readFile(join(packageRoot(), "package.json"), "utf-8")) as { version?: string };
 
   if (manifest.scope !== scope) {
-    checks.push(check("install manifest", "warn", `scope is ${manifest.scope}, expected ${scope}`));
+    checks.push(check(
+      "install manifest",
+      "warn",
+      `scope is ${manifest.scope}, expected ${scope}`,
+      `omv setup --scope ${scope} --force`,
+    ));
   } else if (manifest.package_version !== packageJson.version || manifest.registry_version !== registryVersion) {
     checks.push(check(
       "install manifest",
       "warn",
-      `stale version package=${manifest.package_version} registry=${manifest.registry_version} (run: omv setup --scope ${scope} --force)`,
+      `stale version package=${manifest.package_version} registry=${manifest.registry_version}`,
+      `omv setup --scope ${scope} --force`,
     ));
   } else {
     checks.push(check("install manifest", "pass", path));
@@ -210,6 +213,7 @@ async function validateInstallManifest(
       "modified installed files",
       "warn",
       `${modified.slice(0, 3).join(", ")}${modified.length > 3 ? ", ..." : ""}`,
+      `omv setup --scope ${scope} --force`,
     ));
   }
 
@@ -238,7 +242,7 @@ async function findModifiedInstalledFiles(manifest: InstallManifest, skillsDir: 
  * stale agent files are reported (warn, not fail) because agents are an
  * enhancement — skills work without them.
  */
-async function validateInstalledAgents(agentsDir: string): Promise<Check> {
+async function validateInstalledAgents(agentsDir: string, scope: SetupScope): Promise<Check> {
   const srcDir = packageAgentsDir();
   if (!existsSync(srcDir)) {
     return check("agents", "pass", "no bundled agents");
@@ -247,7 +251,7 @@ async function validateInstalledAgents(agentsDir: string): Promise<Check> {
   try {
     agentFiles = (await readdir(srcDir)).filter((f) => f.endsWith(".md"));
   } catch {
-    return check("agents", "warn", "unable to read bundled agents directory");
+    return check("agents", "warn", "unable to read bundled agents directory", `omv setup --scope ${scope} --force`);
   }
   if (agentFiles.length === 0) {
     return check("agents", "pass", "no bundled agents");
@@ -257,7 +261,8 @@ async function validateInstalledAgents(agentsDir: string): Promise<Check> {
     return check(
       "agents",
       "warn",
-      `${agentFiles.length} bundled agent(s) not installed (run: omv setup --scope user --force)`,
+      `${agentFiles.length} bundled agent(s) not installed`,
+      `omv setup --scope ${scope} --force`,
     );
   }
 
@@ -290,6 +295,7 @@ async function validateInstalledAgents(agentsDir: string): Promise<Check> {
   return check(
     "agents",
     "warn",
-    `${problems.join("; ")} (run: omv setup --scope user --force)`,
+    problems.join("; "),
+    `omv setup --scope ${scope} --force`,
   );
 }

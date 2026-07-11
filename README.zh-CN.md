@@ -28,33 +28,32 @@
 
 **环境要求：** [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Node.js 20 或更高版本。
 
-全局安装 CLI，再把 skills 和 agents 装入 Claude Code：
+全局安装 CLI，并把 skills 和 agents 装入 Claude Code：
 
 ```sh
 npm install --global oh-my-vul
 omv setup
 ```
 
-检查安装状态：
+进入需要研究的项目根目录，启动引导式工作区：
 
 ```sh
-omv doctor
+omv start
 ```
 
-进入需要研究的项目根目录，初始化私有工作区并写入 `.gitignore`：
+`omv start` 会把 `.omv/` 写入 `.gitignore`、识别本地项目元数据，并询问准备研究的漏洞类型。也可以用非交互方式明确指定：
 
 ```sh
-omv workspace init --gitignore
+omv start --vuln xss,auth --no-interactive
 ```
 
 在该项目中打开 Claude Code，然后输入：
 
 ```text
-/using-omv
 /omv
 ```
 
-`/using-omv` 会启用证据与审查门槛；`/omv` 是工作区统一入口，用来查看正在处理的 finding 和下一步建议。
+`/omv` 会自动启用证据与审查门槛，并显示正在处理的 finding 和下一步建议。在 shell 中直接运行 `omv`，也会打开相同的上下文工作区视图。
 
 <details>
 <summary><strong>其他安装方式</strong></summary>
@@ -87,11 +86,11 @@ omv setup --scope project --dry-run
 ## 使用流程
 
 ```text
-/using-omv
-  -> 为本次研究启用“证据先于结论”的规则
+omv start
+  -> 初始化私有状态并创建第一个研究 Campaign
 
 /omv
-  -> 新建或继续一个研究 Campaign
+  -> 在“证据先于结论”的规则下继续 Campaign
 
 /omv-find
   -> 发现并排序值得审计的开源项目
@@ -115,8 +114,8 @@ omv setup --scope project --dry-run
 
 | 目标 | 命令 |
 |---|---|
-| 启用漏洞研究的证据门槛 | `/using-omv` |
-| 开始、继续或查看研究进度 | `/omv`、`/omv next` |
+| 启动引导式本地研究工作区 | `omv start` |
+| 在证据门槛下继续或查看进度 | `/omv`、`omv` |
 | 发现值得审计的开源包 | `/omv-find` |
 | 跟踪数据流并检查防护 | `/omv-audit <id>` |
 | 引导本地复现 | `/omv-repro <id>` |

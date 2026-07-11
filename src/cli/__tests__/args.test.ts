@@ -94,6 +94,7 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["doctor", "--strict"]).ok, true);
   assert.equal(validateArgs(["dashboard"]).ok, true);
   assert.equal(validateArgs(["dashboard", "--json"]).ok, true);
+  assert.equal(validateArgs(["start", "--id", "demo", "--vuln", "xss", "--no-interactive", "--json"]).ok, true);
   assert.equal(validateArgs(["eval"]).ok, true);
   assert.equal(validateArgs(["eval", "--json"]).ok, true);
   assert.equal(validateArgs(["eval", "--junit"]).ok, true);
@@ -113,6 +114,7 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["setup", "--help"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--help"]).ok, true);
   assert.equal(validateArgs(["help", "findings", "validate"]).ok, true);
+  assert.equal(validateArgs(["help", "--all"]).ok, true);
 });
 
 test("CLI argument validation enforces eval target and output format rules", () => {

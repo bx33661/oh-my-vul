@@ -32,6 +32,8 @@ export function validateArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
+    case "start":
+      return validateCampaignArgs(["init", ...args.slice(1)], false);
     case "setup":
       return validateOptions(args.slice(1), {
         command: "setup",
@@ -112,7 +114,7 @@ export function validateArgs(args: string[]): ArgsValidation {
     case "submissions":
       return validateSubmissionsArgs(args.slice(1));
     default:
-      return fail(`Unknown command: ${command}. Valid commands: version, setup, uninstall, config, doctor, dashboard, eval, campaign, first, review, workspace, findings, sources, radar, request, dedup, disclose, submissions, repro, report, threat-map, verification, help`);
+      return fail(`Unknown command: ${command}`);
   }
 }
 
