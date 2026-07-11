@@ -646,6 +646,12 @@ def render_md(f: Finding) -> str:
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    # Windows pipes default to a legacy code page; reports are always UTF-8.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(
         description="Render a deterministic report skeleton from an Evidence.v1 YAML file."
     )
