@@ -26,6 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Python dependencies
-        run: python -m pip install --disable-pip-version-check -r skills/omv-report/scripts/requirements.txt
+        run: node scripts/run_python.mjs -m pip install --disable-pip-version-check -r skills/omv-report/scripts/requirements.txt
       - name: Validate project
         run: npm run release:check
