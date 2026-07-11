@@ -1,0 +1,42 @@
+name: Publish to GitHub Packages
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-github-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+          cache: "npm"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        run: node scripts/run_python.mjs -m pip install --disable-pip-version-check -r skills/omv-report/scripts/requirements.txt
+
+      - name: Configure package for GitHub Packages
+        run: |
+          npm pkg set name=@bx33661/oh-my-vul
+          npm pkg set publishConfig.registry=https://npm.pkg.github.com
+
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
