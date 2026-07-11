@@ -31,12 +31,20 @@ jobs:
       - name: Install Python dependencies
         run: node scripts/run_python.mjs -m pip install --disable-pip-version-check -r skills/omv-report/scripts/requirements.txt
 
-      - name: Configure package for GitHub Packages
+      - name: Validate and build
+        run: npm run validate
+
+      - name: Pack and re-scope for GitHub Packages
         run: |
+          npm pack
+          mkdir -p /tmp/oh-my-vul-github
+          tar -xzf oh-my-vul-*.tgz -C /tmp/oh-my-vul-github
+          cd /tmp/oh-my-vul-github/package
           npm pkg set name=@bx33661/oh-my-vul
           npm pkg set publishConfig.registry=https://npm.pkg.github.com
 
       - name: Publish to GitHub Packages
-        run: npm publish
+        working-directory: /tmp/oh-my-vul-github/package
+        run: npm publish --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
