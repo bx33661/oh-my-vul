@@ -1,0 +1,59 @@
+{
+  "schema_version": "1",
+  "contracts": [
+    {
+      "name": "AttackSurfaceList.v1",
+      "file": "attack-surface-list.v1.yaml",
+      "storage": ".omv/campaigns/<id>.surfaces.yaml",
+      "compatibility_mode": "closed"
+    },
+    {
+      "name": "Campaign.v1",
+      "file": "campaign.v1.yaml",
+      "storage": ".omv/campaigns/<id>.yaml",
+      "compatibility_mode": "closed"
+    },
+    {
+      "name": "CandidateList.v1",
+      "file": "candidate-list.v1.yaml",
+      "storage": "Skill output and optional local handoff",
+      "compatibility_mode": "extensible"
+    },
+    {
+      "name": "Evidence.v1",
+      "file": "evidence.v1.yaml",
+      "storage": ".omv/findings/<id>.yaml",
+      "compatibility_mode": "extensible"
+    },
+    {
+      "name": "ReportProvenance.v1",
+      "file": "report-provenance.v1.yaml",
+      "storage": ".omv/reports/<id>/provenance.json",
+      "compatibility_mode": "closed"
+    },
+    {
+      "name": "SourceRef.v1",
+      "file": "source-ref.v1.yaml",
+      "storage": ".omv/sources/<id>.yaml",
+      "compatibility_mode": "closed"
+    },
+    {
+      "name": "Submission.v1",
+      "file": "submission.v1.yaml",
+      "storage": ".omv/submissions/<id>.yaml",
+      "compatibility_mode": "closed"
+    },
+    {
+      "name": "ThreatMap.v1",
+      "file": "threat-map.v1.yaml",
+      "storage": ".omv/threatmaps/<id>.yaml",
+      "compatibility_mode": "extensible"
+    },
+    {
+      "name": "Verification.v1",
+      "file": "verification.v1.yaml",
+      "storage": ".omv/verifications/<id>.yaml",
+      "compatibility_mode": "extensible"
+    }
+  ]
+}

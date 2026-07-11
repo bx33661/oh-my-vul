@@ -5,11 +5,12 @@ import { getInstallableSkills, readCatalog } from "./catalog.js";
 import {
   claudeAgentsDir,
   claudeHome,
-  claudeSkillsDir,
+  codexHome,
   packageAgentsDir,
   packageRoot,
   projectAgentsDir,
   projectClaudeHome,
+  projectCodexSkillsDir,
   projectSkillsDir,
   setupScopePath,
 } from "./paths.js";
@@ -21,13 +22,15 @@ import {
   sha256File,
   type InstallManifest,
 } from "./install-manifest.js";
-import type { SetupScope } from "./setup.js";
+import { resolveSkillsDir, type SetupPlatform, type SetupScope } from "./setup.js";
 import { readConfig } from "./config.js";
+import { findPythonRuntime } from "./python-runtime.js";
 
 export interface DoctorResult {
   ok: boolean;
   warnings: boolean;
   scope: SetupScope;
+  platform: SetupPlatform;
   skillsDir: string;
   checks: Check[];
 }
@@ -42,6 +45,7 @@ export interface Check {
 
 export interface DoctorOptions {
   scope?: SetupScope;
+  platform?: SetupPlatform;
   projectRoot?: string;
 }
 
@@ -49,23 +53,35 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
   const checks: Check[] = [];
   const projectRoot = options.projectRoot ?? process.cwd();
   const scope = options.scope ?? (await resolveDoctorScope(projectRoot));
-  const home = scope === "project" ? projectClaudeHome(projectRoot) : claudeHome();
-  const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
+  const platform = options.platform
+    ?? (scope === "project" ? await resolveDoctorPlatform(projectRoot) : "claude-code");
+  const home = platform === "codex"
+    ? (scope === "project" ? projectRoot : codexHome())
+    : (scope === "project" ? projectClaudeHome(projectRoot) : claudeHome());
+  const skillsDir = resolveSkillsDir(scope, platform, projectRoot);
+  const repair = setupCommand(scope, platform);
 
-  checks.push(check("claude home", existsSync(home) ? "pass" : "fail", existsSync(home) ? home : `not found: ${home}`));
+  checks.push(check(`${platform} home`, existsSync(home) ? "pass" : "fail", existsSync(home) ? home : `not found: ${home}`));
 
   const skillsDirExists = existsSync(skillsDir);
   checks.push(check(
     "skills directory",
     skillsDirExists ? "pass" : "fail",
-    skillsDirExists ? skillsDir : `not found: ${skillsDir} (run: omv setup --scope ${scope})`,
+    skillsDirExists ? skillsDir : `not found: ${skillsDir} (run: ${repair})`,
   ));
 
   const catalog = await readCatalog();
   const installableSkills = getInstallableSkills(catalog);
   checks.push(check("registry", installableSkills.length > 0 ? "pass" : "fail", `${catalog.version} (${installableSkills.length} installable skills)`));
+  const python = findPythonRuntime();
+  checks.push(check(
+    "python runtime",
+    python ? "pass" : "warn",
+    python ? `${python.displayName} (Python 3)` : "Python 3 was not found; Skill helper scripts will be unavailable",
+    python ? undefined : "Install Python 3 or set OMV_PYTHON to its executable path",
+  ));
 
-  const projectSkills = projectSkillsDir(projectRoot);
+  const projectSkills = platform === "codex" ? projectCodexSkillsDir(projectRoot) : projectSkillsDir(projectRoot);
   if (
     scope === "user"
     && installableSkills.some((skill) => existsSync(join(projectSkills, skill.name, "SKILL.md")))
@@ -74,7 +90,7 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
       "project install",
       "warn",
       `oh-my-vul skills also exist at project scope: ${projectSkills}`,
-      "omv doctor --scope project",
+      `omv doctor --scope project --platform ${platform}`,
     ));
   }
 
@@ -84,26 +100,40 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
       const installedSkillDir = join(skillsDir, skill.name);
       const files = await listRuntimeFiles(sourceSkillDir);
       const missing = files.filter((file) => !existsSync(join(installedSkillDir, file)));
+      const installedFiles = existsSync(installedSkillDir) ? await listRuntimeFiles(installedSkillDir) : [];
+      const extra = installedFiles.filter((file) => !files.includes(file));
+      const differing = await differingFiles(sourceSkillDir, installedSkillDir, files, missing);
       const referenceErrors = missing.length === 0 ? await validateInstalledReferences(installedSkillDir) : [];
       const scriptErrors = missing.length === 0 ? await validateExecutableScripts(installedSkillDir, files) : [];
-      const problems = [...missing.map((file) => `missing ${file}`), ...referenceErrors, ...scriptErrors];
+      const problems = [
+        ...missing.map((file) => `missing ${file}`),
+        ...differing.map((file) => `outdated ${file}`),
+        ...referenceErrors,
+        ...scriptErrors,
+      ];
+      const status: Check["status"] = problems.length > 0 ? "fail" : extra.length > 0 ? "warn" : "pass";
+      const details = problems.length > 0
+        ? problems
+        : extra.map((file) => `extra managed file ${file}`);
       checks.push(check(
         `skill: ${skill.name}`,
-        problems.length === 0 ? "pass" : "fail",
-        problems.length === 0
+        status,
+        details.length === 0
           ? `installed (${skill.invocation})`
-          : `${problems.slice(0, 3).join(", ")}${problems.length > 3 ? ", ..." : ""}`,
-        problems.length === 0 ? undefined : `omv setup --scope ${scope} --force`,
+          : `${details.slice(0, 3).join(", ")}${details.length > 3 ? ", ..." : ""}`,
+        details.length === 0 ? undefined : `${repair} --force`,
       ));
     }
 
-    checks.push(...(await validateInstallManifest(scope, projectRoot, skillsDir, catalog.version)));
+    checks.push(...(await validateInstallManifest(scope, platform, projectRoot, skillsDir, catalog.version)));
   }
 
-  // Verify bundled subagents are installed.
-  const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
-  const agentCheck = await validateInstalledAgents(agentsDir, scope);
-  checks.push(agentCheck);
+  if (platform === "claude-code") {
+    const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
+    checks.push(await validateInstalledAgents(agentsDir, scope));
+  } else {
+    checks.push(check("agents", "pass", "Codex uses skills and native delegation; no Claude agent files required"));
+  }
 
   const failCount = checks.filter((item) => item.status === "fail").length;
   const warnCount = checks.filter((item) => item.status === "warn").length;
@@ -112,6 +142,7 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
     ok: failCount === 0,
     warnings: warnCount > 0,
     scope,
+    platform,
     skillsDir,
     checks,
   };
@@ -141,12 +172,25 @@ async function resolveDoctorScope(projectRoot: string): Promise<SetupScope> {
   return config.scope === "project" ? "project" : "user";
 }
 
+async function resolveDoctorPlatform(projectRoot: string): Promise<SetupPlatform> {
+  const path = setupScopePath(projectRoot);
+  if (existsSync(path)) {
+    try {
+      const parsed = JSON.parse(await readFile(path, "utf-8")) as { platform?: string };
+      return parsed.platform === "codex" ? "codex" : "claude-code";
+    } catch {
+      // fall through
+    }
+  }
+  return "claude-code";
+}
+
 async function validateInstalledReferences(skillDir: string): Promise<string[]> {
   const skillMd = join(skillDir, "SKILL.md");
   const text = await readFile(skillMd, "utf-8");
   const errors: string[] = [];
   const referenced = [
-    ...text.matchAll(/`((?:references|contracts|scripts)\/[^`]+(?:\.md|\.yaml|\.yml|\.py|\.sh))`/g),
+    ...text.matchAll(/`((?:references|contracts|scripts)\/[^`]+(?:\.md|\.yaml|\.yml|\.py|\.mjs|\.sh))`/g),
   ].map((match) => match[1]);
   const upwardRefs = [...text.matchAll(/`(\.\.\/[^`]+)`/g)].map((match) => match[1]);
 
@@ -174,16 +218,34 @@ async function validateExecutableScripts(skillDir: string, files: string[]): Pro
   return errors;
 }
 
+async function differingFiles(
+  sourceSkillDir: string,
+  installedSkillDir: string,
+  files: string[],
+  missing: string[],
+): Promise<string[]> {
+  const missingSet = new Set(missing);
+  const differing: string[] = [];
+  for (const file of files) {
+    if (missingSet.has(file)) continue;
+    if ((await sha256File(join(sourceSkillDir, file))) !== (await sha256File(join(installedSkillDir, file)))) {
+      differing.push(file);
+    }
+  }
+  return differing;
+}
+
 async function validateInstallManifest(
   scope: SetupScope,
+  platform: SetupPlatform,
   projectRoot: string,
   skillsDir: string,
   registryVersion: string,
 ): Promise<Check[]> {
-  const path = installManifestPath(scope, projectRoot);
+  const path = installManifestPath(scope, projectRoot, platform);
   const manifest = await readInstallManifest(path);
   if (!manifest) {
-    return [check("install manifest", "warn", `not found or unreadable: ${path}`, `omv setup --scope ${scope} --force`)];
+    return [check("install manifest", "warn", `not found or unreadable: ${path}`, `${setupCommand(scope, platform)} --force`)];
   }
 
   const checks: Check[] = [];
@@ -194,14 +256,21 @@ async function validateInstallManifest(
       "install manifest",
       "warn",
       `scope is ${manifest.scope}, expected ${scope}`,
-      `omv setup --scope ${scope} --force`,
+      `${setupCommand(scope, platform)} --force`,
+    ));
+  } else if ((manifest.platform ?? "claude-code") !== platform) {
+    checks.push(check(
+      "install manifest",
+      "warn",
+      `platform is ${manifest.platform ?? "claude-code"}, expected ${platform}`,
+      `${setupCommand(scope, platform)} --force`,
     ));
   } else if (manifest.package_version !== packageJson.version || manifest.registry_version !== registryVersion) {
     checks.push(check(
       "install manifest",
       "warn",
       `stale version package=${manifest.package_version} registry=${manifest.registry_version}`,
-      `omv setup --scope ${scope} --force`,
+      `${setupCommand(scope, platform)} --force`,
     ));
   } else {
     checks.push(check("install manifest", "pass", path));
@@ -213,11 +282,15 @@ async function validateInstallManifest(
       "modified installed files",
       "warn",
       `${modified.slice(0, 3).join(", ")}${modified.length > 3 ? ", ..." : ""}`,
-      `omv setup --scope ${scope} --force`,
+      `${setupCommand(scope, platform)} --force`,
     ));
   }
 
   return checks;
+}
+
+function setupCommand(scope: SetupScope, platform: SetupPlatform): string {
+  return `omv setup --scope ${scope} --platform ${platform}`;
 }
 
 async function findModifiedInstalledFiles(manifest: InstallManifest, skillsDir: string): Promise<string[]> {
@@ -251,7 +324,7 @@ async function validateInstalledAgents(agentsDir: string, scope: SetupScope): Pr
   try {
     agentFiles = (await readdir(srcDir)).filter((f) => f.endsWith(".md"));
   } catch {
-    return check("agents", "warn", "unable to read bundled agents directory", `omv setup --scope ${scope} --force`);
+    return check("agents", "warn", "unable to read bundled agents directory", `${setupCommand(scope, "claude-code")} --force`);
   }
   if (agentFiles.length === 0) {
     return check("agents", "pass", "no bundled agents");
@@ -262,7 +335,7 @@ async function validateInstalledAgents(agentsDir: string, scope: SetupScope): Pr
       "agents",
       "warn",
       `${agentFiles.length} bundled agent(s) not installed`,
-      `omv setup --scope ${scope} --force`,
+      `${setupCommand(scope, "claude-code")} --force`,
     );
   }
 
@@ -296,6 +369,6 @@ async function validateInstalledAgents(agentsDir: string, scope: SetupScope): Pr
     "agents",
     "warn",
     problems.join("; "),
-    `omv setup --scope ${scope} --force`,
+    `${setupCommand(scope, "claude-code")} --force`,
   );
 }

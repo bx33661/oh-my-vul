@@ -1,5 +1,3 @@
-import boxen from "boxen";
-import Table from "cli-table3";
 import pc from "picocolors";
 import stringWidth from "string-width";
 import wrapAnsi from "wrap-ansi";
@@ -7,7 +5,7 @@ import wrapAnsi from "wrap-ansi";
 const ANSI_RE = /\u001b\[[0-9;]*m/g;
 const color = pc.createColors(shouldColor());
 
-type Outcome = "pass" | "warn" | "fail" | "installed" | "skipped" | "error";
+type Outcome = "pass" | "warn" | "fail" | "installed" | "skipped" | "error" | "planned";
 type ColorName = "red" | "green" | "yellow" | "cyan" | "gray";
 
 export function title(text: string): string {
@@ -20,16 +18,14 @@ export function empty(text: string): string {
 
 export function panel(heading: string, lines: string[]): string {
   const maxWidth = terminalWidth();
-  const content = lines
-    .flatMap((line) => wrapAnsi(line, maxWidth - 6, { hard: true }).split("\n"))
-    .join("\n");
-  return boxen(content, {
-    title: ` ${heading} `,
-    padding: { top: 0, bottom: 0, left: 1, right: 1 },
-    borderStyle: "round",
-    borderColor: shouldColor() ? "cyan" : undefined,
-    width: Math.min(maxWidth, Math.max(48, widestLine([heading, content]) + 4)),
-  });
+  const width = Math.min(maxWidth, Math.max(48, widestLine([heading, ...lines]) + 4));
+  const contentWidth = width - 4;
+  const content = lines.flatMap((line) => wrapAnsi(line, contentWidth, { hard: true }).split("\n"));
+  const headingLabel = truncate(` ${heading} `, width - 2);
+  const top = `╭${headingLabel}${"─".repeat(Math.max(0, width - 2 - stringWidth(headingLabel)))}╮`;
+  const bottom = `╰${"─".repeat(width - 2)}╯`;
+  const body = content.map((line) => `│ ${pad(line, contentWidth)} │`);
+  return [paintBorder(top), ...body, paintBorder(bottom)].join("\n");
 }
 
 export function kv(rows: Array<[string, string]>): string[] {
@@ -38,35 +34,26 @@ export function kv(rows: Array<[string, string]>): string[] {
 }
 
 export function table(headers: string[], rows: string[][]): string {
-  const instance = new Table({
-    head: headers.map((header) => color.bold(header)),
-    chars: {
-      top: "─",
-      "top-mid": "┬",
-      "top-left": "╭",
-      "top-right": "╮",
-      bottom: "─",
-      "bottom-mid": "┴",
-      "bottom-left": "╰",
-      "bottom-right": "╯",
-      left: "│",
-      "left-mid": "├",
-      mid: "─",
-      "mid-mid": "┼",
-      right: "│",
-      "right-mid": "┤",
-      middle: "│",
-    },
-    style: {
-      head: [],
-      border: shouldColor() ? ["cyan"] : [],
-      compact: true,
-    },
-    wordWrap: true,
-    wrapOnWordBoundary: false,
-  });
-  instance.push(...rows);
-  return instance.toString();
+  const normalizedRows = rows.map((row) => headers.map((_, index) => row[index] ?? ""));
+  const widths = columnWidths(headers, normalizedRows, terminalWidth());
+  const border = (left: string, middle: string, right: string) => paintBorder(
+    `${left}${widths.map((width) => "─".repeat(width + 2)).join(middle)}${right}`,
+  );
+  const renderRow = (cells: string[]) => {
+    const wrapped = cells.map((cell, index) => wrapAnsi(cell, widths[index], { hard: true }).split("\n"));
+    const height = Math.max(...wrapped.map((cell) => cell.length), 1);
+    return Array.from({ length: height }, (_, line) => paintBorder("│")
+      + wrapped.map((cell, index) => ` ${pad(cell[line] ?? "", widths[index])} `).join(paintBorder("│"))
+      + paintBorder("│"));
+  };
+
+  return [
+    border("╭", "┬", "╮"),
+    ...renderRow(headers.map((header) => color.bold(header))),
+    border("├", "┼", "┤"),
+    ...normalizedRows.flatMap(renderRow),
+    border("╰", "┴", "╯"),
+  ].join("\n");
 }
 
 export function statusBadge(status: string): string {
@@ -83,12 +70,14 @@ export function validationBadge(ok: boolean): string {
 
 export function outcomeBadge(status: Outcome): string {
   if (status === "pass" || status === "installed") return badge(status, "green");
+  if (status === "planned") return badge(status, "cyan");
   if (status === "warn" || status === "skipped") return badge(status, "yellow");
   return badge(status, "red");
 }
 
 export function statusIcon(status: Outcome): string {
   if (status === "pass" || status === "installed") return color.green("✓");
+  if (status === "planned") return color.cyan("·");
   if (status === "warn" || status === "skipped") return color.yellow("!");
   return color.red("✗");
 }
@@ -154,6 +143,25 @@ function badge(text: string, colorName: ColorName): string {
 
 function pad(value: string, width: number): string {
   return `${value}${" ".repeat(Math.max(0, width - stringWidth(value)))}`;
+}
+
+function paintBorder(value: string): string {
+  return shouldColor() ? color.cyan(value) : value;
+}
+
+function columnWidths(headers: string[], rows: string[][], maxWidth: number): number[] {
+  const widths = headers.map((header, index) => Math.max(
+    1,
+    stringWidth(header),
+    ...rows.map((row) => stringWidth(row[index] ?? "")),
+  ));
+  const available = Math.max(headers.length, maxWidth - (headers.length * 3 + 1));
+  while (widths.reduce((sum, width) => sum + width, 0) > available) {
+    const widest = widths.reduce((best, width, index) => width > widths[best] ? index : best, 0);
+    if (widths[widest] <= 1) break;
+    widths[widest] -= 1;
+  }
+  return widths;
 }
 
 function widestLine(lines: string[]): number {

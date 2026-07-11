@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Added Windows as a validated platform with Python 3 runtime discovery, shell-independent Node test execution, cross-platform Skill packaging and LOC estimation, and an Ubuntu/Windows CI matrix. Claude Code remains the default platform when `--platform` is omitted.
+- Reduced install overhead by replacing the static `boxen` and `cli-table3` output layer with the built-in responsive renderer, removing 21 packages from a clean npm install.
+- Improved first-run setup with automatic platform-scoped health verification, explicit restart and Skill invocation guidance, compact install paths, accurate dry-run labels, and clearer download/upgrade documentation.
+
+## v1.0.0 - 2026-07-11
+
+- Froze the 1.0 CLI compatibility surface: workflow-first public help, grouped advanced automation commands, Skill-managed primitives hidden from public catalogs, and canonical `start`, `dashboard`, and `review` workflows replacing redundant wrappers.
+- Froze the remaining 1.0 compatibility boundaries with root-only Node package exports, inventoried runtime/type exports, required-field JSON contracts for every public automation command, parser-aware `.omv` contract versioning, and package-to-installed-Skill content drift checks.
+- Removed the pre-1.0 `first`, `workspace init`, `findings workflow`, `findings doctor`, `findings open`, and permanent `findings delete` routes with focused migration errors.
+- Removed the undocumented experimental `omv-mcp` executable and its custom line-delimited JSON protocol before the 1.0 compatibility boundary.
+- Added first-class Codex setup, doctor, and uninstall support using official `~/.agents/skills` and `.agents/skills` discovery paths, with platform-specific manifests and repository guidance in `AGENTS.md`.
+- Raised the runtime baseline to Node.js 22 and added an Ink 7 / React 19 interactive research workspace.
+- Bare `omv` now opens the responsive workspace in a real TTY; `omv tui` is the explicit entry, while `omv dashboard`, `--no-tui`, pipes, CI, and JSON remain deterministic plain output.
+- Added keyboard workflow navigation, live filtering, evidence-first finding inspection, action-surface guidance, help, refresh, narrow-terminal layouts, and an interactive guided start flow.
+- Hardened detail refresh/error recovery, explicit plain-mode routing, and terminal layouts down to a bounded 52x16 minimum.
+- Expanded the TUI with Overview, Findings, Campaign, and Activity views; Summary/Evidence/Threat/History detail tabs; structured filters; and a read-only command palette.
+- Added V3 full-width wrapped finding and Activity-event detail with scrolling and range indicators, plus paged access to the latest 200 Activity entries.
+
 ## v0.10.1 - npx package binary alias
 
 - Register `oh-my-vul` as a package bin alias for `omv`, so `npx oh-my-vul setup` works. Previously only `omv` / `omv-mcp` were exported, which made npx report "could not determine executable to run".

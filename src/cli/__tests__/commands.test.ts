@@ -13,9 +13,13 @@ const evidenceFixturePath = fileURLToPath(
 );
 const packageJsonPath = fileURLToPath(new URL("../../../package.json", import.meta.url));
 
-test("compiled CLI entrypoint emits complete version JSON", async () => {
+test("compiled CLI entrypoint emits complete version JSON on the supported runtime baseline", async () => {
   const result = runCli(["version", "--json"]);
-  const pkg = JSON.parse(await readFile(packageJsonPath, "utf-8")) as { version: string };
+  const pkg = JSON.parse(await readFile(packageJsonPath, "utf-8")) as {
+    version: string;
+    engines: { node: string };
+    dependencies: Record<string, string>;
+  };
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
@@ -24,6 +28,9 @@ test("compiled CLI entrypoint emits complete version JSON", async () => {
   assert.equal(output.version, pkg.version);
   assert.equal(typeof output.registryVersion, "string");
   assert.equal(typeof output.platform, "string");
+  assert.equal(pkg.engines.node, ">=22");
+  assert.match(pkg.dependencies.ink, /^\^7\./);
+  assert.match(pkg.dependencies.react, /^\^19\./);
 });
 
 test("compiled CLI renders help through the command router", () => {
@@ -31,16 +38,40 @@ test("compiled CLI renders help through the command router", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /oh-my-vul/);
-  assert.match(result.stdout, /Usage:/);
+  assert.match(result.stdout, /Workflow/);
   assert.match(result.stdout, /omv start/);
+  assert.match(result.stdout, /omv dashboard/);
+  assert.match(result.stdout, /omv review/);
+  assert.match(result.stdout, /omv setup/);
+  assert.match(result.stdout, /omv doctor/);
+  assert.match(result.stdout, /omv version/);
+  assert.match(result.stdout, /omv help/);
   assert.doesNotMatch(result.stdout, /omv submissions record/);
+  assert.doesNotMatch(result.stdout, /omv request/);
+  assert.doesNotMatch(result.stdout, /omv eval/);
+  assert.doesNotMatch(result.stdout, /campaign surfaces/);
 });
 
-test("compiled CLI keeps the exhaustive command reference behind help --all", () => {
+test("compiled CLI groups all public commands behind help --all", () => {
   const result = runCli(["help", "--all"]);
   assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Core Workflow/);
+  assert.match(result.stdout, /Advanced Automation/);
+  assert.match(result.stdout, /omv campaign list\|init\|show/);
   assert.match(result.stdout, /omv submissions record/);
-  assert.match(result.stdout, /workspace init \[--gitignore\]/);
+  assert.match(result.stdout, /Skill-managed primitives are intentionally omitted/);
+  assert.doesNotMatch(result.stdout, /omv request/);
+  assert.doesNotMatch(result.stdout, /omv eval/);
+  assert.doesNotMatch(result.stdout, /campaign surfaces/);
+  assert.doesNotMatch(result.stdout, /workspace init/);
+  assert.doesNotMatch(result.stdout, /findings workflow|findings doctor|findings open|findings delete/);
+});
+
+test("compiled CLI labels direct implicit command help as Skill-managed", () => {
+  const result = runCli(["help", "request"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Skill-managed primitive: request/);
+  assert.match(result.stdout, /omv request preflight/);
 });
 
 test("bare CLI is read-only before initialization and opens the dashboard afterward", async () => {
@@ -51,13 +82,33 @@ test("bare CLI is read-only before initialization and opens the dashboard afterw
     assert.match(welcome.stdout, /omv start/);
     assert.equal(existsSync(join(projectRoot, ".omv")), false);
 
+    const explicitPlain = runCli(["--no-tui"], projectRoot);
+    assert.equal(explicitPlain.status, 0, explicitPlain.stderr);
+    assert.match(explicitPlain.stdout, /omv start/);
+
+    const explicitTuiPlain = runCli(["tui", "--no-tui"], projectRoot);
+    assert.equal(explicitTuiPlain.status, 0, explicitTuiPlain.stderr);
+    assert.match(explicitTuiPlain.stdout, /omv start/);
+    assert.equal(existsSync(join(projectRoot, ".omv")), false);
+
     await mkdir(join(projectRoot, ".omv"), { recursive: true });
     const dashboard = runCli([], projectRoot);
     assert.equal(dashboard.status, 0, dashboard.stderr);
     assert.match(dashboard.stdout, /oh-my-vul dashboard/);
+
+    const explicitTuiDashboard = runCli(["tui", "--no-tui"], projectRoot);
+    assert.equal(explicitTuiDashboard.status, 0, explicitTuiDashboard.stderr);
+    assert.match(explicitTuiDashboard.stdout, /oh-my-vul dashboard/);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
+});
+
+test("explicit TUI command explains the non-TTY fallback", () => {
+  const result = runCli(["tui"]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /requires a terminal/i);
+  assert.match(result.stderr, /omv dashboard/);
 });
 
 test("compiled CLI rejects an unknown command with focused suggestions and a non-zero exit", () => {
@@ -79,7 +130,7 @@ test("dashboard human output uses the canonical workflow columns", async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /\bverdict\b/);
     assert.match(result.stdout, /\bblocker\b/);
-    assert.match(result.stdout, /\b(?:CLI|CLAUDE)\b/);
+    assert.match(result.stdout, /\b(?:CLI|SKILL)\b/);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -133,7 +184,7 @@ test("compiled CLI runs the canonical Campaign workflow with stable JSON", async
     assert.equal(listed.status, 0, listed.stderr);
     assert.deepEqual((JSON.parse(listed.stdout) as Array<{ id: string }>).map((item) => item.id), ["demo"]);
 
-    const shown = runCli(["first", "show", "demo", "--json"], projectRoot);
+    const shown = runCli(["campaign", "show", "demo", "--json"], projectRoot);
     assert.equal(shown.status, 0, shown.stderr);
     assert.equal((JSON.parse(shown.stdout) as { campaign: { id: string } }).campaign.id, "demo");
 
@@ -142,7 +193,7 @@ test("compiled CLI runs the canonical Campaign workflow with stable JSON", async
     assert.deepEqual((JSON.parse(seeded.stdout) as { created: Array<{ id: string }> }).created.map((item) => item.id), [
       "demo-xss", "demo-auth",
     ]);
-    const repeated = runCli(["first", "seed", "demo", "--json"], projectRoot);
+    const repeated = runCli(["campaign", "seed", "demo", "--json"], projectRoot);
     assert.equal(repeated.status, 0, repeated.stderr);
     assert.equal((JSON.parse(repeated.stdout) as { skipped: unknown[] }).skipped.length, 2);
   } finally {
@@ -150,22 +201,21 @@ test("compiled CLI runs the canonical Campaign workflow with stable JSON", async
   }
 });
 
-test("compiled first alias initializes and JSON never prompts for missing values", async () => {
-  const projectRoot = await mkdtemp(join(tmpdir(), "omv-commands-campaign-"));
-  try {
-    const alias = runCli([
-      "first", "--id", "alias", "--target", "Alias", "--ecosystem", "npm",
-      "--vuln", "xss", "--no-interactive", "--json",
-    ], projectRoot);
-    assert.equal(alias.status, 0, alias.stderr);
-    assert.equal((JSON.parse(alias.stdout) as { campaign: { id: string } }).campaign.id, "alias");
+test("compiled CLI rejects removed routes with focused migration errors", () => {
+  const removedRoutes: Array<[string[], RegExp]> = [
+    [["first"], /use omv start.*omv campaign init/],
+    [["workspace", "init"], /use omv start/],
+    [["findings", "workflow"], /use omv dashboard/],
+    [["findings", "doctor", "demo"], /use omv review <id>/],
+    [["findings", "open", "demo"], /use omv findings show <id>/],
+    [["findings", "delete", "demo"], /use omv findings archive <id>/],
+  ];
 
-    const missing = runCli(["first", "--json"], projectRoot);
-    assert.equal(missing.status, 1);
-    assert.match(missing.stderr, /missing required fields/i);
-    assert.doesNotMatch(missing.stdout, /Target:|Vulnerability classes/);
-  } finally {
-    await rm(projectRoot, { recursive: true, force: true });
+  for (const [command, replacement] of removedRoutes) {
+    const result = runCli(command);
+    assert.equal(result.status, 1, command.join(" "));
+    assert.match(result.stderr, replacement, command.join(" "));
+    assert.equal(result.stdout, "", command.join(" "));
   }
 });
 

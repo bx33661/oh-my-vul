@@ -5,7 +5,7 @@ description: oh-my-vul local-first vulnerability research project manager. Shows
 
 # omv
 
-oh-my-vul local-first vulnerability research project manager for Claude Code.
+oh-my-vul local-first vulnerability research project manager for Codex and Claude Code.
 
 **Process first:** For any vulnerability research session (find / audit / report / “what next”), apply `using-omv` discipline — evidence before claims, CLI gates before “confirmed” or “ready to submit”, prefer campaign + attack-surface cards before bulk hypotheses. Do not invent parallel workflows outside `.omv/` + `omv` CLI.
 
@@ -14,9 +14,9 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
 ```text
 /omv list                   — list all installed omv-* skills with one-line descriptions
 /omv dashboard              — show workspace, active workflow queue, and recent activity
+/omv tui                    — open the interactive Ink research workspace in a real terminal
 /omv start [flags]          — initialize the private workspace and first campaign
 /omv eval                   — run deterministic stable skill eval checks
-/omv first [flags]          — initialize a Campaign.v1 first-mile research plan
 /omv campaign              — list local research campaigns
 /omv campaign show <id>    — show Campaign scope, lanes, and next action
 /omv campaign surfaces propose <id>  — propose attack-surface cards (开题)
@@ -43,10 +43,7 @@ oh-my-vul local-first vulnerability research project manager for Claude Code.
                             — archive an inactive finding (delegates to omv CLI)
 /omv restore <id>           — restore an archived finding (delegates to omv CLI)
 /omv findings list          — list .omv/findings evidence files (delegates to omv CLI)
-/omv findings workflow      — show lifecycle next actions (delegates to omv CLI)
-/omv findings doctor <id>   — advanced readiness diagnostics
 /omv findings show <id>     — show one finding's validation state and next action
-/omv findings open <id>     — print one finding YAML path for editing
 /omv findings init <id>     — create a finding template (delegates to omv CLI)
 /omv findings validate [id] — validate one or all findings (delegates to omv CLI)
 /omv findings promote <id>  — update finding status (delegates to omv CLI)
@@ -74,18 +71,18 @@ Collection metadata lives in `references/registry.yaml`. Read it to show current
 
 ## CLI Delegation
 
-When the user invokes campaign, workspace, lifecycle, repro scaffold, artifact check, archive, or restore commands, **run the matching `omv` CLI command via `Bash` and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
+When the user invokes campaign, workspace, lifecycle, repro scaffold, artifact check, archive, or restore commands, **run the matching `omv` CLI command with the available shell tool and display its output. Do not implement the behavior manually** (do not `mkdir`, do not move files, do not write YAML directly).
 
 Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `omv help report` as the source of truth for exact CLI signatures. For direct aliases:
 
 - `/omv dashboard` -> `omv dashboard`
+- `/omv tui` -> `omv tui`
 - `/omv start ...` -> `omv start ...`
 - `/omv eval ...` -> `omv eval ...`
-- `/omv first ...` -> `omv first ...`
 - `/omv campaign ...` -> `omv campaign ...`
 - `/omv status` -> `omv workspace status`
 - `/omv log` -> `omv workspace log`
-- `/omv next` -> `omv findings workflow`
+- `/omv next` -> `omv dashboard`
 - `/omv repro init <id>` -> `omv repro init <id>`
 - `/omv review <id>` -> `omv review <id>`
 - `/omv report artifacts <id>` -> `omv report artifacts <id>`
@@ -99,27 +96,25 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 - `/omv restore <id>` -> `omv findings restore <id>`
 - `/omv findings ...` -> `omv findings ...`
 
-**If `omv` is not found on PATH**, output: "`omv` is not installed. Run: `npm install --global oh-my-vul && omv setup`"
+**If `omv` is not found on PATH**, output: "`omv` is not installed. Run `npm install --global oh-my-vul`, then `omv setup --platform codex` in Codex or `omv setup --platform claude-code` in Claude Code."
 
 ### Subcommand reference
 
-- **first / campaign init** — creates `.omv/campaigns/<id>.yaml` and a deterministic Markdown runbook. Use canonical `omv campaign init` when the user asks how to begin; preserve `/omv first` when explicitly invoked.
+- **start / campaign init** — `omv start` provides the guided human workflow; `omv campaign init` creates Campaign.v1 directly for automation.
 - **campaign list/show** — reads Campaign.v1 files directly and reports generic hypothesis lanes.
 - **campaign surfaces propose `<id>`** — writes `.omv/campaigns/<id>.surfaces.yaml` with deterministic attack-surface cards from the shared pack catalog, filtered by campaign vulnerability classes. Cards are unproven research topics (开题), not findings.
 - **campaign surfaces show `<id>`** — lists card status (`proposed` / `selected` / `skipped`) and next action.
 - **campaign surfaces select `<id> --cards <id,id>`** — marks chosen cards selected and others skipped. Required before seed when a surfaces file exists.
 - **campaign seed `<id>`** — creates only candidate Evidence.v1 hypotheses. If a surfaces sidecar exists, only **selected** cards are seeded (finding ids like `<campaign>-renderer-pipeline`). Otherwise generic vulnerability-class lanes are used. Existing `.yaml`/`.yml` findings are never overwritten. Never claim seed audited, reproduced, verified, or proved a vulnerability, and never create ThreatMap, repro, verification, report, or PoC artifacts manually.
 - **dashboard** — prints workspace status, active workflow queue, and recent activity in one view.
+- **tui** — opens the read-only Ink workspace when stdin/stdout are TTYs. Bare `omv` also opens it in a TTY; `omv dashboard`, `omv --no-tui`, JSON, pipes, and CI remain plain.
 - **eval** — runs checked-in deterministic checker/golden pairs through the unified runner. It does not invoke a model or make network requests; `--json` and `--junit` are available for automation.
 - **workspace status** — prints workspace path, active/archive counts, status counts, and privacy warnings.
-- **workspace log** — prints the local activity trail for workspace init, finding init, promotion, archive, and restore.
+- **workspace log** — prints the local activity trail for workspace initialization, finding init, promotion, archive, and restore.
 - **init `<id>`** — creates `.omv/findings/<id>.yaml` from the Evidence.v1 template; default `--status candidate`. If file exists, CLI errors — suggest `--force`.
 - **list** — prints ID / STATUS / READY / PACKAGE / VULNERABILITY table for every `.yaml` in `.omv/findings/`.
-- **workflow** — prints active findings sorted by priority with NEXT ACTION recommendations such as `/omv-audit`, `/omv-repro`, `/omv-report`, promotion, or archive.
 - **review `<id>`** — runs the unified pre-report readiness review and returns one verdict: `ready`, `needs-repro`, `needs-audit`, `needs-verification`, or `blocked`. Use `--strict` when adversarial Verification.v1 must pass before reporting.
-- **doctor `<id>`** — advanced diagnostics for score deductions, unresolved blockers, suspicious CVSS/guard choices, sidecar validation, and artifact gaps. JSON mode is available for CI.
 - **show `<id>`** — prints one finding's package, vulnerability, validation errors/warnings, missing fields, and next action. Use `--archived` to inspect archived findings.
-- **open `<id>`** — prints the Evidence.v1 YAML path and next action so the user can edit or inspect the local file.
 - **validate `[id|path]`** — checks required Evidence.v1 fields; exits non-zero on errors. No arg = validate whole ledger.
 - **promote `<id|path> --status <s>`** — updates the `status` field and re-validates. Valid statuses: `candidate`, `confirmed`, `blocked`.
 - **repro init `<id>`** — creates `.omv/repro/<id>/` with standard reproduction artifact files and records suggested `evidence.repro_artifacts`.
@@ -163,4 +158,4 @@ archive    → omv findings archive <id> --reason reported
 ```
 
 Each finding uses one of three Evidence.v1 statuses: `candidate`, `confirmed`, or `blocked`.
-Use `omv dashboard`, `omv findings workflow`, or `/omv next` as the canonical active queue view after each stage. When the user asks whether a specific finding can be reported, run `omv review <id>` first and follow its verdict. When the CLI prints a priority value, follow the highest-priority row first unless the user names a specific finding.
+Use `omv dashboard` or `/omv next` as the canonical active queue view after each stage. When the user asks whether a specific finding can be reported, run `omv review <id>` first and follow its verdict. When the CLI prints a priority value, follow the highest-priority row first unless the user names a specific finding.

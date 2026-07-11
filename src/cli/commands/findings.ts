@@ -6,27 +6,20 @@ import {
   archiveFinding,
   createFindingTemplate,
   listArchivedFindings,
-  listFindingWorkflow,
   restoreFinding,
-  deleteFinding,
   showFinding,
-  doctorFinding,
 } from "../findings.js";
 import {
   printArchivedSummaries,
   printArchiveResult,
-  printDeleteResult,
   printFindingDetail,
-  printFindingDoctor,
   printFindingSummaries,
   printFindingTemplateResult,
   printFindingValidation,
   printRestoreResult,
-  printWorkflowSummaries,
 } from "../render.js";
-import { usage } from "../usage.js";
+import { findingsUsage } from "../usage.js";
 import { firstPositionalAfter, parseStatus, parseReason, wantsJson } from "./shared.js";
-import { command as cmd, kv, panel } from "../tui.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1] ?? "list";
@@ -36,23 +29,14 @@ export async function run(args: string[]): Promise<void> {
     case "list":
       await runFindingsList(json);
       return;
-    case "workflow":
-      await runFindingsWorkflow(json);
-      return;
     case "show":
       await runFindingsShow(args, json);
-      return;
-    case "open":
-      await runFindingsOpen(args, json);
       return;
     case "init":
       await runFindingsInit(args, json);
       return;
     case "validate":
       await runFindingsValidate(args, json);
-      return;
-    case "doctor":
-      await runFindingsDoctor(args, json);
       return;
     case "promote":
       await runFindingsPromote(args, json);
@@ -63,32 +47,16 @@ export async function run(args: string[]): Promise<void> {
     case "restore":
       await runFindingsRestore(args, json);
       return;
-    case "delete":
-      await runFindingsDelete(args, json);
-      return;
     case "help":
     case "--help":
     case "-h":
-      usage();
+      findingsUsage(undefined);
       return;
     default:
       console.error(`Unknown findings command: ${subcommand}\n`);
-      usage();
+      findingsUsage(undefined);
       process.exit(1);
   }
-}
-
-async function runFindingsWorkflow(json: boolean): Promise<void> {
-  const findings = await listFindingWorkflow();
-  if (json) {
-    console.log(JSON.stringify(findings, null, 2));
-    return;
-  }
-  if (findings.length === 0) {
-    console.log("No active findings. Run omv dashboard to continue a campaign or omv start to begin.");
-    return;
-  }
-  printWorkflowSummaries(findings);
 }
 
 async function runFindingsShow(args: string[], json: boolean): Promise<void> {
@@ -103,35 +71,6 @@ async function runFindingsShow(args: string[], json: boolean): Promise<void> {
     return;
   }
   printFindingDetail(result);
-}
-
-async function runFindingsOpen(args: string[], json: boolean): Promise<void> {
-  const target = firstPositionalAfter(args, "open");
-  if (!target) {
-    console.error("Missing finding id.");
-    process.exit(1);
-  }
-  const result = await showFinding(target, process.cwd(), { archived: args.includes("--archived") });
-  const output = {
-    id: result.id,
-    path: result.path,
-    archived: result.archived,
-    nextAction: result.nextAction,
-  };
-  if (json) {
-    console.log(JSON.stringify(output, null, 2));
-    return;
-  }
-  console.log(
-    panel("finding file", [
-      ...kv([
-        ["id", output.id],
-        ["path", output.path],
-        ["state", output.archived ? "archived" : "active"],
-        ["next", cmd(output.nextAction)],
-      ]),
-    ]),
-  );
 }
 
 async function runFindingsList(json: boolean): Promise<void> {
@@ -191,27 +130,6 @@ async function runFindingsValidate(args: string[], json: boolean): Promise<void>
     printFindingValidation(result);
   }
 
-  if (!ok) {
-    process.exit(1);
-  }
-}
-
-async function runFindingsDoctor(args: string[], json: boolean): Promise<void> {
-  const target = firstPositionalAfter(args, "doctor");
-  if (!target) {
-    console.error("Missing finding id.");
-    process.exit(1);
-  }
-  const result = await doctorFinding(target, process.cwd(), { strictVerification: args.includes("--strict-verification") });
-  const ok = result.issues.every((issue) => issue.severity !== "error");
-  if (json) {
-    console.log(JSON.stringify(result, null, 2));
-    if (!ok) {
-      process.exit(1);
-    }
-    return;
-  }
-  printFindingDoctor(result);
   if (!ok) {
     process.exit(1);
   }
@@ -286,19 +204,4 @@ async function runFindingsRestore(args: string[], json: boolean): Promise<void> 
     return;
   }
   printRestoreResult(result);
-}
-
-async function runFindingsDelete(args: string[], json: boolean): Promise<void> {
-  const target = firstPositionalAfter(args, "delete");
-  const force = args.includes("--force");
-  if (!target) {
-    console.error("Missing finding id.");
-    process.exit(1);
-  }
-  const result = await deleteFinding(target, process.cwd(), { force });
-  if (json) {
-    console.log(JSON.stringify(result, null, 2));
-    return;
-  }
-  printDeleteResult(result);
 }

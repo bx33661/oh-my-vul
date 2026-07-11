@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -18,7 +19,7 @@ except ImportError:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.sh"
+PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package_skill.py"
 VALIDATE_SCRIPT = REPO_ROOT / "scripts" / "validate_skill.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync_skill_assets.py"
 SYNC_METADATA_SCRIPT = REPO_ROOT / "scripts" / "sync_metadata.py"
@@ -99,6 +100,110 @@ def validate_versions() -> None:
     print(f"OK: version {package_version}", flush=True)
 
 
+def exported_names(text: str, *, type_only: bool) -> set[str]:
+    prefix = r"export\s+type\s*" if type_only else r"export\s+(?!type\b)"
+    blocks = re.findall(prefix + r"\{([^}]+)\}\s+from", text, flags=re.MULTILINE)
+    names: set[str] = set()
+    for block in blocks:
+        for raw in block.split(","):
+            name = raw.strip().split(" as ")[-1].strip()
+            if name:
+                names.add(name)
+    return names
+
+
+def validate_public_node_api() -> None:
+    inventory_path = REPO_ROOT / "contracts" / "node-api.v1.json"
+    inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+    package = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    exports = package.get("exports")
+    if not isinstance(exports, dict) or sorted(exports) != sorted(inventory.get("entrypoints", [])):
+        raise SystemExit("package exports do not match contracts/node-api.v1.json")
+
+    declaration_path = REPO_ROOT / "dist" / "index.d.ts"
+    declaration = declaration_path.read_text(encoding="utf-8")
+    declared_runtime = exported_names(declaration, type_only=False)
+    declared_types = exported_names(declaration, type_only=True)
+    expected_runtime = set(inventory.get("runtime_exports", []))
+    expected_types = set(inventory.get("type_exports", []))
+    if declared_runtime != expected_runtime:
+        raise SystemExit(
+            "public runtime declaration drift: "
+            f"missing={sorted(expected_runtime - declared_runtime)} "
+            f"unexpected={sorted(declared_runtime - expected_runtime)}"
+        )
+    if declared_types != expected_types:
+        raise SystemExit(
+            "public type declaration drift: "
+            f"missing={sorted(expected_types - declared_types)} "
+            f"unexpected={sorted(declared_types - expected_types)}"
+        )
+
+    result = subprocess.run(
+        [
+            "node",
+            "--input-type=module",
+            "--eval",
+            "import('./dist/index.js').then(m => console.log(JSON.stringify(Object.keys(m).sort())))",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    runtime = set(json.loads(result.stdout))
+    if runtime != expected_runtime:
+        raise SystemExit(
+            "public runtime export drift: "
+            f"missing={sorted(expected_runtime - runtime)} unexpected={sorted(runtime - expected_runtime)}"
+        )
+    print(f"OK: public Node API ({len(runtime)} runtime, {len(expected_types)} type exports)", flush=True)
+
+
+def validate_compatibility_inventories() -> None:
+    contracts_dir = REPO_ROOT / "contracts"
+    artifact_inventory = json.loads((contracts_dir / "artifact-contracts.v1.json").read_text(encoding="utf-8"))
+    artifacts = artifact_inventory.get("contracts", [])
+    if not isinstance(artifacts, list):
+        raise SystemExit("artifact contract inventory must contain contracts[]")
+    inventoried_files = {str(item.get("file", "")) for item in artifacts if isinstance(item, dict)}
+    canonical_files = {path.name for path in contracts_dir.glob("*.v[0-9].yaml")}
+    if inventoried_files != canonical_files:
+        raise SystemExit(
+            "artifact contract inventory drift: "
+            f"missing={sorted(canonical_files - inventoried_files)} "
+            f"unexpected={sorted(inventoried_files - canonical_files)}"
+        )
+    for item in artifacts:
+        if not isinstance(item, dict) or item.get("compatibility_mode") not in {"closed", "extensible"}:
+            raise SystemExit("artifact contracts must declare closed or extensible compatibility_mode")
+
+    json_inventory = json.loads((contracts_dir / "cli-json.v1.json").read_text(encoding="utf-8"))
+    commands = json_inventory.get("commands", [])
+    if not isinstance(commands, list):
+        raise SystemExit("CLI JSON inventory must contain commands[]")
+    command_names = [str(item.get("command", "")) for item in commands if isinstance(item, dict)]
+    if len(command_names) != len(set(command_names)):
+        raise SystemExit("CLI JSON inventory contains duplicate commands")
+    allowed_types = {"array", "boolean", "null", "number", "object", "string"}
+    for item in commands:
+        if not isinstance(item, dict) or item.get("result_kind") not in {"array", "object"}:
+            raise SystemExit("CLI JSON command must declare array or object result_kind")
+        for key in ("required", "item_required"):
+            fields = item.get(key, {})
+            if not isinstance(fields, dict) or not set(fields.values()).issubset(allowed_types):
+                raise SystemExit(f"CLI JSON {item.get('command')} has invalid {key} field types")
+
+    usage = (REPO_ROOT / "src" / "cli" / "usage.ts").read_text(encoding="utf-8")
+    match = re.search(r"export const PUBLIC_JSON_COMMANDS = \[(.*?)\] as const;", usage, flags=re.DOTALL)
+    if not match:
+        raise SystemExit("PUBLIC_JSON_COMMANDS metadata is missing")
+    public_commands = re.findall(r'"([^"]+)"', match.group(1))
+    if command_names != public_commands:
+        raise SystemExit("CLI JSON inventory does not match PUBLIC_JSON_COMMANDS metadata")
+    print(f"OK: compatibility inventories ({len(artifacts)} artifacts, {len(commands)} JSON commands)", flush=True)
+
+
 def validate_stable_evals() -> None:
     run([sys.executable, str(REPO_ROOT / "shared" / "scripts" / "run_evals.py")])
 
@@ -150,7 +255,7 @@ def validate_renderer() -> None:
         if actual != expected:
             raise SystemExit(
                 f"renderer golden mismatch for --format {fmt}\n"
-                f"Re-run: python3 {renderer} --finding {fixture} --format {fmt}"
+                f"Re-run with Python 3: {renderer} --finding {fixture} --format {fmt}"
             )
 
     print(f"OK: renderer golden tests passed ({', '.join(RENDERER_FORMATS)})", flush=True)
@@ -177,6 +282,8 @@ def main() -> None:
     run([sys.executable, str(SYNC_METADATA_SCRIPT), "--check"])
     run([sys.executable, str(SYNC_SCRIPT), "--check"])
     validate_versions()
+    validate_public_node_api()
+    validate_compatibility_inventories()
     validate_pattern_registry()
     run([sys.executable, str(METHODOLOGY_SCRIPT)])
     run([sys.executable, str(VALIDATE_SCRIPT)])
@@ -187,14 +294,14 @@ def main() -> None:
     if args.write_artifacts:
         for skill in skills:
             out = REPO_ROOT / f"{skill.name}.skill"
-            run(["bash", str(PACKAGE_SCRIPT), str(skill), str(out)])
+            run([sys.executable, str(PACKAGE_SCRIPT), str(skill), str(out)])
             artifacts.append(out)
     else:
         with tempfile.TemporaryDirectory(prefix="omv-release-") as tmp:
             tmpdir = Path(tmp)
             for skill in skills:
                 out = tmpdir / f"{skill.name}.skill"
-                run(["bash", str(PACKAGE_SCRIPT), str(skill), str(out)])
+                run([sys.executable, str(PACKAGE_SCRIPT), str(skill), str(out)])
                 artifacts.append(out)
 
             manifest = {

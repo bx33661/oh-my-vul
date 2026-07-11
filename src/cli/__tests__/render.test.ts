@@ -9,12 +9,14 @@ import {
   printReproInitResult,
   printUninstallResult,
   printDoctorResult,
+  printSetupResult,
 } from "../render.js";
 import { buildCampaign } from "../campaign.js";
 
 test("canonical uninstall renderer summarizes removed skills and manifest state", () => {
   const output = captureOutput(() => printUninstallResult({
     scope: "user",
+    platform: "claude-code",
     skillsDir: "/tmp/skills",
     agentsDir: "/tmp/agents",
     removed: ["omv"],
@@ -35,6 +37,7 @@ test("doctor renderer recommends remediation instead of strict mode", () => {
     ok: true,
     warnings: true,
     scope: "user",
+    platform: "claude-code",
     skillsDir: "/tmp/skills",
     checks: [{
       name: "install manifest",
@@ -46,6 +49,41 @@ test("doctor renderer recommends remediation instead of strict mode", () => {
   }, false));
   assert.match(output, /next\s+omv setup --scope user --force/);
   assert.doesNotMatch(output, /next\s+.*--strict/);
+});
+
+test("setup renderer reports automatic verification and the platform handoff", () => {
+  const output = captureOutput(() => printSetupResult({
+    scope: "user",
+    platform: "codex",
+    destination: "/tmp/.agents/skills",
+    installed: ["omv"],
+    installedAgents: [],
+    skipped: [],
+    errors: [],
+    verification: { ok: true, warnings: false, passed: 15, warned: 0, failed: 0 },
+    nextAction: "Restart Codex, then invoke $omv",
+  }));
+
+  assert.match(output, /health\s+15 checks passed/);
+  assert.match(output, /Restart Codex, then invoke \$omv/);
+});
+
+test("setup renderer labels dry-run files as planned", () => {
+  const output = captureOutput(() => printSetupResult({
+    scope: "user",
+    platform: "codex",
+    destination: "/tmp/.agents/skills",
+    installed: ["omv"],
+    installedAgents: [],
+    skipped: [],
+    errors: [],
+    dryRun: true,
+    nextAction: "omv setup --scope user --platform codex",
+  }));
+
+  assert.match(output, /would be installed/);
+  assert.match(output, /planned/);
+  assert.doesNotMatch(output, /copied into skills directory/);
 });
 
 test("canonical repro renderer owns evidence and next-action output", () => {
@@ -120,7 +158,7 @@ test("canonical Campaign renderers own init, list, show, and seed output", () =>
     created: [{ id: "demo-xss", path: "/tmp/.omv/findings/demo-xss.yaml", status: "candidate", created: true }],
     skipped: [],
     failed: [],
-    nextAction: "omv findings workflow",
+    nextAction: "omv dashboard",
   }));
 
   assert.match(init, /campaign created/i);
@@ -129,7 +167,7 @@ test("canonical Campaign renderers own init, list, show, and seed output", () =>
   assert.match(list, /Acme/);
   assert.match(detail, /demo-xss|xss/);
   assert.match(seed, /created\s+1/);
-  assert.match(seed, /omv findings workflow/);
+  assert.match(seed, /omv dashboard/);
 });
 
 function captureOutput(render: () => void): string {

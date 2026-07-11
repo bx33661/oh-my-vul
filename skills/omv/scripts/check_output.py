@@ -24,7 +24,7 @@ def load_eval(evals_path: Path, eval_id: int) -> dict[str, Any]:
 def check(assertion_type: str, text: str) -> bool:
     lowered = text.lower()
     if assertion_type == "delegates_next_to_cli":
-        return "omv findings workflow" in lowered and "next action" in lowered
+        return "omv dashboard" in lowered and "next action" in lowered
     if assertion_type == "delegates_archive_to_cli":
         return (
             "omv findings archive demo --reason reported" in lowered

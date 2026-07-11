@@ -63,7 +63,7 @@ export async function run(args: string[]): Promise<void> {
       await runSurfaces(args, json);
       return;
     case "help":
-      campaignUsage(undefined, args[0] === "first");
+      campaignUsage(undefined);
       return;
   }
 }
@@ -98,7 +98,7 @@ async function runSurfaces(args: string[], json: boolean): Promise<void> {
       return;
     }
     case "help":
-      campaignUsage("surfaces", false);
+      campaignUsage("surfaces");
       return;
   }
 }
@@ -131,10 +131,8 @@ async function runInit(args: string[], json: boolean): Promise<void> {
 }
 
 function campaignSubcommand(args: string[]): CampaignSubcommand {
-  const firstAlias = args[0] === "first";
   const candidate = args[1];
-  if (firstAlias && (candidate === undefined || candidate.startsWith("-"))) return "init";
-  if (!firstAlias && (candidate === undefined || candidate.startsWith("-"))) return "list";
+  if (candidate === undefined || candidate.startsWith("-")) return "list";
   if (
     candidate === "init"
     || candidate === "list"

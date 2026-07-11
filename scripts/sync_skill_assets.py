@@ -26,7 +26,7 @@ ASSET_MAPPINGS = [
     ("shared/scripts/http_client.py", "skills/omv-find/scripts/http_client.py"),
     ("shared/scripts/collect_metadata.py", "skills/omv-find/scripts/collect_metadata.py"),
     ("shared/scripts/resolve_source_path.py", "skills/omv-find/scripts/resolve_source_path.py"),
-    ("shared/scripts/estimate_loc.sh", "skills/omv-find/scripts/estimate_loc.sh"),
+    ("shared/scripts/estimate_loc.mjs", "skills/omv-find/scripts/estimate_loc.mjs"),
     ("contracts/evidence.v1.yaml", "skills/omv-find/contracts/evidence.v1.yaml"),
     ("contracts/candidate-list.v1.yaml", "skills/omv-find/contracts/candidate-list.v1.yaml"),
     ("shared/references/cvss-builder.md", "skills/omv-audit/references/shared/cvss-builder.md"),
@@ -69,7 +69,7 @@ def check() -> None:
             stale.append(f"stale {dest.relative_to(REPO_ROOT)}")
 
     if stale:
-        fail("skill assets are out of sync:\n  " + "\n  ".join(stale) + "\nRun: python3 scripts/sync_skill_assets.py")
+        fail("skill assets are out of sync:\n  " + "\n  ".join(stale) + "\nRun: npm run sync-assets")
 
     print("OK: skill assets are in sync")
 

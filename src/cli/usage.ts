@@ -1,152 +1,69 @@
+interface CommandHelpEntry {
+  command: string;
+  description: string;
+}
+
+export const CORE_PUBLIC_COMMANDS: readonly CommandHelpEntry[] = [
+  { command: "omv", description: "Open the interactive research workspace" },
+  { command: "omv start [flags]", description: "Initialize guided research" },
+  { command: "omv dashboard [--json]", description: "Show status, queue, and next action" },
+  { command: "omv review <id> [--strict] [--json]", description: "Check report readiness" },
+  { command: "omv setup [flags]", description: "Install Skills for Codex or Claude Code" },
+  { command: "omv uninstall [flags]", description: "Remove installed Skills without deleting research data" },
+  { command: "omv doctor [flags]", description: "Check installation health" },
+  { command: "omv version [--json]", description: "Show package and registry versions" },
+  { command: "omv help <topic>", description: "Show focused command help" },
+];
+
+export const ADVANCED_PUBLIC_COMMANDS: readonly CommandHelpEntry[] = [
+  { command: "omv campaign list|init|show", description: "Inspect or automate campaigns" },
+  { command: "omv findings list|show|init", description: "Inspect or create Evidence.v1 findings" },
+  { command: "omv findings validate|promote", description: "Validate and transition findings" },
+  { command: "omv findings archive|restore", description: "Manage the reversible finding lifecycle" },
+  { command: "omv workspace status|log", description: "Inspect local workspace state" },
+  { command: "omv radar refresh|brief", description: "Manage passive watchlist intelligence" },
+  { command: "omv dedup <id>", description: "Plan or record duplicate checks" },
+  { command: "omv disclose timeline <id>", description: "Calculate disclosure milestones" },
+  { command: "omv submissions record|track|close", description: "Track submission metadata" },
+  { command: "omv config get|set|unset|list", description: "Manage persistent CLI configuration" },
+];
+
+export const SKILL_MANAGED_COMMANDS = [
+  "campaign surfaces", "campaign seed", "eval", "request", "repro", "sources",
+  "report", "threat-map", "verification",
+] as const;
+
+export const PUBLIC_JSON_COMMANDS = [
+  "start", "dashboard", "review", "setup", "uninstall", "doctor", "version",
+  "campaign list", "campaign init", "campaign show",
+  "findings list", "findings show", "findings init", "findings validate", "findings validate <id>",
+  "findings promote", "findings archive", "findings archive list", "findings restore",
+  "workspace status", "workspace log", "radar refresh", "radar brief", "dedup",
+  "disclose timeline", "submissions record", "submissions track", "submissions close",
+] as const;
+
 export function usage(): void {
-  console.log(`oh-my-vul — evidence-first vulnerability research for Claude Code
+  console.log(`oh-my-vul - evidence-first vulnerability research for Codex and Claude Code
 
-Usage: omv <command>
+${renderCommandGroup("Workflow", CORE_PUBLIC_COMMANDS)}
 
-Start
-  omv start [flags]                 Initialize a workspace and first campaign
-  omv setup                         Install Claude Code skills and agents
-  omv doctor                        Check installation health
-
-Continue
-  omv dashboard                     Show campaigns, findings, and the next action
-  omv campaign                      Inspect research campaigns
-  omv findings workflow             Continue the active finding queue
-
-Validate
-  omv review <id> --strict          Check report readiness
-  omv findings validate [id]        Validate Evidence.v1 files
-
-Maintain
-  omv workspace status              Inspect private local state
-  omv radar brief                   Summarize passive intelligence
-
-Run 'omv help <command>' for command help or 'omv help --all' for the complete reference.
-`);
+Run 'omv help <topic>' for focused help or 'omv help --all' for all public commands.`);
 }
 
 export function fullUsage(): void {
-  console.log(`oh-my-vul — vulnerability research skills for Claude Code
+  console.log(`oh-my-vul - public 1.0 command reference
 
-Usage:
-  omv start --vuln <classes> [flags]
-                                     Initialize workspace and first campaign
-  omv setup [--scope user|project] [--force] [--dry-run]
-                                     Install skills to ~/.claude/skills/ or ./.claude/skills/
-  omv uninstall [--scope user|project] [--json]
-                                     Remove installed skills and manifest
-  omv doctor [--scope user|project] [--json] [--strict]
-                                     Check installation health
-  omv dashboard [--json]            Show workspace, queue, and recent activity
-  omv eval [--json|--junit]         Run stable skill eval checks
-  omv eval --skill <name> --eval-id <id> --output <path>
-                                     Check one saved skill output
-  omv campaign [list] [--json]      List local research campaigns
-  omv campaign init [flags]         Create Campaign.v1 YAML and runbook
-  omv campaign show <id> [--json]   Show one campaign
-  omv campaign surfaces propose <id> [--force] [--json]
-                                     Propose attack-surface cards for a campaign
-  omv campaign surfaces show <id> [--json]
-                                     Show proposed/selected surface cards
-  omv campaign surfaces select <id> --cards <id,id> [--json]
-                                     Select cards to seed as candidate findings
-  omv campaign seed <id> [--json]   Seed candidate Evidence.v1 hypotheses
-  omv first [flags]                 Alias for campaign init
-  omv review <id> [--strict] [--json]
-                                     Review a finding and recommend report readiness
-  omv workspace init [--gitignore] [--json]
-                                     Initialize local .omv workspace
-  omv workspace status [--json]      Show local .omv workspace status
-  omv workspace log [--json]         Show local workspace activity log
-  omv findings list [--json]        List .omv/findings evidence files
-  omv findings workflow [--json]    Show active finding lifecycle next actions
-  omv findings doctor <id> [--json] [--strict-verification]
-                                     Explain what blocks submission readiness
-  omv findings show <id> [--archived] [--json]
-                                     Show one finding's details and next action
-  omv findings open <id> [--archived] [--json]
-                                     Print a finding YAML path for editing
-  omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
-                                     Create an Evidence.v1 finding template
-  omv findings validate [id|path] [--json] [--strict]
-                                     Validate one finding or the whole ledger
-  omv findings promote <id|path> --status candidate|confirmed|blocked [--json]
-                                     Update a finding status and revalidate it
-  omv findings archive <id> --reason <reason> [--force] [--strict] [--json]
-                                     Move a finding out of the active queue
-  omv findings archive list [--json]
-                                     List archived findings
-  omv findings restore <id> [--force] [--json]
-                                     Restore an archived finding
-  omv radar refresh [--dry-run] [--json]
-                                     Refresh passive watchlist intelligence
-  omv radar brief [--json]           Summarize local radar events
-  omv repro init <id> [--force] [--json]
-                                     Scaffold .omv/repro/<id>/ reproduction artifacts
-  omv sources init <id> [--force] [--json]
-                                     Capture local SourceRef.v1 source identity
-  omv sources show|validate <id> [--json]
-                                     Show SourceRef.v1 and Evidence hash freshness
-  omv report artifacts <id> [--json]
-                                     Inspect report/repro artifacts and readiness
-  omv report provenance <id> [--force] [--json]
-                                     Hash report inputs into provenance.json
-  omv threat-map init <id> [--force] [--json]
-                                     Scaffold .omv/threatmaps/<id>.yaml ThreatMap.v1 sidecar
-  omv threat-map validate <id> [--json]
-                                     Validate a ThreatMap.v1 sidecar
-  omv verification init <id> [--force] [--json]
-                                     Scaffold .omv/verifications/<id>.yaml Verification.v1 sidecar
-  omv verification show <id> [--json]
-                                     Show adversarial verification status
-  omv verification validate <id> [--json]
-                                     Validate Verification.v1 and stale evidence hash
-  omv request preflight [--refresh] [--json]
-                                     Check metadata source request health
-  omv request fetch <url> [--accept mime] [--refresh] [--json]
-                                     Fetch one public URL through the request broker
-  omv dedup <id> [--confirm] [--existing-cve CVE|none] [--notes text] [--json]
-                                     Plan or write Evidence.v1 dedup fields
-  omv disclose timeline <id> [--days N] [--json]
-                                     Show disclosure timeline milestones
-  omv submissions record <id> --platform <name> --submission-id <id> --url <url> [--json]
-                                     Record platform submission metadata
-  omv submissions track <id> [--json]
-                                     Show submission status for one finding
-  omv submissions close <id> --cve CVE-YYYY-NNNN [--json]
-                                     Close submission records with a CVE id
-  omv config [get <key>|set <key> <value>|unset <key>|list]
-                                     Manage persistent config (scope, etc.)
-  omv version [--json]               Show package and registry version
-  omv help                           Show this message
+${renderCommandGroup("Core Workflow", CORE_PUBLIC_COMMANDS)}
 
-Examples:
-  omv start
-  omv start --vuln xss,auth --no-interactive
-  npx oh-my-vul setup
-  npx oh-my-vul setup --scope project
-  npx oh-my-vul setup --force
-  omv doctor
-  omv doctor --json
-  omv dashboard
-  omv first --target acme --ecosystem npm --vuln xss,auth --no-interactive
-  omv campaign list
-  omv review demo --strict
-  omv findings list
-  omv findings init demo
-  omv findings validate
-  omv findings promote demo --status confirmed
-  omv findings workflow
-  omv findings show demo
-  omv findings archive demo --reason reported
-  omv radar refresh --dry-run
-  omv request preflight
-  omv request fetch https://registry.npmjs.org/markdown-it --json
-  omv submissions track demo
-  omv uninstall --scope user
-  omv config set scope user
-  omv config list
-`);
+${renderCommandGroup("Advanced Automation", ADVANCED_PUBLIC_COMMANDS)}
+
+Skill-managed primitives are intentionally omitted from the public compatibility surface.
+Their owning Skills invoke them deterministically; direct topic help remains available for troubleshooting.`);
+}
+
+function renderCommandGroup(title: string, entries: readonly CommandHelpEntry[]): string {
+  const width = Math.max(...entries.map((entry) => entry.command.length));
+  return `${title}\n${entries.map((entry) => `  ${entry.command.padEnd(width)}  ${entry.description}`).join("\n")}`;
 }
 
 export function commandUsage(topic: string | undefined, subcommand: string | undefined): void {
@@ -155,9 +72,13 @@ export function commandUsage(topic: string | undefined, subcommand: string | und
       fullUsage();
       return;
     case "setup":
-      console.log(`Usage: omv setup [--scope user|project] [--force] [--dry-run] [--json]
+      console.log(`Usage: omv setup [--scope user|project] [--platform codex|claude-code] [--force] [--dry-run] [--json]
 
-Install all registry-marked skills and write an install manifest.`);
+Install all registry-marked skills and write a platform-specific install manifest.
+Completed installs are verified automatically and print the exact next action.
+Codex: ~/.agents/skills or ./.agents/skills
+Claude Code: ~/.claude/skills or ./.claude/skills
+Default platform: claude-code (backward compatible).`);
       return;
     case "start":
       console.log(`Usage: omv start --vuln <comma-list> [options]
@@ -167,13 +88,13 @@ Options: --id, --target, --version, --source, --ecosystem, --mode, --goal,
 --budget, --local-lab, --force, --no-interactive, --json.`);
       return;
     case "uninstall":
-      console.log(`Usage: omv uninstall [--scope user|project] [--json]
+      console.log(`Usage: omv uninstall [--scope user|project] [--platform codex|claude-code] [--json]
 
 Remove installed skills, install manifest, and setup-scope.json (project scope only).
 User data under .omv/ (findings, reports, repro, notes, submissions) is preserved.`);
       return;
     case "doctor":
-      console.log(`Usage: omv doctor [--scope user|project] [--json] [--strict]
+      console.log(`Usage: omv doctor [--scope user|project] [--platform codex|claude-code] [--json] [--strict]
 
 Check installed skills, runtime assets, references, scripts, and install manifest.
 --strict exits non-zero when warnings are present.`);
@@ -188,7 +109,14 @@ Show package version, registry version, platform, and registry update date.`);
 
 Show local workspace status, active workflow queue, and recent activity in one view.`);
       return;
+    case "tui":
+      console.log(`Usage: omv tui
+
+Open the interactive Ink workspace. Requires interactive stdin and stdout.
+Use omv dashboard for deterministic plain output.`);
+      return;
     case "eval":
+      skillManagedNotice("eval");
       evalUsage();
       return;
     case "review":
@@ -200,10 +128,7 @@ blocked. With --strict, readiness requires a passing, non-stale Verification.v1
 sidecar.`);
       return;
     case "campaign":
-      campaignUsage(subcommand, false);
-      return;
-    case "first":
-      campaignUsage(subcommand, true);
+      campaignUsage(subcommand);
       return;
     case "workspace":
       workspaceUsage(subcommand);
@@ -215,6 +140,7 @@ sidecar.`);
       radarUsage(subcommand);
       return;
     case "request":
+      skillManagedNotice("request");
       requestUsage(subcommand);
       return;
     case "dedup":
@@ -230,18 +156,23 @@ sidecar.`);
       configUsage(subcommand);
       return;
     case "repro":
+      skillManagedNotice("repro");
       reproUsage(subcommand);
       return;
     case "report":
+      skillManagedNotice("report");
       reportUsage(subcommand);
       return;
     case "sources":
+      skillManagedNotice("sources");
       sourcesUsage(subcommand);
       return;
     case "threat-map":
+      skillManagedNotice("threat-map");
       threatMapUsage(subcommand);
       return;
     case "verification":
+      skillManagedNotice("verification");
       verificationUsage(subcommand);
       return;
     default:
@@ -250,28 +181,32 @@ sidecar.`);
   }
 }
 
-const TOP_LEVEL_COMMANDS = [
-  "start", "setup", "uninstall", "config", "doctor", "dashboard", "eval", "campaign", "first",
-  "review", "workspace", "findings", "sources", "radar", "request", "dedup", "disclose",
-  "submissions", "repro", "report", "threat-map", "verification", "version", "help",
+const PUBLIC_TOP_LEVEL_COMMANDS = [
+  "start", "setup", "uninstall", "config", "doctor", "dashboard", "tui", "campaign",
+  "review", "workspace", "findings", "radar", "dedup", "disclose", "submissions", "version", "help",
 ] as const;
 
 const PRODUCT_ALIASES: Record<string, string[]> = {
   find: ["/omv-find", "omv findings"],
-  audit: ["/omv-audit <id>", "omv findings workflow"],
-  next: ["omv dashboard", "omv findings workflow"],
+  audit: ["/omv-audit <id>", "omv review <id>"],
+  first: ["omv start", "omv campaign init"],
+  next: ["omv dashboard"],
   status: ["omv dashboard", "omv workspace status"],
 };
 
 export function commandSuggestions(input: string): string[] {
   const direct = PRODUCT_ALIASES[input.toLowerCase()];
   if (direct) return direct;
-  return TOP_LEVEL_COMMANDS
+  return PUBLIC_TOP_LEVEL_COMMANDS
     .map((candidate) => ({ candidate, distance: editDistance(input.toLowerCase(), candidate) }))
     .filter(({ candidate, distance }) => distance <= Math.max(2, Math.floor(candidate.length / 3)))
     .sort((left, right) => left.distance - right.distance || left.candidate.localeCompare(right.candidate))
     .slice(0, 3)
     .map(({ candidate }) => `omv ${candidate}`);
+}
+
+function skillManagedNotice(topic: string): void {
+  console.log(`Skill-managed primitive: ${topic}. Not part of the public 1.0 command surface.\n`);
 }
 
 function editDistance(left: string, right: string): number {
@@ -301,8 +236,8 @@ Runs checked-in stable golden cases by default. Targeted mode reuses the selecte
 skill's existing check_output.py. The command performs no model or network calls.`);
 }
 
-export function campaignUsage(subcommand: string | undefined, firstAlias = false): void {
-  const root = firstAlias ? "omv first" : "omv campaign";
+export function campaignUsage(subcommand: string | undefined): void {
+  const root = "omv campaign";
   switch (subcommand) {
     case "init":
       console.log(`Usage: ${root} init --target <name> --vuln <comma-list> [options]
@@ -317,6 +252,7 @@ Options: --id, --version, --source, --ecosystem, --mode, --goal, --budget,
       console.log(`Usage: ${root} show <id> [--json]`);
       return;
     case "seed":
+      skillManagedNotice("campaign seed");
       console.log(`Usage: ${root} seed <id> [--json]
 
 Creates candidate Evidence.v1 files only. A supported target ecosystem is required;
@@ -326,6 +262,7 @@ If <id>.surfaces.yaml exists, only selected attack-surface cards are seeded.
 Otherwise generic vulnerability-class lanes are used.`);
       return;
     case "surfaces":
+      skillManagedNotice("campaign surfaces");
       console.log(`Usage:
   omv campaign surfaces propose <id> [--force] [--json]
   omv campaign surfaces show <id> [--json]
@@ -336,23 +273,16 @@ which hypotheses to pursue, then seed candidate Evidence.v1 findings.`);
       return;
     default:
       console.log(`Usage:
-  ${firstAlias ? "omv first [init flags]" : "omv campaign [list] [--json]"}
+  omv campaign [list] [--json]
   ${root} init --target <name> --vuln <comma-list> [options]
   ${root} list [--json]
-  ${root} show <id> [--json]
-  omv campaign surfaces propose <id> [--force]
-  omv campaign surfaces show <id>
-  omv campaign surfaces select <id> --cards <id,id>
-  ${root} seed <id> [--json]`);
+  ${root} show <id> [--json]`);
       return;
   }
 }
 
 export function workspaceUsage(subcommand: string | undefined): void {
   switch (subcommand) {
-    case "init":
-      console.log("Usage: omv workspace init [--gitignore] [--json]");
-      return;
     case "status":
       console.log("Usage: omv workspace status [--json]");
       return;
@@ -361,7 +291,6 @@ export function workspaceUsage(subcommand: string | undefined): void {
       return;
     default:
       console.log(`Usage:
-  omv workspace init [--gitignore] [--json]
   omv workspace status [--json]
   omv workspace log [--json]`);
       return;
@@ -449,21 +378,8 @@ export function findingsUsage(subcommand: string | undefined): void {
     case "list":
       console.log("Usage: omv findings list [--json]");
       return;
-    case "workflow":
-      console.log("Usage: omv findings workflow [--json]");
-      return;
-    case "doctor":
-      console.log(`Usage: omv findings doctor <id> [--json] [--strict-verification]
-
-Explain what blocks submission readiness. With --strict-verification, report
-readiness requires .omv/verifications/<id>.yaml to validate with decision.status
-pass and a non-stale Evidence.v1 hash.`);
-      return;
     case "show":
       console.log("Usage: omv findings show <id> [--archived] [--json]");
-      return;
-    case "open":
-      console.log("Usage: omv findings open <id> [--archived] [--json]");
       return;
     case "init":
       console.log("Usage: omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]");
@@ -487,10 +403,7 @@ Validate Evidence.v1 files. --strict treats warnings as failures.`);
     default:
       console.log(`Usage:
   omv findings list [--json]
-  omv findings workflow [--json]
-  omv findings doctor <id> [--json]
   omv findings show <id> [--archived] [--json]
-  omv findings open <id> [--archived] [--json]
   omv findings init <id> [--status candidate|confirmed|blocked] [--force] [--json]
   omv findings validate [id|path] [--json] [--strict]
   omv findings promote <id|path> --status candidate|confirmed|blocked [--json]

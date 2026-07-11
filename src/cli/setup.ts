@@ -1,36 +1,60 @@
-import { mkdir, cp, writeFile, rm, readdir } from "fs/promises";
+import { mkdir, cp, readFile, writeFile, rm, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { claudeSkillsDir, claudeAgentsDir, projectAgentsDir, omvStateDir, packageRoot, projectSkillsDir, setupScopePath } from "./paths.js";
+import {
+  claudeAgentsDir,
+  claudeSkillsDir,
+  codexSkillsDir,
+  omvStateDir,
+  packageRoot,
+  projectAgentsDir,
+  projectCodexSkillsDir,
+  projectSkillsDir,
+  setupScopePath,
+} from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
 import { buildInstallManifest, installManifestPath, readInstallManifest, writeInstallManifest } from "./install-manifest.js";
 
 export type SetupScope = "user" | "project";
+export type SetupPlatform = "claude-code" | "codex";
 
 export interface SetupOptions {
   force?: boolean;
   dryRun?: boolean;
   scope?: SetupScope;
+  platform?: SetupPlatform;
   projectRoot?: string;
 }
 
 export interface SetupResult {
   scope: SetupScope;
+  platform: SetupPlatform;
   destination: string;
   installed: string[];
   installedAgents: string[];
   skipped: string[];
   errors: string[];
+  dryRun?: boolean;
+  verification?: {
+    ok: boolean;
+    warnings: boolean;
+    passed: number;
+    warned: number;
+    failed: number;
+  };
+  nextAction?: string;
 }
 
 export interface UninstallOptions {
   scope?: SetupScope;
+  platform?: SetupPlatform;
   projectRoot?: string;
   json?: boolean;
 }
 
 export interface UninstallResult {
   scope: SetupScope;
+  platform: SetupPlatform;
   skillsDir: string;
   agentsDir: string;
   removed: string[];
@@ -42,11 +66,12 @@ export interface UninstallResult {
 }
 
 export async function uninstall(options: UninstallOptions = {}): Promise<UninstallResult> {
-  const { scope = "user", projectRoot = process.cwd() } = options;
-  const skillsDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
+  const { scope = "user", platform = "claude-code", projectRoot = process.cwd() } = options;
+  const skillsDir = resolveSkillsDir(scope, platform, projectRoot);
   const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
   const result: UninstallResult = {
     scope,
+    platform,
     skillsDir,
     agentsDir,
     removed: [],
@@ -57,7 +82,7 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
     setupScopeRemoved: false,
   };
 
-  const manifest = await readInstallManifest(installManifestPath(scope, projectRoot));
+  const manifest = await readInstallManifest(installManifestPath(scope, projectRoot, platform));
   const skillsToRemove = manifest?.skills.map((s) => s.name) ?? [];
   const agentsToRemove = manifest?.agents ?? [];
 
@@ -90,7 +115,7 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
   }
 
   // Remove install manifest
-  const manifestPath = installManifestPath(scope, projectRoot);
+  const manifestPath = installManifestPath(scope, projectRoot, platform);
   if (existsSync(manifestPath)) {
     try {
       await rm(manifestPath, { force: true });
@@ -105,8 +130,13 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
     const scopePath = setupScopePath(projectRoot);
     if (existsSync(scopePath)) {
       try {
-        await rm(scopePath, { force: true });
-        result.setupScopeRemoved = true;
+        const persisted = JSON.parse(await readFile(scopePath, "utf-8")) as {
+          platform?: SetupPlatform;
+        };
+        if ((persisted.platform ?? "claude-code") === platform) {
+          await rm(scopePath, { force: true });
+          result.setupScopeRemoved = true;
+        }
       } catch (err) {
         result.errors.push(`setup-scope: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -117,10 +147,19 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
 }
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
-  const { force = false, dryRun = false, scope = "user", projectRoot = process.cwd() } = options;
-  const destDir = scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
+  const { force = false, dryRun = false, scope = "user", platform = "claude-code", projectRoot = process.cwd() } = options;
+  const destDir = resolveSkillsDir(scope, platform, projectRoot);
   const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
-  const result: SetupResult = { scope, destination: destDir, installed: [], installedAgents: [], skipped: [], errors: [] };
+  const result: SetupResult = {
+    scope,
+    platform,
+    destination: destDir,
+    installed: [],
+    installedAgents: [],
+    skipped: [],
+    errors: [],
+    dryRun,
+  };
 
   const catalog = await readCatalog();
   const skillDirs = getInstallableSkills(catalog);
@@ -136,7 +175,7 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
       await mkdir(omvStateDir(projectRoot), { recursive: true });
       await writeFile(
         setupScopePath(projectRoot),
-        JSON.stringify({ scope, installed_at: new Date().toISOString() }, null, 2) + "\n",
+        JSON.stringify({ scope, platform, installed_at: new Date().toISOString() }, null, 2) + "\n",
         "utf-8",
       );
     }
@@ -168,7 +207,7 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
     }
   }
 
-  if (!dryRun) {
+  if (!dryRun && platform === "claude-code") {
     await mkdir(agentsDir, { recursive: true });
   }
 
@@ -177,7 +216,7 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
   // auto-discovered by Claude Code under .claude/agents/ (project) or
   // ~/.claude/agents/ (user).
   const agentsSrc = join(packageRoot(), "agents");
-  if (existsSync(agentsSrc)) {
+  if (platform === "claude-code" && existsSync(agentsSrc)) {
     let agentFiles: string[] = [];
     try {
       agentFiles = (await readdir(agentsSrc)).filter((f) => f.endsWith(".md"));
@@ -210,6 +249,7 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
   if (!dryRun && result.errors.length === 0) {
     const manifest = await buildInstallManifest({
       scope,
+      platform,
       skillsDir: destDir,
       skills: skillDirs,
       registryVersion: catalog.version,
@@ -217,8 +257,19 @@ export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
       agentsDir,
       agents: result.installedAgents,
     });
-    await writeInstallManifest(installManifestPath(scope, projectRoot), manifest);
+    await writeInstallManifest(installManifestPath(scope, projectRoot, platform), manifest);
   }
 
   return result;
+}
+
+export function resolveSkillsDir(
+  scope: SetupScope,
+  platform: SetupPlatform,
+  projectRoot = process.cwd(),
+): string {
+  if (platform === "codex") {
+    return scope === "project" ? projectCodexSkillsDir(projectRoot) : codexSkillsDir();
+  }
+  return scope === "project" ? projectSkillsDir(projectRoot) : claudeSkillsDir();
 }

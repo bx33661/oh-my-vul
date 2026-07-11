@@ -13,7 +13,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "types": ["node"]
+    "jsx": "react-jsx",
+    "types": ["node", "react"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

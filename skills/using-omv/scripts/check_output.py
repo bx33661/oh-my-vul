@@ -31,7 +31,7 @@ def check(assertion_type: str, text: str) -> bool:
             and ("hard gate" in lowered or "hard-gate" in lowered or "gate" in lowered)
         )
     if assertion_type == "opens_with_process":
-        has_open = "campaign" in lowered or "surfaces" in lowered or "omv first" in lowered
+        has_open = "campaign" in lowered or "surfaces" in lowered or "omv start" in lowered
         has_candidate = "candidate" in lowered
         refuses_premature = (
             "do not invent" in lowered

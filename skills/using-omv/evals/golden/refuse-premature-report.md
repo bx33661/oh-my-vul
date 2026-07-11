@@ -23,7 +23,7 @@ omv review <id> --strict
 If no finding exists yet:
 
 ```text
-omv first --target <name> --ecosystem <eco> --vuln <class> --no-interactive
+omv start --target <name> --ecosystem <eco> --vuln <class> --no-interactive
 omv campaign surfaces propose <id>
 ```
 

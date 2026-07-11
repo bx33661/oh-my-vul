@@ -13,7 +13,6 @@ import type {
 import type {
   ArchivedFindingSummary,
   FindingArchiveResult,
-  FindingDeleteResult,
   FindingDetail,
   FindingDoctorResult,
   FindingRestoreResult,
@@ -51,7 +50,7 @@ import {
 import type { WorkflowAction } from "./workflow.js";
 
 function renderedAction(action: WorkflowAction): string {
-  return `${action.surface === "claude" ? "CLAUDE" : "CLI"}  ${action.command}`;
+  return `${action.surface === "claude" ? "SKILL" : "CLI"}  ${action.command}`;
 }
 
 export function printCampaignInitResult(result: InitCampaignResult): void {
@@ -216,32 +215,47 @@ export function printSurfacesSelectResult(result: SelectSurfacesResult): void {
 
 export function printSetupResult(result: SetupResult): void {
   const total = result.installed.length + result.skipped.length + result.errors.length;
-  const summary = result.errors.length > 0
+  const summary = result.dryRun
+    ? `${result.installed.length}/${total} skill(s) would be installed`
+    : result.errors.length > 0
     ? `${result.errors.length} error(s), ${result.installed.length}/${total} skill(s) installed`
     : result.installed.length === 0
       ? `${result.skipped.length}/${total} skill(s) already installed`
       : `${result.installed.length}/${total} skill(s) installed`;
-  const next = result.errors.length > 0
-    ? `omv setup --scope ${result.scope} --force`
-    : "omv doctor";
-  const finalState = result.errors.length > 0 ? "error" : result.installed.length === 0 ? "skipped" : "installed";
+  const next = result.nextAction ?? (result.errors.length > 0
+    ? `omv setup --scope ${result.scope} --platform ${result.platform} --force`
+    : `omv doctor --scope ${result.scope} --platform ${result.platform}`);
+  const finalState = result.dryRun ? "planned" : result.errors.length > 0 ? "error" : result.installed.length === 0 ? "skipped" : "installed";
 
   console.log(title("oh-my-vul setup"));
   console.log(
     panel("install summary", [
       ...kv([
         ["scope", result.scope],
-        ["destination", result.destination],
+        ["platform", result.platform],
+        ["destination", displayInstallPath(result.destination)],
         ["result", outcomeBadge(finalState)],
         ["skills", summary],
+        ...(result.verification
+          ? [[
+              "health",
+              result.verification.ok
+                ? `${result.verification.passed} checks passed`
+                : `${result.verification.passed} pass, ${result.verification.warned} warn, ${result.verification.failed} fail`,
+            ]] as [string, string][]
+          : []),
         ["next", cmd(next)],
       ]),
     ]),
   );
 
   const rows = [
-    ...result.installed.map((name) => [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
-    ...result.installedAgents.map((name) => [statusIcon("installed"), `agent:${name}`, outcomeBadge("installed"), "copied into agents directory"]),
+    ...result.installed.map((name) => result.dryRun
+      ? [statusIcon("planned"), name, outcomeBadge("planned"), "would copy into skills directory"]
+      : [statusIcon("installed"), name, outcomeBadge("installed"), "copied into skills directory"]),
+    ...result.installedAgents.map((name) => result.dryRun
+      ? [statusIcon("planned"), `agent:${name}`, outcomeBadge("planned"), "would copy into agents directory"]
+      : [statusIcon("installed"), `agent:${name}`, outcomeBadge("installed"), "copied into agents directory"]),
     ...result.skipped.map((name) => [statusIcon("skipped"), name, outcomeBadge("skipped"), "already installed; use --force to overwrite"]),
     ...result.errors.map((message) => [statusIcon("error"), "-", outcomeBadge("error"), message]),
   ];
@@ -250,12 +264,29 @@ export function printSetupResult(result: SetupResult): void {
   }
 }
 
+function displayInstallPath(path: string): string {
+  const homes = [...new Set([process.env.HOME, process.env.USERPROFILE].filter((value): value is string => Boolean(value)))];
+  for (const home of homes) {
+    if (path === home || path.startsWith(`${home}/`) || path.startsWith(`${home}\\`)) {
+      return `~${path.slice(home.length)}`;
+    }
+  }
+  const cwd = process.cwd();
+  if (path === cwd) return ".";
+  if (path.startsWith(`${cwd}/`) || path.startsWith(`${cwd}\\`)) {
+    return `.${path.slice(cwd.length)}`;
+  }
+  return path;
+}
+
 export function printUninstallResult(result: UninstallResult): void {
   const total = result.removed.length + result.notFound.length + result.errors.length;
   const summary = result.errors.length > 0
     ? `${result.errors.length} error(s), ${result.removed.length}/${total} removed`
     : `${result.removed.length}/${total} skill(s) removed`;
-  const next = result.errors.length > 0 ? "omv doctor" : "omv setup";
+  const next = result.errors.length > 0
+    ? `omv doctor --scope ${result.scope} --platform ${result.platform}`
+    : `omv setup --scope ${result.scope} --platform ${result.platform}`;
   const finalState = result.errors.length > 0
     ? "error"
     : result.removed.length === 0 && result.notFound.length === 0
@@ -267,6 +298,7 @@ export function printUninstallResult(result: UninstallResult): void {
     panel("uninstall summary", [
       ...kv([
         ["scope", result.scope],
+        ["platform", result.platform],
         ["skills dir", result.skillsDir],
         ["result", outcomeBadge(finalState)],
         ["skills", summary],
@@ -295,7 +327,7 @@ export function printDoctorResult(result: DoctorResult, strict: boolean): void {
   const failed = result.checks.filter((item) => item.status === "fail").length;
   const finalState = failed > 0 ? "fail" : strict && warned > 0 ? "fail" : warned > 0 ? "warn" : "pass";
   const next = failed > 0
-    ? `omv setup --scope ${result.scope} --force`
+    ? `omv setup --scope ${result.scope} --platform ${result.platform} --force`
     : warned > 0
       ? result.checks.find((item) => item.status === "warn" && item.remediation)?.remediation ?? "omv dashboard"
       : "omv dashboard";
@@ -305,6 +337,7 @@ export function printDoctorResult(result: DoctorResult, strict: boolean): void {
     panel("health summary", [
       ...kv([
         ["scope", result.scope],
+        ["platform", result.platform],
         ["skills", result.skillsDir],
         ["status", outcomeBadge(finalState)],
         ["checks", `${passed} pass, ${warned} warn, ${failed} fail`],
@@ -434,7 +467,7 @@ export function printWelcome(): void {
   console.log(title("oh-my-vul"));
   console.log(
     panel("start here", [
-      "Evidence-first vulnerability research for Claude Code.",
+      "Evidence-first vulnerability research for Codex and Claude Code.",
       "",
       ...kv([
         ["start", cmd("omv start")],
@@ -786,38 +819,8 @@ export function printRestoreResult(result: FindingRestoreResult): void {
         ["status", statusBadge(result.status)],
         ["from", result.from],
         ["to", result.to],
-        ["next", cmd("omv findings workflow")],
+        ["next", cmd("omv dashboard")],
       ]),
-    ]),
-  );
-}
-
-export function printDeleteResult(result: FindingDeleteResult): void {
-  if (!result.deleted) {
-    console.log(
-      panel("finding delete preview", [
-        ...kv([
-          ["id", result.id],
-          ["action", "preview only"],
-          ["next", cmd(`omv findings delete ${result.id} --force`)],
-        ]),
-        "",
-        muted("paths to delete"),
-        ...result.paths.map((p) => `  ${p}`),
-      ]),
-    );
-    return;
-  }
-
-  const finalState = result.errors.length > 0 ? "warn" : "pass";
-  console.log(
-    panel("finding deleted", [
-      ...kv([
-        ["id", result.id],
-        ["result", outcomeBadge(finalState)],
-        ["paths", `${result.paths.length} file(s) removed`],
-      ]),
-      ...(result.errors.length > 0 ? ["", warn("errors"), ...result.errors.map((e) => `  ${e}`)] : []),
     ]),
   );
 }

@@ -1,5 +1,6 @@
 import { readConfig } from "../config.js";
 import type { EvidenceStatus } from "../findings.js";
+import type { SetupPlatform } from "../setup.js";
 
 /** Shared argument-parsing helpers and error handling for command modules.
  *  All helpers take the raw argv slice so command handlers stay pure. */
@@ -107,6 +108,11 @@ export async function resolveScope(args: string[], defaultScope: "user" | "proje
   }
   console.error(`Invalid --scope: ${raw ?? ""}. Valid values: user, project`);
   process.exit(1);
+}
+
+export function resolvePlatform(args: string[]): SetupPlatform {
+  const raw = parseOption(args, "--platform");
+  return raw === "codex" ? "codex" : "claude-code";
 }
 
 export function handleError(err: unknown): void {

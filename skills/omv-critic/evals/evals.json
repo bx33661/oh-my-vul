@@ -18,7 +18,7 @@
     },
     {
       "id": 3,
-      "prompt": "/omv-critic demo that passes findings doctor but overclaims CVSS",
+      "prompt": "/omv-critic demo that passes review but overclaims CVSS",
       "expected_output": "Distinguishes argument quality from structural validation."
     },
     {

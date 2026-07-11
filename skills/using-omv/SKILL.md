@@ -41,8 +41,8 @@ Use this order unless the user already has a later-stage artifact and explicitly
 
 ```text
 1. Orient
-   omv dashboard  OR  omv findings workflow  OR  /omv next
-   If no campaign and user has a target → omv first / campaign init
+   omv dashboard  OR  /omv next
+   If no campaign and user has a target → omv start / campaign init
 
 2. Open the problem (开题) — prefer Attack Surface Cards when a campaign exists
    omv campaign surfaces propose <id>
@@ -126,7 +126,7 @@ Avoid:
 
 ```bash
 omv dashboard
-omv first --target <name> --ecosystem <eco> --vuln <classes> --no-interactive
+omv start --target <name> --ecosystem <eco> --vuln <classes> --no-interactive
 omv campaign surfaces propose <id>
 omv campaign surfaces select <id> --cards <id,id>
 omv campaign seed <id>
@@ -134,4 +134,4 @@ omv findings validate <id>
 omv review <id> --strict
 ```
 
-If `omv` is missing: `npm install --global oh-my-vul && omv setup`, then re-check with `omv doctor`.
+If `omv` is missing: install it with `npm install --global oh-my-vul`, then run `omv setup --platform codex` in Codex or `omv setup --platform claude-code` in Claude Code and re-check with the matching `omv doctor --platform ...` command.

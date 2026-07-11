@@ -25,7 +25,8 @@ gem install <gem> -v <version>
 ### 沙箱隔离建议
 
 - **npm/Node**：使用独立空目录，`npm init -y` 后再安装目标包，避免全局依赖污染
-- **Python**：使用 `python3 -m venv .venv && source .venv/bin/activate`，保持环境干净
+- **Python（macOS/Linux）**：使用 `python3 -m venv .venv && source .venv/bin/activate`，保持环境干净
+- **Python（Windows PowerShell）**：使用 `py -3 -m venv .venv; .\.venv\Scripts\Activate.ps1`，保持环境干净
 - **Go**：使用独立 `go.mod` 模块目录
 - 通用原则：复现结束后可删除整个目录，不污染开发环境
 

@@ -53,7 +53,7 @@ Do not add points for lane labels alone. A `fast-win`, `deep-audit`, `diff-alert
 
 Best methods, in order:
 
-1. Shallow clone and run `scripts/estimate_loc.sh <repo>`.
+1. Shallow clone and run `node scripts/estimate_loc.mjs <repo>`.
 2. Use `cloc` or `tokei` if available.
 3. Use `find`/`wc` over source extensions.
 4. Use GitHub language/file counts or repository size only as an approximate estimate.

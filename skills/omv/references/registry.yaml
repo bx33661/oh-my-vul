@@ -2,9 +2,9 @@
 # Lists all skills in this collection with their invocation, status, and contract bindings.
 
 name: oh-my-vul
-version: "0.10.1"
-platform: claude-code
-updated: "2026-07-10"
+version: "1.0.0"
+platform: codex,claude-code
+updated: "2026-07-11"
 
 skills:
   - name: using-omv
@@ -239,5 +239,5 @@ shared:
     - shared/pattern-packs/lua.json
   scripts:
     - shared/scripts/collect_metadata.py
-    - shared/scripts/estimate_loc.sh
+    - shared/scripts/estimate_loc.mjs
     - shared/scripts/run_evals.py

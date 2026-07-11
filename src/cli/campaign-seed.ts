@@ -106,7 +106,7 @@ export async function seedCampaign(
     failed,
     nextAction: failed.length > 0
       ? `omv campaign seed ${detail.campaign.id}`
-      : "omv findings workflow",
+      : "omv dashboard",
   };
 }
 

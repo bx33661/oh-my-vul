@@ -2,8 +2,8 @@ import { existsSync } from "fs";
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { createHash } from "crypto";
 import { dirname, join } from "path";
-import { claudeHome, omvStateDir, packageRoot } from "./paths.js";
-import type { SetupScope } from "./setup.js";
+import { claudeHome, codexHome, omvStateDir, packageRoot } from "./paths.js";
+import type { SetupPlatform, SetupScope } from "./setup.js";
 import type { SkillCatalogEntry } from "./catalog.js";
 
 export interface InstalledFile {
@@ -28,15 +28,23 @@ export interface InstallManifest {
   package_version: string;
   registry_version: string;
   scope: SetupScope;
+  platform?: SetupPlatform;
   installed_at: string;
   skills: InstalledSkill[];
   agents: InstalledAgent[];
 }
 
-export function installManifestPath(scope: SetupScope, projectRoot = process.cwd()): string {
-  return scope === "project"
-    ? join(omvStateDir(projectRoot), "install-manifest.json")
-    : join(claudeHome(), ".omv", "install-manifest.json");
+export function installManifestPath(
+  scope: SetupScope,
+  projectRoot = process.cwd(),
+  platform: SetupPlatform = "claude-code",
+): string {
+  if (scope === "project") {
+    const filename = platform === "codex" ? "install-manifest.codex.json" : "install-manifest.json";
+    return join(omvStateDir(projectRoot), filename);
+  }
+  const home = platform === "codex" ? codexHome() : claudeHome();
+  return join(home, ".omv", "install-manifest.json");
 }
 
 export async function writeInstallManifest(
@@ -61,6 +69,7 @@ export async function readInstallManifest(path: string): Promise<InstallManifest
 export async function buildInstallManifest(
   options: {
     scope: SetupScope;
+    platform: SetupPlatform;
     skillsDir: string;
     skills: SkillCatalogEntry[];
     registryVersion: string;
@@ -111,6 +120,7 @@ export async function buildInstallManifest(
     package_version: packageJson.version ?? "",
     registry_version: options.registryVersion,
     scope: options.scope,
+    platform: options.platform,
     installed_at: new Date().toISOString(),
     skills: installedSkills,
     agents: installedAgents,

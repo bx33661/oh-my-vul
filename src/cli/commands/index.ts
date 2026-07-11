@@ -4,12 +4,14 @@ import { wantsHelp, handleError } from "./shared.js";
 import { existsSync } from "node:fs";
 import { omvStateDir } from "../paths.js";
 import { printWelcome } from "../render.js";
+import { plainPresenterRequested, shouldLaunchBareTui } from "../presenter.js";
 
 import * as version from "./version.js";
 import * as start from "./start.js";
 import * as setup from "./setup.js";
 import * as doctor from "./doctor.js";
 import * as dashboard from "./dashboard.js";
+import * as tui from "./tui.js";
 import * as evalCommand from "./eval.js";
 import * as review from "./review.js";
 import * as campaign from "./campaign.js";
@@ -34,9 +36,9 @@ const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
   uninstall: setup.runUninstall,
   doctor: doctor.run,
   dashboard: dashboard.run,
+  tui: tui.run,
   eval: evalCommand.run,
   campaign: campaign.run,
-  first: campaign.run,
   review: review.run,
   workspace: workspace.run,
   findings: findings.run,
@@ -54,8 +56,17 @@ const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
 };
 
 export async function run(): Promise<void> {
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+  const noTuiFlag = rawArgs.includes("--no-tui");
+  const args = rawArgs.filter((argument) => argument !== "--no-tui");
   const command = args[0];
+  const presenterEnvironment = {
+    stdinIsTTY: Boolean(process.stdin.isTTY),
+    stdoutIsTTY: Boolean(process.stdout.isTTY),
+    noTuiFlag,
+    noTuiEnvironment: process.env.OMV_NO_TUI,
+    ci: process.env.CI !== undefined && process.env.CI !== "false",
+  };
 
   const validation = validateArgs(args);
   if (!validation.ok) {
@@ -78,11 +89,17 @@ export async function run(): Promise<void> {
   }
 
   if (command === undefined) {
-    if (existsSync(omvStateDir())) {
-      await dashboard.run([]).catch(handleError);
+    if (shouldLaunchBareTui(presenterEnvironment)) {
+      const { launchInteractiveWorkspace } = await import("../ui/launcher.js");
+      await launchInteractiveWorkspace().catch(handleError);
     } else {
-      printWelcome();
+      await runPlainEntry();
     }
+    return;
+  }
+
+  if (command === "tui" && plainPresenterRequested(presenterEnvironment)) {
+    await runPlainEntry();
     return;
   }
 
@@ -94,4 +111,12 @@ export async function run(): Promise<void> {
   }
 
   await handler(args).catch(handleError);
+}
+
+async function runPlainEntry(): Promise<void> {
+  if (existsSync(omvStateDir())) {
+    await dashboard.run([]).catch(handleError);
+  } else {
+    printWelcome();
+  }
 }

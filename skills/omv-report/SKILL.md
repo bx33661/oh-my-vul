@@ -66,7 +66,7 @@ Before writing any submission-ready report from finder output, consume the local
 2. If the user gives a path, read that Evidence.v1 file.
 3. Run or ask for `omv findings validate <id|path> --json` when CLI tools are available.
 4. If `.omv/threatmaps/<id>.yaml` exists, run or ask for `omv threat-map validate <id> --json`.
-5. If `.omv/verifications/<id>.yaml` exists or the user wants a strict pre-submission gate, run or ask for `omv verification validate <id> --json` and `omv findings doctor <id> --strict-verification --json`.
+5. If `.omv/verifications/<id>.yaml` exists or the user wants a strict pre-submission gate, run or ask for `omv verification validate <id> --json` and `omv review <id> --strict --json`.
 6. If `.omv/sources/<id>.yaml` exists, run or ask for `omv sources validate <id> --json`; treat a stale hash as a traceability warning, not as proof or disproof of the vulnerability.
 7. If CLI tools are unavailable, validate manually against `contracts/evidence.v1.yaml`, `contracts/verification.v1.yaml`, and `contracts/source-ref.v1.yaml` when relevant, and say that deterministic validation was not run.
 
@@ -83,19 +83,23 @@ Use the validation result to choose output mode:
 
 ### Deterministic Skeleton Renderer
 
-For confirmed findings with submission score ≥ 75, run the deterministic renderer first to get a pre-filled skeleton:
+For confirmed findings with submission score ≥ 75, run the deterministic renderer first to get a pre-filled skeleton. Resolve `scripts/render_template.py` relative to this installed `SKILL.md`; do not assume one global install directory.
+
+macOS/Linux:
 
 ```bash
-python3 "$(omv doctor --json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('skillsDir',''))")/omv-report/scripts/render_template.py" \
+python3 <installed-skill-dir>/scripts/render_template.py \
   --finding .omv/findings/<id>.yaml --format vuldb|ghsa|osv|md
 ```
 
-Or if the skill directory is known (e.g. `~/.claude/skills/omv-report/`):
+Windows PowerShell (the Python launcher is preferred):
 
-```bash
-python3 ~/.claude/skills/omv-report/scripts/render_template.py \
-  --finding .omv/findings/<id>.yaml --format vuldb
+```powershell
+py -3 <installed-skill-dir>\scripts\render_template.py `
+  --finding .omv\findings\<id>.yaml --format vuldb
 ```
+
+`<installed-skill-dir>` is the `omv-report` directory discovered by the active Agent. User-level defaults are `~/.agents/skills/omv-report` for Codex and `~/.claude/skills/omv-report` for Claude Code; project installs use `.agents/skills/omv-report` or `.claude/skills/omv-report`.
 
 The renderer fills all structural fields (package, versions, CVSS, CWE, source→sink→guard, reproducer, dedup checklist) and leaves `[DRAFT: ...]` markers for prose sections. Fill in every `[DRAFT: ...]` before submitting. Do not submit placeholders.
 
@@ -427,4 +431,4 @@ Use bundled scripts when they fit the task:
   Use the verifier subagent with the cvss-deflate lens to refute the CVSS scoring for <finding_id>, then record the result in .omv/verifications/<id>.yaml
   ```
 
-Subagent 是可选优化，不是强制；其 tools 白名单与硬约束在 `.claude/agents/*.md` 已定义。不要只把 verifier 结论保存在聊天记录里；如果它影响报告可信度，必须记录到 Verification.v1。
+Subagent 是可选优化，不是强制。Codex 使用当前会话的原生 delegation，Claude Code 可使用 `.claude/agents/*.md` 中的角色定义。不要只把 verifier 结论保存在聊天记录里；如果它影响报告可信度，必须记录到 Verification.v1。

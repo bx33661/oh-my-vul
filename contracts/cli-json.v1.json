@@ -1,0 +1,183 @@
+{
+  "schema_version": "1",
+  "compatibility": {
+    "additive_fields": true,
+    "one_document": true,
+    "stderr_is_not_json": true
+  },
+  "commands": [
+    {
+      "command": "start",
+      "result_kind": "object",
+      "required": { "project": "object", "workspace": "object", "campaign": "object" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "dashboard",
+      "result_kind": "object",
+      "required": { "status": "object", "campaigns": "array", "workflow": "array", "activity": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "review",
+      "result_kind": "object",
+      "required": { "id": "string", "verdict": "string", "reportReady": "boolean", "strict": "boolean", "nextAction": "string", "blockers": "array", "warnings": "array", "doctor": "object" },
+      "exit_behavior": "0 when ready; 1 with a complete diagnostic document when a readiness gate is not met"
+    },
+    {
+      "command": "setup",
+      "result_kind": "object",
+      "required": { "scope": "string", "platform": "string", "destination": "string", "installed": "array", "installedAgents": "array", "skipped": "array", "errors": "array" },
+      "exit_behavior": "0 when errors is empty; 1 with a complete result document otherwise"
+    },
+    {
+      "command": "uninstall",
+      "result_kind": "object",
+      "required": { "scope": "string", "platform": "string", "skillsDir": "string", "agentsDir": "string", "removed": "array", "agentsRemoved": "array", "notFound": "array", "errors": "array", "manifestRemoved": "boolean", "setupScopeRemoved": "boolean" },
+      "exit_behavior": "0 when errors is empty; 1 with a complete result document otherwise"
+    },
+    {
+      "command": "doctor",
+      "result_kind": "object",
+      "required": { "ok": "boolean", "warnings": "boolean", "scope": "string", "platform": "string", "skillsDir": "string", "checks": "array" },
+      "exit_behavior": "0 when checks pass; 1 with a complete diagnostic document on failed checks or strict warnings"
+    },
+    {
+      "command": "version",
+      "result_kind": "object",
+      "required": { "package": "string", "version": "string", "registryVersion": "string", "platform": "string", "updated": "string" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "campaign list",
+      "result_kind": "array",
+      "required": {},
+      "item_required": { "id": "string", "title": "string", "status": "string", "target": "string", "version": "string", "laneCount": "number", "nextAction": "string" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "campaign init",
+      "result_kind": "object",
+      "required": { "campaign": "object", "yamlPath": "string", "runbookPath": "string", "overwritten": "boolean", "nextAction": "string", "warnings": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "campaign show",
+      "result_kind": "object",
+      "required": { "campaign": "object", "yamlPath": "string", "runbookPath": "string", "runbookExists": "boolean", "nextAction": "string" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "findings list",
+      "result_kind": "array",
+      "required": {},
+      "item_required": { "id": "string", "path": "string", "status": "string", "ecosystem": "string", "package": "string", "vulnerability": "string", "evidenceScore": "number", "submissionScore": "number", "verdict": "object", "reproArtifacts": "array" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "findings show",
+      "result_kind": "object",
+      "required": { "id": "string", "path": "string", "status": "string", "archived": "boolean", "validation": "object", "missingFields": "array", "blockers": "array", "nextAction": "string", "action": "object", "priority": "number" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "findings init",
+      "result_kind": "object",
+      "required": { "id": "string", "path": "string", "status": "string", "created": "boolean" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "findings validate",
+      "result_kind": "array",
+      "required": {},
+      "item_required": { "id": "string", "path": "string", "ok": "boolean", "status": "string", "evidenceScore": "number", "submissionScore": "number", "errors": "array", "warnings": "array" },
+      "exit_behavior": "0 when all findings pass; 1 with a complete diagnostic document otherwise"
+    },
+    {
+      "command": "findings validate <id>",
+      "result_kind": "object",
+      "required": { "id": "string", "path": "string", "ok": "boolean", "status": "string", "evidenceScore": "number", "submissionScore": "number", "errors": "array", "warnings": "array" },
+      "exit_behavior": "0 when the finding passes; 1 with a complete diagnostic document otherwise"
+    },
+    {
+      "command": "findings promote",
+      "result_kind": "object",
+      "required": { "id": "string", "path": "string", "ok": "boolean", "status": "string", "evidenceScore": "number", "submissionScore": "number", "errors": "array", "warnings": "array" },
+      "exit_behavior": "0 when promoted evidence validates; 1 with a complete diagnostic document otherwise"
+    },
+    {
+      "command": "findings archive",
+      "result_kind": "object",
+      "required": { "id": "string", "from": "string", "to": "string", "status": "string", "archiveReason": "string", "archivedAt": "string", "warnings": "array", "reportArtifactPaths": "array", "submissionRecords": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "findings archive list",
+      "result_kind": "array",
+      "required": {},
+      "item_required": { "id": "string", "status": "string", "archivedAt": "string", "archiveReason": "string" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "findings restore",
+      "result_kind": "object",
+      "required": { "id": "string", "from": "string", "to": "string", "status": "string" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "workspace status",
+      "result_kind": "object",
+      "required": { "root": "string", "findingsDir": "string", "archiveDir": "string", "indexPath": "string", "activeCount": "number", "archivedCount": "number", "statusCounts": "object", "staleIndex": "boolean", "warnings": "array" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "workspace log",
+      "result_kind": "array",
+      "required": {},
+      "item_required": { "timestamp": "string", "action": "string" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "radar refresh",
+      "result_kind": "object",
+      "required": { "watchlistPath": "string", "eventsPath": "string", "dryRun": "boolean", "events": "array", "sources": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "radar brief",
+      "result_kind": "object",
+      "required": { "eventsPath": "string", "eventCount": "number", "groups": "array" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "dedup",
+      "result_kind": "object",
+      "required": { "id": "string", "path": "string", "queries": "array", "updated": "boolean" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "disclose timeline",
+      "result_kind": "object",
+      "required": { "id": "string", "days": "number", "milestones": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "submissions record",
+      "result_kind": "object",
+      "required": { "schema_version": "string", "finding_id": "string", "records": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    },
+    {
+      "command": "submissions track",
+      "result_kind": "object",
+      "required": { "schema_version": "string", "finding_id": "string", "records": "array" },
+      "exit_behavior": "0 on success"
+    },
+    {
+      "command": "submissions close",
+      "result_kind": "object",
+      "required": { "schema_version": "string", "finding_id": "string", "records": "array" },
+      "exit_behavior": "0 on success; non-zero before a success document on failure"
+    }
+  ]
+}

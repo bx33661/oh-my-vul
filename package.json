@@ -1,45 +1,61 @@
 {
   "name": "oh-my-vul",
-  "version": "0.10.1",
-  "description": "LLM-friendly vulnerability research skills for Claude Code",
+  "version": "1.0.0",
+  "description": "Evidence-first vulnerability research skills for Codex and Claude Code",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "oh-my-vul": "dist/cli/omv.js",
-    "omv": "dist/cli/omv.js",
-    "omv-mcp": "dist/cli/omv-mcp.js"
+    "omv": "dist/cli/omv.js"
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "npm run clean && tsc && node -e \"import('fs').then(fs => { fs.chmodSync('dist/cli/omv.js', 0o755); fs.chmodSync('dist/cli/omv-mcp.js', 0o755); })\"",
+    "build": "npm run clean && tsc && node -e \"import('fs').then(fs => process.platform === 'win32' || fs.chmodSync('dist/cli/omv.js', 0o755))\"",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node --test dist/**/__tests__/*.test.js",
-    "sync-assets": "python3 scripts/sync_skill_assets.py",
-    "sync-metadata": "python3 scripts/sync_metadata.py",
-    "validate": "npm run build && npm test && python3 scripts/release_check.py",
-    "pack:check": "python3 scripts/check_npm_pack.py",
+    "test": "node scripts/run_node_tests.mjs",
+    "test:python": "node scripts/run_python.mjs -m unittest scripts.test_pattern_packs shared.scripts.test_run_evals",
+    "sync-assets": "node scripts/run_python.mjs scripts/sync_skill_assets.py",
+    "sync-metadata": "node scripts/run_python.mjs scripts/sync_metadata.py",
+    "validate": "npm run build && npm test && npm run test:python && node scripts/run_python.mjs scripts/release_check.py",
+    "pack:check": "node scripts/run_python.mjs scripts/check_npm_pack.py",
     "release:check": "npm run validate && npm run pack:check",
     "prepublishOnly": "npm run validate && npm run pack:check",
     "setup": "node dist/cli/omv.js setup",
     "doctor": "node dist/cli/omv.js doctor"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "files": [
-    "dist/cli/*.d.ts",
-    "dist/cli/*.d.ts.map",
     "dist/cli/*.js",
-    "dist/cli/*.js.map",
-    "dist/cli/commands/*.d.ts",
-    "dist/cli/commands/*.d.ts.map",
     "dist/cli/commands/*.js",
-    "dist/cli/commands/*.js.map",
+    "dist/cli/ui/*.js",
     "dist/index.d.ts",
-    "dist/index.d.ts.map",
     "dist/index.js",
-    "dist/index.js.map",
+    "dist/cli/campaign-seed.d.ts",
+    "dist/cli/campaign.d.ts",
+    "dist/cli/doctor.d.ts",
+    "dist/cli/findings.d.ts",
+    "dist/cli/report-provenance.d.ts",
+    "dist/cli/review.d.ts",
+    "dist/cli/setup.d.ts",
+    "dist/cli/source-ref.d.ts",
+    "dist/cli/start.d.ts",
+    "dist/cli/submissions.d.ts",
+    "dist/cli/threatmap.d.ts",
+    "dist/cli/verification.d.ts",
+    "dist/cli/workflow.d.ts",
+    "dist/cli/workspace.d.ts",
     "README.zh-CN.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
@@ -53,11 +69,11 @@
     "shared/",
     "contracts/",
     "agents/",
-    "registry.yaml",
-    "shared/surface-catalog/"
+    "registry.yaml"
   ],
   "keywords": [
     "claude-code",
+    "codex",
     "security",
     "vulnerability",
     "cve",
@@ -74,12 +90,14 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.6.2",
+    "@types/react": "^19.2.17",
+    "ink-testing-library": "^4.0.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "boxen": "^8.0.1",
-    "cli-table3": "^0.6.5",
+    "ink": "^7.1.0",
     "picocolors": "^1.1.1",
+    "react": "^19.2.7",
     "string-width": "^8.2.1",
     "wrap-ansi": "^10.0.0",
     "yaml": "^2.8.3"

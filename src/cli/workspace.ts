@@ -137,7 +137,7 @@ async function initGitignoreAdvice(projectRoot: string, autoAdd: boolean): Promi
   }
 
   warnings.push(
-    `Suggested .gitignore entry (run omv workspace init --gitignore to auto-add):\n  ${wanted}`,
+    `Suggested .gitignore entry (omv start adds it automatically):\n  ${wanted}`,
   );
   return warnings;
 }

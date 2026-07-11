@@ -81,7 +81,7 @@ Load `references/research-radar.md` only when the user asks for creative/radar/p
    - When the `omv` CLI is available, run `omv request preflight` if repeated requests are being rejected or rate-limited, and use `omv request fetch <url> --json` for one-off diagnostics through the cache-aware request broker.
    - Prefer deterministic helpers when available:
      - `python scripts/collect_metadata.py --repo <github-url> [--registry npm:pkg]`
-     - `scripts/estimate_loc.sh <github-url-or-local-path>`
+     - `node scripts/estimate_loc.mjs <github-url-or-local-path>`
 
 6. **Scan source risk** — see `## Source File Discovery` for how to locate files before fetching.
    - Inspect 2-5 relevant source files per surviving candidate.
@@ -106,7 +106,7 @@ Load `references/research-radar.md` only when the user asks for creative/radar/p
    - Include data freshness, sources used, and uncertainty.
    - For radar requests, preserve the ranked table and add lane summary, audit readiness, and duplicate/novelty notes. Do not replace the table with prose.
    - If the user asks to pass a confirmed finding to `omv-report`, create or output a `.omv/findings/<id>.yaml` Evidence.v1 handoff structured per `contracts/evidence.v1.yaml`. Do not emit a handoff packet for ordinary unconfirmed target lists.
-   - When any `.omv/findings/<id>.yaml` candidate is created or updated, end by telling the user to run `omv findings workflow` or `/omv next` to choose the next audit target.
+   - When any `.omv/findings/<id>.yaml` candidate is created or updated, end by telling the user to run `omv dashboard` or `/omv next` to choose the next audit target.
 
 ## Source File Discovery
 
@@ -154,7 +154,7 @@ When a user asks to continue from a confirmed or blocked finding, use the Eviden
 2. If workspace file tools are available, run or suggest `omv findings init <id> --status candidate|confirmed|blocked`, then fill the YAML fields from verified evidence only.
 3. If file tools are not available, output a fenced YAML block titled `Save as .omv/findings/<id>.yaml`.
 4. Run or suggest `omv findings validate <id>` after filling the file.
-5. Run or suggest `omv findings workflow` after validation so the candidate appears in the local-first active queue.
+5. Run or suggest `omv dashboard` after validation so the candidate appears in the local-first active queue.
 
 Use `status: confirmed` only when tested version, source, sink, guard, local reproducer, and observed result are known. Use `status: candidate` for promising but unproven research and `status: blocked` when the missing evidence or duplicate risk should stop report generation.
 
@@ -165,7 +165,7 @@ Use bundled scripts when they fit the task:
 - `scripts/collect_metadata.py`: fetches GitHub and selected registry metadata as JSON using only the Python standard library.
 - `scripts/resolve_source_path.py`: resolves npm and PyPI source paths with manifest-first metadata, GitHub default-branch lookup, archive fallbacks, and structured request-failure reasons.
 - `scripts/http_client.py`: shared stdlib-only request helper used by metadata scripts; it classifies 403/429/404/timeouts and uses `GITHUB_TOKEN` or `GH_TOKEN` for GitHub API calls when present.
-- `scripts/estimate_loc.sh`: shallow-clones or scans a local checkout and estimates source LOC with `tokei`, `cloc`, or `find`/`wc`.
+- `scripts/estimate_loc.mjs`: cross-platform shallow clone/local scan and source LOC estimate using `tokei`, `cloc`, or its Node.js fallback.
 - `scripts/check_output.py`: runs heuristic eval assertions against a saved model output.
 - `omv request preflight` and `omv request fetch <url> --json`: CLI request broker commands for cache-aware diagnostics when raw metadata requests are rejected.
 

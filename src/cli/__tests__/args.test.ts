@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateArgs } from "../args.js";
+import { resolvePlatform } from "../commands/shared.js";
+
+test("Claude Code remains the default while Codex is explicitly selectable", () => {
+  assert.equal(resolvePlatform([]), "claude-code");
+  assert.equal(resolvePlatform(["setup", "--platform", "codex"]), "codex");
+});
 
 test("CLI argument validation rejects unknown commands and flags", () => {
   assert.equal(validateArgs(["unknown"]).ok, false);
@@ -13,6 +19,8 @@ test("CLI argument validation rejects unknown commands and flags", () => {
 test("CLI argument validation rejects missing and invalid option values", () => {
   const missingScope = validateArgs(["setup", "--scope"]);
   assert.equal(missingScope.ok, false);
+  assert.equal(validateArgs(["setup", "--platform", "unknown"]).ok, false);
+  assert.equal(validateArgs(["doctor", "--platform", "codex"]).ok, true);
   assert.match(missingScope.error ?? "", /--scope requires/);
 
   const missingStatus = validateArgs(["findings", "promote", "demo", "--status"]);
@@ -41,16 +49,12 @@ test("CLI argument validation enforces command positional arity", () => {
 });
 
 test("CLI argument validation covers workspace and archive workflow commands", () => {
-  assert.equal(validateArgs(["workspace", "init"]).ok, true);
   assert.equal(validateArgs(["workspace", "status", "--json"]).ok, true);
   assert.equal(validateArgs(["workspace", "log", "--json"]).ok, true);
   assert.equal(validateArgs(["workspace", "bogus"]).ok, false);
   assert.match(validateArgs(["workspace", "bogus"]).error ?? "", /Unknown workspace command/);
 
-  assert.equal(validateArgs(["findings", "workflow"]).ok, true);
-  assert.equal(validateArgs(["findings", "doctor", "demo", "--strict-verification"]).ok, true);
   assert.equal(validateArgs(["findings", "show", "demo", "--archived"]).ok, true);
-  assert.equal(validateArgs(["findings", "open", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "archive", "demo", "--reason", "reported", "--strict"]).ok, true);
   assert.equal(validateArgs(["findings", "archive", "demo", "--reason", "reported"]).ok, true);
   assert.equal(validateArgs(["findings", "archive", "list", "--json"]).ok, true);
@@ -60,9 +64,23 @@ test("CLI argument validation covers workspace and archive workflow commands", (
   assert.equal(missingReason.ok, false);
   assert.match(missingReason.error ?? "", /--reason requires/);
 
-  const extraWorkflowArg = validateArgs(["findings", "workflow", "extra"]);
-  assert.equal(extraWorkflowArg.ok, false);
-  assert.match(extraWorkflowArg.error ?? "", /accepts at most 0 positional/);
+});
+
+test("CLI argument validation rejects removed routes with canonical replacements", () => {
+  const removedRoutes: Array<[string[], RegExp]> = [
+    [["first"], /use omv start.*omv campaign init/],
+    [["workspace", "init"], /use omv start/],
+    [["findings", "workflow"], /use omv dashboard/],
+    [["findings", "doctor", "demo"], /use omv review <id>/],
+    [["findings", "open", "demo"], /use omv findings show <id>/],
+    [["findings", "delete", "demo"], /use omv findings archive <id>/],
+  ];
+
+  for (const [command, replacement] of removedRoutes) {
+    const result = validateArgs(command);
+    assert.equal(result.ok, false, command.join(" "));
+    assert.match(result.error ?? "", replacement, command.join(" "));
+  }
 });
 
 test("CLI argument validation covers intelligence and disclosure commands", () => {
@@ -94,6 +112,9 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["doctor", "--strict"]).ok, true);
   assert.equal(validateArgs(["dashboard"]).ok, true);
   assert.equal(validateArgs(["dashboard", "--json"]).ok, true);
+  assert.equal(validateArgs(["tui"]).ok, true);
+  assert.equal(validateArgs(["tui", "--help"]).ok, true);
+  assert.equal(validateArgs(["tui", "extra"]).ok, false);
   assert.equal(validateArgs(["start", "--id", "demo", "--vuln", "xss", "--no-interactive", "--json"]).ok, true);
   assert.equal(validateArgs(["eval"]).ok, true);
   assert.equal(validateArgs(["eval", "--json"]).ok, true);
@@ -108,8 +129,6 @@ test("CLI argument validation accepts UX flags and command help", () => {
   assert.equal(validateArgs(["sources", "init", "demo", "--force", "--json"]).ok, true);
   assert.equal(validateArgs(["sources", "show", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["sources", "validate", "demo", "--json"]).ok, true);
-  assert.equal(validateArgs(["findings", "doctor", "demo"]).ok, true);
-  assert.equal(validateArgs(["findings", "doctor", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--strict"]).ok, true);
   assert.equal(validateArgs(["setup", "--help"]).ok, true);
   assert.equal(validateArgs(["findings", "validate", "--help"]).ok, true);
@@ -147,7 +166,7 @@ test("CLI argument validation enforces SourceRef and report provenance grammar",
   }
 });
 
-test("CLI argument validation covers Campaign commands and first aliases", () => {
+test("CLI argument validation covers retained Campaign commands", () => {
   const initFlags = [
     "--target", "acme", "--version", "1.2", "--source", "/tmp/acme",
     "--ecosystem", "npm", "--mode", "passive", "--goal", "research-notes",
@@ -156,21 +175,15 @@ test("CLI argument validation covers Campaign commands and first aliases", () =>
   ];
   assert.equal(validateArgs(["campaign"]).ok, true);
   assert.equal(validateArgs(["campaign", "init", ...initFlags]).ok, true);
-  assert.equal(validateArgs(["first", ...initFlags]).ok, true);
-  assert.equal(validateArgs(["first", "init", ...initFlags]).ok, true);
   assert.equal(validateArgs(["campaign", "list", "--json"]).ok, true);
-  assert.equal(validateArgs(["first", "list", "--json"]).ok, true);
   assert.equal(validateArgs(["campaign", "show", "demo", "--json"]).ok, true);
-  assert.equal(validateArgs(["first", "show", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["campaign", "seed", "demo", "--json"]).ok, true);
-  assert.equal(validateArgs(["first", "seed", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["campaign", "surfaces", "propose", "demo", "--force", "--json"]).ok, true);
   assert.equal(validateArgs(["campaign", "surfaces", "show", "demo", "--json"]).ok, true);
   assert.equal(validateArgs(["campaign", "surfaces", "select", "demo", "--cards", "renderer-pipeline"]).ok, true);
 
   for (const command of [
     ["campaign", "seed", "demo", "--force"],
-    ["first", "seed", "demo", "--force"],
     ["campaign", "show"],
     ["campaign", "show", "demo", "extra"],
     ["campaign", "seed"],

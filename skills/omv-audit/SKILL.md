@@ -88,7 +88,7 @@ If validate fails after you tried confirmed, **revert to candidate**, list error
 
 ## Subagent Team Orchestration
 
-本 skill 支持 Claude Code subagent 编排。你在审计流程中可以显式委托给专门的 subagent 角色，让它们在独立的 context 里并行或串行完成子任务：
+本 skill 支持 Codex 和 Claude Code 的 subagent 编排。你在审计流程中可以显式委托给专门的 subagent 角色，让它们在独立的 context 里并行或串行完成子任务：
 
 ```text
 # 数据流分析 → 交给 dataflow-tracer subagent（2-5 个文件静态分析）
@@ -120,9 +120,9 @@ stage 6: synthesize         → 汇聚后写 Evidence.v1 + ThreatMap.v1 + Verifi
 
 **编排决策规则**：已知的字段跳过对应阶段（例如 dedup 已 searched 则跳过 stage 3；cvss 已填则跳过 stage 4）。Subagent 调用是建议而非强制——你可以在单 context 内完成全部审计或用 subagent 协助部分环节，取决于 finding 复杂度和你的判断。无论是否使用 subagent，只要做了对抗复核，结论都必须记录到 Verification.v1 sidecar。
 
-### Subagent 定义位置
+### Subagent 可用性
 
-每个 subagent 的定义文件在 `.claude/agents/` 目录，frontmatter 声明了 tools 白名单、model、以及行为描述。Claude Code 根据描述自动将自然语言委托请求路由到正确的 subagent。
+Codex 使用当前会话提供的原生 delegation 能力；Claude Code 使用 `omv setup --platform claude-code` 安装到 `.claude/agents/` 的角色定义。若当前客户端没有 subagent 能力，在主 context 中顺序完成同样的审计阶段，不得因此跳过证据门槛。
 
 ## 结论规则
 
@@ -152,7 +152,7 @@ omv findings validate <id>
 然后运行或建议：
 
 ```bash
-omv findings workflow
+omv dashboard
 ```
 
 如本轮做出关键判断（确认 source -> sink、发现 guard 缺失、判定重复或 blocked），在 `.omv/notes/<id>.md` 追加一条时间戳决策记录。不要把 notebook 内容写入 Evidence.v1。
@@ -171,6 +171,6 @@ Use the CLI result for lifecycle handoff:
 - `omv threat-map validate <id>` — 校验 ThreatMap.v1 图证据和 Evidence 摘要一致性
 - `omv verification init <id>` — 生成 `.omv/verifications/<id>.yaml` Verification.v1 对抗复核骨架
 - `omv verification validate <id>` — 校验 Verification.v1 和 Evidence hash 是否过期
-- `omv findings workflow` — 显示 active findings 的下一步动作
-- `python3 shared/scripts/resolve_source_path.py --ecosystem npm --pkg <name>` — 获取源文件 raw URL
-- `python3 shared/scripts/collect_metadata.py --repo <github-url>` — 获取仓库元数据
+- `omv dashboard` — 显示 active findings 的下一步动作
+- `python3 scripts/resolve_source_path.py --ecosystem npm --pkg <name>`（Windows 使用 `py -3`）— 获取源文件 raw URL
+- `python3 scripts/collect_metadata.py --repo <github-url>`（Windows 使用 `py -3`）— 获取仓库元数据

@@ -13,10 +13,13 @@ export interface ArgsValidation {
 
 const VALID_STATUSES = new Set(["candidate", "confirmed", "blocked"]);
 const VALID_SCOPES = new Set(["user", "project"]);
+const VALID_SETUP_PLATFORMS = new Set(["claude-code", "codex"]);
 const HELP_FLAGS = new Set(["--help", "-h"]);
 
 export function validateArgs(args: string[]): ArgsValidation {
   const command = args[0];
+  const removed = removedCommandError(args);
+  if (removed) return fail(removed);
 
   switch (command) {
     case undefined:
@@ -33,12 +36,12 @@ export function validateArgs(args: string[]): ArgsValidation {
         maxPositionals: 0,
       });
     case "start":
-      return validateCampaignArgs(["init", ...args.slice(1)], false);
+      return validateCampaignArgs(["init", ...args.slice(1)]);
     case "setup":
       return validateOptions(args.slice(1), {
         command: "setup",
         flags: new Set(["--force", "--dry-run", "--json", ...HELP_FLAGS]),
-        options: new Map([["--scope", VALID_SCOPES]]),
+        options: new Map([["--scope", VALID_SCOPES], ["--platform", VALID_SETUP_PLATFORMS]]),
         minPositionals: 0,
         maxPositionals: 0,
       });
@@ -46,7 +49,7 @@ export function validateArgs(args: string[]): ArgsValidation {
       return validateOptions(args.slice(1), {
         command: "uninstall",
         flags: new Set(["--json", ...HELP_FLAGS]),
-        options: new Map([["--scope", VALID_SCOPES]]),
+        options: new Map([["--scope", VALID_SCOPES], ["--platform", VALID_SETUP_PLATFORMS]]),
         minPositionals: 0,
         maxPositionals: 0,
       });
@@ -56,7 +59,7 @@ export function validateArgs(args: string[]): ArgsValidation {
       return validateOptions(args.slice(1), {
         command: "doctor",
         flags: new Set(["--json", "--strict", ...HELP_FLAGS]),
-        options: new Map([["--scope", VALID_SCOPES]]),
+        options: new Map([["--scope", VALID_SCOPES], ["--platform", VALID_SETUP_PLATFORMS]]),
         minPositionals: 0,
         maxPositionals: 0,
       });
@@ -64,6 +67,14 @@ export function validateArgs(args: string[]): ArgsValidation {
       return validateOptions(args.slice(1), {
         command: "dashboard",
         flags: new Set(["--json", ...HELP_FLAGS]),
+        options: new Map(),
+        minPositionals: 0,
+        maxPositionals: 0,
+      });
+    case "tui":
+      return validateOptions(args.slice(1), {
+        command: "tui",
+        flags: new Set([...HELP_FLAGS]),
         options: new Map(),
         minPositionals: 0,
         maxPositionals: 0,
@@ -79,9 +90,7 @@ export function validateArgs(args: string[]): ArgsValidation {
         maxPositionals: 1,
       });
     case "campaign":
-      return validateCampaignArgs(args.slice(1), false);
-    case "first":
-      return validateCampaignArgs(args.slice(1), true);
+      return validateCampaignArgs(args.slice(1));
     case "repro":
       return validateReproArgs(args.slice(1));
     case "report":
@@ -116,6 +125,23 @@ export function validateArgs(args: string[]): ArgsValidation {
     default:
       return fail(`Unknown command: ${command}`);
   }
+}
+
+function removedCommandError(args: string[]): string | undefined {
+  if (args[0] === "first") {
+    return "omv first was removed; use omv start for guided setup or omv campaign init for automation";
+  }
+  if (args[0] === "workspace" && args[1] === "init") {
+    return "omv workspace init was removed; use omv start to create a complete workspace and campaign";
+  }
+  if (args[0] !== "findings") return undefined;
+  const replacements: Record<string, string> = {
+    workflow: "omv findings workflow was removed; use omv dashboard",
+    doctor: "omv findings doctor was removed; use omv review <id> [--strict]",
+    open: "omv findings open was removed; use omv findings show <id>",
+    delete: "omv findings delete was removed; use omv findings archive <id> --reason <reason>",
+  };
+  return args[1] ? replacements[args[1]] : undefined;
 }
 
 function validateEvalArgs(args: string[]): ArgsValidation {
@@ -153,14 +179,11 @@ function optionValue(args: string[], option: string): string | undefined {
   return index === -1 ? undefined : args[index + 1];
 }
 
-function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidation {
+function validateCampaignArgs(args: string[]): ArgsValidation {
   const leading = args[0];
   let subcommand: string;
   let rest: string[];
-  if (firstAlias && (leading === undefined || leading.startsWith("-"))) {
-    subcommand = "init";
-    rest = args;
-  } else if (!firstAlias && (leading === undefined || leading.startsWith("-"))) {
+  if (leading === undefined || leading.startsWith("-")) {
     subcommand = "list";
     rest = args;
   } else {
@@ -171,7 +194,7 @@ function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidati
   switch (subcommand) {
     case "init":
       return validateOptions(rest, {
-        command: `${firstAlias ? "first" : "campaign"} init`,
+        command: "campaign init",
         flags: new Set(["--force", "--no-interactive", "--json", ...HELP_FLAGS]),
         options: new Map<string, Set<string>>([
           ["--ecosystem", new Set<string>(CAMPAIGN_ECOSYSTEMS)],
@@ -186,7 +209,7 @@ function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidati
       });
     case "list":
       return validateOptions(rest, {
-        command: `${firstAlias ? "first" : "campaign"} list`,
+        command: "campaign list",
         flags: new Set(["--json", ...HELP_FLAGS]),
         options: new Map(),
         minPositionals: 0,
@@ -195,7 +218,7 @@ function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidati
     case "show":
     case "seed":
       return validateOptions(rest, {
-        command: `${firstAlias ? "first" : "campaign"} ${subcommand}`,
+        command: `campaign ${subcommand}`,
         flags: new Set(["--json", ...HELP_FLAGS]),
         options: new Map(),
         minPositionals: 1,
@@ -245,9 +268,9 @@ function validateCampaignArgs(args: string[], firstAlias: boolean): ArgsValidati
     case "help":
     case "--help":
     case "-h":
-      return rest.length <= 1 ? ok() : fail(`${firstAlias ? "first" : "campaign"} help accepts at most one topic`);
+      return rest.length <= 1 ? ok() : fail("campaign help accepts at most one topic");
     default:
-      return fail(`Unknown ${firstAlias ? "first" : "campaign"} command: ${subcommand}. Valid commands: init, list, show, seed, surfaces, help`);
+      return fail(`Unknown campaign command: ${subcommand}. Valid commands: init, list, show, seed, surfaces, help`);
   }
 }
 
@@ -517,14 +540,6 @@ function validateWorkspaceArgs(args: string[]): ArgsValidation {
   const rest = args[0] ? args.slice(1) : args;
 
   switch (subcommand) {
-    case "init":
-      return validateOptions(rest, {
-        command: `workspace ${subcommand}`,
-        flags: new Set(["--gitignore", "--json", ...HELP_FLAGS]),
-        options: new Map(),
-        minPositionals: 0,
-        maxPositionals: 0,
-      });
     case "status":
       return validateOptions(rest, {
         command: `workspace ${subcommand}`,
@@ -546,7 +561,7 @@ function validateWorkspaceArgs(args: string[]): ArgsValidation {
     case "-h":
       return rest.length === 0 ? ok() : fail(`workspace ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown workspace command: ${subcommand}. Valid commands: init, status, log, help`);
+      return fail(`Unknown workspace command: ${subcommand}. Valid commands: status, log, help`);
   }
 }
 
@@ -608,33 +623,9 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
         minPositionals: 0,
         maxPositionals: 0,
       });
-    case "workflow":
-      return validateOptions(rest, {
-        command: "findings workflow",
-        flags: new Set(["--json", ...HELP_FLAGS]),
-        options: new Map(),
-        minPositionals: 0,
-        maxPositionals: 0,
-      });
-    case "doctor":
-      return validateOptions(rest, {
-        command: "findings doctor",
-        flags: new Set(["--json", "--strict-verification", ...HELP_FLAGS]),
-        options: new Map(),
-        minPositionals: 1,
-        maxPositionals: 1,
-      });
     case "show":
       return validateOptions(rest, {
         command: "findings show",
-        flags: new Set(["--archived", "--json", ...HELP_FLAGS]),
-        options: new Map(),
-        minPositionals: 1,
-        maxPositionals: 1,
-      });
-    case "open":
-      return validateOptions(rest, {
-        command: "findings open",
         flags: new Set(["--archived", "--json", ...HELP_FLAGS]),
         options: new Map(),
         minPositionals: 1,
@@ -675,20 +666,12 @@ function validateFindingsArgs(args: string[]): ArgsValidation {
         minPositionals: 1,
         maxPositionals: 1,
       });
-    case "delete":
-      return validateOptions(rest, {
-        command: "findings delete",
-        flags: new Set(["--force", "--json", ...HELP_FLAGS]),
-        options: new Map(),
-        minPositionals: 1,
-        maxPositionals: 1,
-      });
     case "help":
     case "--help":
     case "-h":
       return rest.length === 0 ? ok() : fail(`findings ${subcommand} accepts no arguments`);
     default:
-      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, workflow, doctor, show, open, init, validate, promote, archive, restore, delete, help`);
+      return fail(`Unknown findings command: ${subcommand}. Valid commands: list, show, init, validate, promote, archive, restore, help`);
   }
 }
 

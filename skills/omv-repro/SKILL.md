@@ -42,7 +42,7 @@ Stay in passive research mode: do not execute any commands yourself. Guide the u
 
 以下是硬约束，不可逾越：
 
-1. **不自动执行命令** — 所有命令由用户在本地环境执行，Claude 只提供指令和解读
+1. **不自动执行命令** — 所有命令由用户在本地环境执行，Codex 或 Claude Code 只提供指令和解读
 2. **不修改 `evidence.reproducer`** — 该字段属于 omv-audit 职责，只读
 3. **不推断或编造 `observed_result`** — 必须来自用户的真实执行报告，不得根据 reproducer 文字推断结果
 4. **不攻击线上服务** — 所有执行在本地隔离环境中进行
@@ -87,7 +87,7 @@ omv findings validate <id>
 然后运行或建议：
 
 ```bash
-omv findings workflow
+omv dashboard
 ```
 
 Use the CLI result for lifecycle handoff:
@@ -100,4 +100,4 @@ Use the CLI result for lifecycle handoff:
 
 - `omv findings validate <id>` — 校验字段完整性，输出 evidence/submission 分数
 - `omv findings promote <id> --status confirmed|blocked` — 更新 status 字段
-- `omv findings workflow` — 显示 active findings 的下一步动作
+- `omv dashboard` — 显示 active findings 的下一步动作

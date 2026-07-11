@@ -211,7 +211,7 @@ export function warningNextAction(message: string, id: string): string {
   if (message.includes("observed_result") || message.includes("repro_artifacts")) return `/omv-repro ${id}`;
   if (message.includes("blockers")) return `/omv-audit ${id}`;
   if (message.includes("dedup") || message.includes("cvss") || message.includes("guard") || message.includes("affected_range")) return `/omv-audit ${id}`;
-  return `omv findings open ${id}`;
+  return `omv findings show ${id}`;
 }
 
 export function dedupeIssues(issues: FindingDoctorIssue[]): FindingDoctorIssue[] {

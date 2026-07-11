@@ -1,7 +1,7 @@
-export { setup } from "./cli/setup.js";
+export { setup, uninstall } from "./cli/setup.js";
 export { detectProjectContext, startResearch } from "./cli/start.js";
 export { doctor } from "./cli/doctor.js";
-export { readCatalog, getInstallableSkills, parseCatalog } from "./cli/catalog.js";
+export { reviewFinding } from "./cli/review.js";
 export {
   CAMPAIGN_DEPTHS,
   CAMPAIGN_ECOSYSTEMS,
@@ -11,92 +11,74 @@ export {
   buildCampaign,
   initCampaign,
   listCampaigns,
-  normalizeCampaignId,
-  normalizeVulnerabilityClasses,
-  parseCampaignYaml,
-  renderCampaignRunbook,
-  resolveCampaignInput,
   showCampaign,
   validateCampaign,
 } from "./cli/campaign.js";
 export { seedCampaign } from "./cli/campaign-seed.js";
-export { ReadlineCampaignPrompt } from "./cli/campaign-prompt.js";
-export { initSourceRef, parseSourceRefYaml, showSourceRef, validateSourceRef } from "./cli/source-ref.js";
+export { initSourceRef, showSourceRef, validateSourceRef } from "./cli/source-ref.js";
 export {
   createReportProvenance,
   listReportFiles,
-  parseReportProvenanceJson,
   validateReportProvenance,
 } from "./cli/report-provenance.js";
 export {
-  listFindings,
-  validateFinding,
-  validateFindings,
-  promoteFinding,
+  EVIDENCE_ECOSYSTEMS,
   archiveFinding,
   checkReportArtifacts,
   createFindingTemplate,
   doctorFinding,
-  ensureFindingsDir,
   initReproArtifacts,
   listArchivedFindings,
+  listFindings,
   listFindingWorkflow,
+  promoteFinding,
   restoreFinding,
   showFinding,
+  validateFinding,
+  validateFindings,
 } from "./cli/findings.js";
 export {
-  claudeSkillsDir,
-  claudeHome,
-  projectClaudeHome,
-  projectSkillsDir,
-  omvStateDir,
-  findingsDir,
-  campaignsDir,
-  campaignPath,
-  campaignRunbookPath,
-  sourcesDir,
-  sourceRefPath,
-  archiveDir,
-  archivedFindingsDir,
-  archiveMetadataDir,
-  archiveMetadataPath,
-  reportsDir,
-  findingReportsDir,
-  reportProvenancePath,
-  reproDir,
-  findingReproDir,
-  workspaceIndexPath,
-  workspaceActivityLogPath,
-  setupScopePath,
-  packageRoot,
-  packageSkillsDir,
-} from "./cli/paths.js";
-export {
   initWorkspace,
-  workspaceStatus,
-  rebuildWorkspaceIndex,
-  readWorkspaceIndex,
-  appendWorkspaceActivity,
   readWorkspaceActivity,
+  workspaceStatus,
 } from "./cli/workspace.js";
-export type { SetupOptions, SetupResult } from "./cli/setup.js";
+
+export type {
+  SetupOptions,
+  SetupPlatform,
+  SetupResult,
+  SetupScope,
+  UninstallOptions,
+  UninstallResult,
+} from "./cli/setup.js";
 export type { ProjectContext, StartResearchOptions, StartResearchResult } from "./cli/start.js";
-export type { DoctorResult } from "./cli/doctor.js";
-export type { OmvCatalog, SkillCatalogEntry } from "./cli/catalog.js";
+export type { Check, DoctorOptions, DoctorResult } from "./cli/doctor.js";
+export type { FindingReview, ReviewVerdict } from "./cli/review.js";
 export type {
   Campaign,
+  CampaignDepth,
+  CampaignEcosystem,
   CampaignInput,
   CampaignLane,
-  CampaignSummary,
+  CampaignLocalReproduction,
+  CampaignMode,
+  CampaignOutput,
+  CampaignProfile,
   CampaignPromptAdapter,
+  CampaignScope,
+  CampaignStatus,
+  CampaignSummary,
+  CampaignTarget,
   InitCampaignOptions,
   InitCampaignResult,
   ShowCampaignResult,
 } from "./cli/campaign.js";
 export type {
+  CampaignFindingCreator,
   CampaignSeedFailure,
   CampaignSeedResult,
   CampaignSeedSkipped,
+  SeedCampaignDependencies,
 } from "./cli/campaign-seed.js";
 export type {
   SourceRef,
@@ -116,24 +98,27 @@ export type {
   ReportProvenanceValidation,
 } from "./cli/report-provenance.js";
 export type {
-  EvidenceStatus,
+  ArchivedFindingSummary,
+  CreateFindingTemplateOptions,
   EvidenceEcosystem,
   EvidenceResearcherGoal,
-  FindingTemplateSeed,
-  FindingSummary,
-  FindingWorkflowSummary,
-  FindingDetail,
-  FindingTemplateResult,
-  FindingValidation,
-  ArchivedFindingSummary,
+  EvidenceStatus,
   FindingArchiveResult,
-  FindingRestoreResult,
+  FindingDetail,
   FindingDoctorIssue,
   FindingDoctorResult,
+  FindingRestoreResult,
+  FindingSummary,
+  FindingTemplateResult,
+  FindingTemplateSeed,
+  FindingValidation,
+  FindingVerdict,
+  FindingWorkflowSummary,
   ReportArtifactsResult,
   ReproInitResult,
-  CreateFindingTemplateOptions,
-  FindingVerdict,
 } from "./cli/findings.js";
-export { createWorkflowAction } from "./cli/workflow.js";
-export type { WorkflowAction, WorkflowActionSurface } from "./cli/workflow.js";
+export type {
+  InitWorkspaceOptions,
+  WorkspaceActivityEntry,
+  WorkspaceStatus,
+} from "./cli/workspace.js";

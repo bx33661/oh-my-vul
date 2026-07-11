@@ -1,6 +1,6 @@
 # Verification.v1 — adversarial review sidecar
 # Produced by: omv verification init + verifier/critic workflows
-# Consumed by: omv findings doctor, omv-report, omv-critic
+# Consumed by: omv review, omv-report, omv-critic
 #
 # Verification.v1 records independent attempts to refute a finding or a
 # ThreatMap.v1 path. It augments Evidence.v1 and does not replace it.

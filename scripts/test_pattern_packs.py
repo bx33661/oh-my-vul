@@ -44,6 +44,13 @@ class PatternPackTests(unittest.TestCase):
                     ),
                     mappings,
                 )
+                self.assertIn(
+                    (
+                        f"shared/pattern-packs/{ecosystem}.json",
+                        f"skills/{consumer}/references/pattern-packs/{ecosystem}.json",
+                    ),
+                    mappings,
+                )
 
     def test_skill_sync_includes_every_manifest_derived_mapping(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -68,13 +75,6 @@ class PatternPackTests(unittest.TestCase):
             self._write_complete_fixture(root)
             with self.assertRaisesRegex(SystemExit, r"npm\.md missing Source pattern"):
                 validate_pattern_registry(root)
-                self.assertIn(
-                    (
-                        f"shared/pattern-packs/{ecosystem}.json",
-                        f"skills/{consumer}/references/pattern-packs/{ecosystem}.json",
-                    ),
-                    mappings,
-                )
 
     def test_loader_rejects_unknown_keys_and_unsafe_reference_paths(self) -> None:
         with tempfile.TemporaryDirectory(prefix="omv-pattern-packs-") as tmp:

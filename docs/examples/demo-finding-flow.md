@@ -129,7 +129,7 @@ Run:
 
 ```sh
 omv findings validate go-demo-ssrf
-omv findings workflow
+omv dashboard
 ```
 
 If validation returns warnings such as these, do not submit yet:
@@ -191,7 +191,7 @@ The snippets below use fake package names and paths. To try one locally:
 omv findings init demo-candidate --force
 # Replace .omv/findings/demo-candidate.yaml with one snippet, then:
 omv findings validate demo-candidate
-omv findings doctor demo-candidate
+omv review demo-candidate
 ```
 
 ### Candidate: Needs Local Reproduction

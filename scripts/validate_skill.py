@@ -120,7 +120,7 @@ def validate_skill_md(skill_dir: Path) -> str:
     referenced = sorted(
         set(
             re.findall(
-                r"`((?:references|contracts|scripts)/[^`]+(?:\.md|\.yaml|\.yml|\.py|\.sh))`",
+                r"`((?:references|contracts|scripts)/[^`]+(?:\.md|\.yaml|\.yml|\.py|\.mjs|\.sh))`",
                 body,
             )
         )

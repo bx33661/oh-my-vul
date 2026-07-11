@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -26,10 +27,12 @@ REQUIRED_FILES = {
     "SECURITY.md",
     "LICENSE",
     "dist/cli/omv.js",
-    "dist/cli/omv-mcp.js",
     "dist/index.js",
     "registry.yaml",
     "contracts/evidence.v1.yaml",
+    "contracts/node-api.v1.json",
+    "contracts/cli-json.v1.json",
+    "contracts/artifact-contracts.v1.json",
     "contracts/campaign.v1.yaml",
     "contracts/source-ref.v1.yaml",
     "contracts/report-provenance.v1.yaml",
@@ -48,7 +51,7 @@ REQUIRED_FILES = {
     "skills/omv-disclose/SKILL.md",
     "skills/omv-critic/SKILL.md",
     "shared/scripts/collect_metadata.py",
-    "shared/scripts/estimate_loc.sh",
+    "shared/scripts/estimate_loc.mjs",
     "shared/scripts/http_client.py",
     "shared/scripts/resolve_source_path.py",
     "shared/scripts/run_evals.py",
@@ -93,6 +96,24 @@ FORBIDDEN_SUFFIXES = {
     ".tgz",
 }
 
+PUBLIC_DECLARATIONS = {
+    "dist/index.d.ts",
+    "dist/cli/campaign-seed.d.ts",
+    "dist/cli/campaign.d.ts",
+    "dist/cli/doctor.d.ts",
+    "dist/cli/findings.d.ts",
+    "dist/cli/report-provenance.d.ts",
+    "dist/cli/review.d.ts",
+    "dist/cli/setup.d.ts",
+    "dist/cli/source-ref.d.ts",
+    "dist/cli/start.d.ts",
+    "dist/cli/submissions.d.ts",
+    "dist/cli/threatmap.d.ts",
+    "dist/cli/verification.d.ts",
+    "dist/cli/workflow.d.ts",
+    "dist/cli/workspace.d.ts",
+}
+
 COMPILED_SUFFIXES = (".d.ts.map", ".d.ts", ".js.map", ".js")
 
 
@@ -103,7 +124,7 @@ def fail(message: str) -> None:
 
 def npm_pack() -> dict[str, object]:
     result = subprocess.run(
-        ["npm", "pack", "--json", "--dry-run"],
+        ["npm.cmd" if os.name == "nt" else "npm", "pack", "--json", "--dry-run"],
         cwd=REPO_ROOT,
         check=True,
         text=True,
@@ -117,11 +138,7 @@ def npm_pack() -> dict[str, object]:
 
 def expected_command_files() -> set[str]:
     command_sources = (REPO_ROOT / "src" / "cli" / "commands").glob("*.ts")
-    return {
-        f"dist/cli/commands/{source.stem}{suffix}"
-        for source in command_sources
-        for suffix in COMPILED_SUFFIXES
-    }
+    return {f"dist/cli/commands/{source.stem}.js" for source in command_sources}
 
 
 def expected_pattern_pack_files() -> set[str]:
@@ -157,6 +174,11 @@ def stale_cli_files(paths: set[str]) -> list[str]:
 
 
 def main() -> None:
+    package_json = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    exports = package_json.get("exports")
+    if not isinstance(exports, dict) or set(exports) != {".", "./package.json"}:
+        fail("package exports must contain only the root API and package.json")
+
     package = npm_pack()
     files = package.get("files", [])
     if not isinstance(files, list):
@@ -175,6 +197,10 @@ def main() -> None:
     if missing_commands:
         fail(f"missing compiled command modules: {', '.join(missing_commands)}")
 
+    missing_declarations = sorted(PUBLIC_DECLARATIONS - paths)
+    if missing_declarations:
+        fail(f"missing public declarations: {', '.join(missing_declarations)}")
+
     for prefix in sorted(REQUIRED_PREFIXES):
         if not any(path.startswith(prefix) for path in paths):
             fail(f"missing required npm directory prefix: {prefix}")
@@ -183,6 +209,8 @@ def main() -> None:
         path for path in paths
         if any(path.startswith(prefix) for prefix in FORBIDDEN_PREFIXES)
         or any(path.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES)
+        or path.endswith(".map")
+        or (path.endswith(".d.ts") and path not in PUBLIC_DECLARATIONS)
     )
     if forbidden:
         fail(f"forbidden files in npm package: {', '.join(forbidden[:12])}")

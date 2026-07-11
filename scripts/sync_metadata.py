@@ -226,7 +226,7 @@ def main() -> None:
     changes = planned_changes()
     if args.check:
         if changes:
-            fail("metadata is out of sync:\n  " + "\n  ".join(str(path.relative_to(REPO_ROOT)) for path, _ in changes) + "\nRun: python3 scripts/sync_metadata.py")
+            fail("metadata is out of sync:\n  " + "\n  ".join(str(path.relative_to(REPO_ROOT)) for path, _ in changes) + "\nRun: npm run sync-metadata")
         print("OK: metadata is in sync")
         return
 

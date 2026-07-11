@@ -24,6 +24,21 @@ export function projectSkillsDir(projectRoot = process.cwd()): string {
   return join(projectClaudeHome(projectRoot), "skills");
 }
 
+/** ~/.codex/ - Codex config home. Override with CODEX_HOME when needed. */
+export function codexHome(): string {
+  return process.env.CODEX_HOME || join(homedir(), ".codex");
+}
+
+/** ~/.agents/skills/ - where Codex loads user-level skills from. */
+export function codexSkillsDir(): string {
+  return join(homedir(), ".agents", "skills");
+}
+
+/** .agents/skills/ - project-scoped Codex skills directory. */
+export function projectCodexSkillsDir(projectRoot = process.cwd()): string {
+  return join(projectRoot, ".agents", "skills");
+}
+
 /** .omv/ — project-scoped oh-my-vul state directory. */
 export function omvStateDir(projectRoot = process.cwd()): string {
   return join(projectRoot, ".omv");

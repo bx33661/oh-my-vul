@@ -11,7 +11,7 @@
       "assertions": [
         {
           "type": "delegates_next_to_cli",
-          "text": "next command must run omv findings workflow"
+          "text": "next command must run omv dashboard"
         }
       ]
     },

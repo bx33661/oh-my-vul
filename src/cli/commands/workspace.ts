@@ -1,5 +1,4 @@
 import {
-  initWorkspace,
   readWorkspaceActivity,
   workspaceStatus,
   type WorkspaceStatus,
@@ -13,9 +12,6 @@ export async function run(args: string[]): Promise<void> {
   const json = wantsJson(args);
 
   switch (subcommand) {
-    case "init":
-      await printWorkspaceCommandResult(await initWorkspace(process.cwd(), { gitignore: args.includes("--gitignore") }), json);
-      return;
     case "status":
       await printWorkspaceCommandResult(await workspaceStatus(), json);
       return;

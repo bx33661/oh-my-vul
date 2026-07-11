@@ -1,7 +1,7 @@
 # oh-my-vul state directory — findings, context snapshots, logs
 .omv/
 
-# Project-scoped Codex installs created by `omv setup --scope project`
+# Local Codex/OpenSpec scaffolding (consumer projects may commit selected skills)
 .codex/
 
 # Local assistant scaffolding and nested worktrees
@@ -15,7 +15,6 @@ oh-my-claudecode/
 # Maintainer / agent / release engineering docs (local only — not for GitHub)
 openspec/
 /SPEC.md
-/AGENTS.md
 /CLAUDE.md
 /DEVELOPMENT.md
 /RELEASE.md
@@ -40,6 +39,3 @@ __pycache__/
 .idea/
 *.swp
 *.swo
-.omv/repro/
-.omv/reports/
-.omv/archive/

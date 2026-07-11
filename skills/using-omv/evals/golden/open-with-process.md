@@ -8,7 +8,7 @@ Do **not** invent a confirmed vulnerability.
 
 Open the problem:
 
-1. Prefer campaign first-mile: `omv first` / `omv campaign init` with ecosystem npm and vuln xss.
+1. Prefer campaign first-mile: `omv start` / `omv campaign init` with ecosystem npm and vuln xss.
 2. Prefer Attack Surface Cards: `omv campaign surfaces propose`, then `select`, then `seed`.
 3. Seed creates **candidate** Evidence only — unproven hypotheses.
 4. Deepen with `/omv-audit <id>` only after a candidate exists.
@@ -17,7 +17,7 @@ Open the problem:
 Example next actions:
 
 ```text
-omv first --target acme --ecosystem npm --vuln xss --no-interactive
+omv start --target acme --ecosystem npm --vuln xss --no-interactive
 omv campaign surfaces propose acme
 omv campaign surfaces select acme --cards renderer-pipeline
 omv campaign seed acme
