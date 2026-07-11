@@ -24,7 +24,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError:
+    raise SystemExit(
+        "PyYAML is required by the deterministic report renderer. "
+        "Install it with: python -m pip install -r scripts/requirements.txt"
+    )
 
 
 GHSA_ECOSYSTEM: dict[str, str] = {

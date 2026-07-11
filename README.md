@@ -26,7 +26,7 @@ Research state stays in a private `.omv/` workspace. The project is designed for
 
 ## Quick Start
 
-**Requirements:** [Codex](https://developers.openai.com/codex/) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Node.js 22 or later, and Python 3 for bundled Skill helpers. Windows, Linux, and macOS are supported; on Windows, use a modern Windows Terminal or PowerShell for the Ink workspace.
+**Requirements:** [Codex](https://developers.openai.com/codex/) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Node.js 22 or later, and Python 3 for bundled Skill helpers. The deterministic report renderer additionally uses its pinned PyYAML dependency. Windows, Linux, and macOS are supported; on Windows, use a modern Windows Terminal or PowerShell for the Ink workspace.
 
 Install the CLI and add the skills to Codex:
 

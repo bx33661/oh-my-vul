@@ -26,7 +26,7 @@
 
 ## 快速开始
 
-**环境要求：** [Codex](https://developers.openai.com/codex/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Node.js 22 或更高版本，以及供内置 Skill 辅助脚本使用的 Python 3。支持 Windows、Linux 和 macOS；Windows 建议使用新版 Windows Terminal 或 PowerShell 运行 Ink 工作台。
+**环境要求：** [Codex](https://developers.openai.com/codex/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Node.js 22 或更高版本，以及供内置 Skill 辅助脚本使用的 Python 3。确定性报告渲染器还使用自身固定版本的 PyYAML 依赖。支持 Windows、Linux 和 macOS；Windows 建议使用新版 Windows Terminal 或 PowerShell 运行 Ink 工作台。
 
 全局安装 CLI，并把 Skills 装入 Codex：
 

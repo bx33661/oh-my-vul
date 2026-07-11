@@ -85,6 +85,8 @@ Use the validation result to choose output mode:
 
 For confirmed findings with submission score ≥ 75, run the deterministic renderer first to get a pre-filled skeleton. Resolve `scripts/render_template.py` relative to this installed `SKILL.md`; do not assume one global install directory.
 
+The renderer requires the pinned Python dependency in `scripts/requirements.txt`. Install it once with `python3 -m pip install -r <installed-skill-dir>/scripts/requirements.txt` on macOS/Linux or `py -3 -m pip install -r <installed-skill-dir>\scripts\requirements.txt` on Windows.
+
 macOS/Linux:
 
 ```bash
