@@ -185,7 +185,7 @@ def required_package_files(skill_dir: Path) -> set[str]:
         if not root.exists():
             continue
         required.update(
-            str(file.relative_to(skill_dir))
+            file.relative_to(skill_dir).as_posix()
             for file in root.rglob("*")
             if file.is_file() and is_package_source(file)
         )
