@@ -2,12 +2,11 @@
 
 ## Unreleased
 
+## v1.0.0 - 2026-07-11
+
 - Added Windows as a validated platform with Python 3 runtime discovery, shell-independent Node test execution, cross-platform Skill packaging and LOC estimation, and an Ubuntu/Windows CI matrix. Claude Code remains the default platform when `--platform` is omitted.
 - Reduced install overhead by replacing the static `boxen` and `cli-table3` output layer with the built-in responsive renderer, removing 21 packages from a clean npm install.
 - Improved first-run setup with automatic platform-scoped health verification, explicit restart and Skill invocation guidance, compact install paths, accurate dry-run labels, and clearer download/upgrade documentation.
-
-## v1.0.0 - 2026-07-11
-
 - Froze the 1.0 CLI compatibility surface: workflow-first public help, grouped advanced automation commands, Skill-managed primitives hidden from public catalogs, and canonical `start`, `dashboard`, and `review` workflows replacing redundant wrappers.
 - Froze the remaining 1.0 compatibility boundaries with root-only Node package exports, inventoried runtime/type exports, required-field JSON contracts for every public automation command, parser-aware `.omv` contract versioning, and package-to-installed-Skill content drift checks.
 - Removed the pre-1.0 `first`, `workspace init`, `findings workflow`, `findings doctor`, `findings open`, and permanent `findings delete` routes with focused migration errors.
