@@ -264,7 +264,7 @@ function portablePath(path: string, projectRoot: string): string {
   const absolute = resolve(path);
   const candidate = relative(root, absolute);
   return candidate && candidate !== ".." && !candidate.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
-    ? candidate
+    ? candidate.replaceAll("\\", "/")
     : absolute;
 }
 

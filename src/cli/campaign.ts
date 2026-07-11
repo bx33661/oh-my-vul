@@ -1,5 +1,5 @@
 import { existsSync } from "fs";
-import { link, lstat, mkdir, mkdtemp, open, readFile, readdir, rename, rm, unlink, writeFile } from "fs/promises";
+import { link, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, rmdir, unlink, writeFile } from "fs/promises";
 import { basename, join } from "path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { campaignPath, campaignRunbookPath, campaignsDir, workspaceActivityLogPath } from "./paths.js";
@@ -987,9 +987,8 @@ async function withCampaignLock<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const lockPath = join(campaignsDir(projectRoot), `${id}.lock`);
-  let handle;
   try {
-    handle = await open(lockPath, "wx");
+    await mkdir(lockPath);
   } catch (error) {
     if (errorCode(error) === "EEXIST") {
       throw new Error(`Campaign ${id} is busy: lock already exists at ${lockPath}`);
@@ -999,8 +998,7 @@ async function withCampaignLock<T>(
   try {
     return await operation();
   } finally {
-    await handle.close();
-    await unlink(lockPath);
+    await rmdir(lockPath);
   }
 }
 

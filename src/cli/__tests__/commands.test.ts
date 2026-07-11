@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -105,7 +105,7 @@ test("bare CLI is read-only before initialization and opens the dashboard afterw
 });
 
 test("explicit TUI command explains the non-TTY fallback", () => {
-  const result = runCli(["tui"]);
+  const result = runCli(["tui"], process.cwd(), { CI: "false" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /requires a terminal/i);
   assert.match(result.stderr, /omv dashboard/);
@@ -149,7 +149,10 @@ test("dashboard JSON output is one parseable document with stable core fields", 
       campaigns?: unknown[];
       activity?: unknown[];
     };
-    assert.equal(output.status?.root, await realpath(join(projectRoot, ".omv")));
+    const actualRoot = await stat(output.status?.root ?? "");
+    const expectedRoot = await stat(join(projectRoot, ".omv"));
+    assert.equal(actualRoot.dev, expectedRoot.dev);
+    assert.equal(actualRoot.ino, expectedRoot.ino);
     assert.equal(output.status?.activeCount, 1);
     assert.equal(Array.isArray(output.workflow), true);
     assert.equal(Array.isArray(output.campaigns), true);
@@ -335,11 +338,11 @@ test("compiled CLI runs the SourceRef and report provenance workflow with stable
   }
 });
 
-function runCli(args: string[], cwd = process.cwd()) {
+function runCli(args: string[], cwd = process.cwd(), extraEnv: Record<string, string> = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
     cwd,
     encoding: "utf-8",
-    env: { ...process.env, NO_COLOR: "1" },
+    env: { ...process.env, NO_COLOR: "1", ...extraEnv },
   });
 }
 
