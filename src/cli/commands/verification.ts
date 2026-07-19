@@ -8,6 +8,7 @@ import {
 } from "../verification.js";
 import { firstPositionalAfter, wantsJson } from "./shared.js";
 import { command as cmd, error as tuiError, kv, outcomeBadge, panel, warn } from "../tui.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1] ?? "show";
@@ -20,7 +21,7 @@ export async function run(args: string[]): Promise<void> {
         console.error("Missing finding id.");
         process.exit(1);
       }
-      const result = await initVerification(id, process.cwd(), { force: args.includes("--force") });
+      const result = await initVerification(id, resolveProjectRoot(), { force: args.includes("--force") });
       if (json) {
         console.log(JSON.stringify(result, null, 2));
         return;

@@ -25,7 +25,7 @@ export async function run(args: string[]): Promise<void> {
   }
 
   const result = spawnSync(runtime.command, [...runtime.prefixArgs, ...runnerArgs], {
-    cwd: process.cwd(),
+    cwd: packageRoot(),
     encoding: "utf-8",
   });
   if (result.error) {

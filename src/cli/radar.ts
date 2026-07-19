@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { appendFile, mkdir, readFile } from "fs/promises";
 import { parse as parseYaml } from "yaml";
-import { packageRoot, radarDir, radarEventsPath, radarWatchlistPath } from "./paths.js";
+import { packageRoot, radarDir, radarEventsPath, radarWatchlistPath, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity, ensureWorkspaceDirs } from "./workspace.js";
 
 export interface RadarWatchEntry {
@@ -50,7 +50,7 @@ export interface RadarBriefGroup {
 }
 
 export async function refreshRadar(options: { dryRun?: boolean; projectRoot?: string } = {}): Promise<RadarRefreshResult> {
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   await ensureWorkspaceDirs(projectRoot);
   await mkdir(radarDir(projectRoot), { recursive: true });
   const watchlistPath = radarWatchlistPath(projectRoot);
@@ -76,7 +76,7 @@ export async function refreshRadar(options: { dryRun?: boolean; projectRoot?: st
   };
 }
 
-export async function radarBrief(projectRoot = process.cwd()): Promise<RadarBrief> {
+export async function radarBrief(projectRoot = resolveProjectRoot()): Promise<RadarBrief> {
   const eventsPath = radarEventsPath(projectRoot);
   const events = existsSync(eventsPath) ? parseEvents(await readFile(eventsPath, "utf-8")) : [];
   const groups = new Map<string, RadarBriefGroup>();

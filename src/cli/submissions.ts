@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import { submissionPath, submissionsDir } from "./paths.js";
+import { submissionPath, submissionsDir, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity, ensureWorkspaceDirs } from "./workspace.js";
 
 export interface SubmissionRecord {
@@ -23,7 +23,7 @@ export interface FindingSubmissions {
 export async function recordSubmission(
   id: string,
   input: { platform: string; submissionId: string; url: string },
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<FindingSubmissions> {
   validatePlatform(input.platform);
   validateUrl(input.url);
@@ -49,11 +49,11 @@ export async function recordSubmission(
   return next;
 }
 
-export async function trackSubmissions(id: string, projectRoot = process.cwd()): Promise<FindingSubmissions> {
+export async function trackSubmissions(id: string, projectRoot = resolveProjectRoot()): Promise<FindingSubmissions> {
   return readSubmissions(id, projectRoot);
 }
 
-export async function closeSubmission(id: string, cve: string, projectRoot = process.cwd()): Promise<FindingSubmissions> {
+export async function closeSubmission(id: string, cve: string, projectRoot = resolveProjectRoot()): Promise<FindingSubmissions> {
   if (!/^CVE-\d{4}-\d{4,}$/.test(cve)) {
     throw new Error("--cve must use CVE-YYYY-NNNN format");
   }
@@ -76,7 +76,7 @@ export async function closeSubmission(id: string, cve: string, projectRoot = pro
   return next;
 }
 
-export async function readSubmissions(id: string, projectRoot = process.cwd()): Promise<FindingSubmissions> {
+export async function readSubmissions(id: string, projectRoot = resolveProjectRoot()): Promise<FindingSubmissions> {
   const path = submissionPath(id, projectRoot);
   if (!existsSync(path)) {
     return { schema_version: "1", finding_id: id, records: [] };

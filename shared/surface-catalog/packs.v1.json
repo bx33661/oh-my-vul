@@ -63,6 +63,35 @@
       "false_positive_checks": ["admin-only callback URLs in single-tenant tools"]
     },
     {
+      "id": "ssrf-filter",
+      "title": "HTTP client SSRF filter or private-IP block",
+      "vulnerability_classes": ["ssrf", "redirect"],
+      "discovery_hints": [
+        "ssrf",
+        "private ip",
+        "request filter",
+        "filtering agent",
+        "ipaddr",
+        "allowlist",
+        "denylist",
+        "metadata",
+        "169.254"
+      ],
+      "sources": ["caller-supplied URL or request options", "DNS lookup results", "redirect targets"],
+      "sinks": ["http.Agent createConnection", "fetch/axios agent", "socket connect", "unix socket path"],
+      "guards": [
+        "block non-unicast IP ranges after DNS",
+        "reject metadata and link-local",
+        "redirect policy",
+        "unix socket / socketPath policy",
+        "scheme allowlist"
+      ],
+      "false_positive_checks": [
+        "libraries that only document SSRF without implementing network connect filtering",
+        "pure DNS utilities with no outbound HTTP"
+      ]
+    },
+    {
       "id": "upload-handler",
       "title": "Multipart upload and storage placement",
       "vulnerability_classes": ["upload", "path-traversal", "traversal", "race", "infoleak"],

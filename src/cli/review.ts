@@ -1,4 +1,5 @@
 import { doctorFinding, type FindingDoctorIssue, type FindingDoctorResult } from "./findings.js";
+import { resolveProjectRoot } from "./paths.js";
 
 export type ReviewVerdict = "ready" | "needs-repro" | "needs-audit" | "needs-verification" | "blocked";
 
@@ -15,12 +16,14 @@ export interface FindingReview {
 }
 
 const NON_BLOCKING_ISSUES = new Set(["report-artifact-error", "report-artifact-warning"]);
-const REPRO_ISSUES = new Set(["missingObservedResult", "plausibleExploitability"]);
+// Only missing local observation routes to /omv-repro. plausibleExploitability is an
+// audit/verdict concern (needs-audit), not a reproduction gap when observed_result is set.
+const REPRO_ISSUES = new Set(["missingObservedResult"]);
 const VERIFICATION_ISSUES = new Set(["verification-error", "verification-warning", "verification-not-passing"]);
 
 export async function reviewFinding(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { strict?: boolean } = {},
 ): Promise<FindingReview> {
   const strict = options.strict ?? false;

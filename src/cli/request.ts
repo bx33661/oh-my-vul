@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { BlockList, isIP } from "net";
 import { dirname, join } from "path";
-import { httpCacheDir, packageRoot } from "./paths.js";
+import { httpCacheDir, packageRoot, resolveProjectRoot } from "./paths.js";
 
 export type RequestFailureReason =
   | "auth_required"
@@ -112,7 +112,7 @@ const DEFAULT_USER_AGENT = `omv-cli/${installedPackageVersion()} (+https://githu
 
 export async function requestFetch(url: string, options: RequestFetchOptions = {}): Promise<RequestFetchResult> {
   const accept = options.accept ?? DEFAULT_ACCEPT;
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   const timeoutMs = configuredTimeoutMs(options.timeoutMs);
   const retries = configuredRetries(options.retries);
   const cachePath = requestCachePath(url, accept, projectRoot);
@@ -145,7 +145,7 @@ export async function requestFetch(url: string, options: RequestFetchOptions = {
 }
 
 export async function requestPreflight(options: RequestFetchOptions = {}): Promise<RequestPreflightResult> {
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   const checks: RequestPreflightCheck[] = [];
   for (const target of preflightTargets()) {
     const result = await requestFetch(target.url, {

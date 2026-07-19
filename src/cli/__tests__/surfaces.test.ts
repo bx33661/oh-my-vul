@@ -26,9 +26,29 @@ test("surface catalog proposes cards that intersect campaign vulnerability class
   const list = proposeCardsForCampaign(campaign, catalog);
   const ids = list.cards.map((card) => card.id).sort();
   assert.ok(ids.includes("renderer-pipeline"));
+  assert.ok(ids.includes("ssrf-filter"), `expected ssrf-filter in ${ids.join(",")}`);
   assert.ok(ids.includes("webhook-client") || ids.includes("media-tool"));
   assert.ok(list.cards.every((card) => card.status === "proposed"));
   assert.ok(list.cards.every((card) => card.finding_id.startsWith(`${campaign.id}-`)));
+});
+
+test("ssrf-only campaigns propose the ssrf-filter pack", async () => {
+  const catalog = await loadSurfaceCatalog();
+  const campaign = (
+    await initCampaign(
+      {
+        target: "FilterLib",
+        version: "1",
+        ecosystem: "npm",
+        vulnerabilities: ["ssrf"],
+      },
+      { projectRoot: await emptyProject() },
+    )
+  ).campaign;
+  const list = proposeCardsForCampaign(campaign, catalog);
+  const ids = list.cards.map((card) => card.id);
+  assert.ok(ids.includes("ssrf-filter"));
+  assert.ok(ids.includes("webhook-client") || ids.includes("media-tool"));
 });
 
 test("surfaces propose/select drive campaign seed finding ids", async () => {

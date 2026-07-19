@@ -47,6 +47,16 @@ export function usage(): void {
 
 ${renderCommandGroup("Workflow", CORE_PUBLIC_COMMANDS)}
 
+Global options (before or after the command):
+  --root <path>     Research project root owning .omv/ (also OMV_PROJECT_ROOT / OMV_ROOT)
+  --no-tui          Force plain output instead of the interactive workspace
+
+Project root resolution for .omv state:
+  1) --root / OMV_PROJECT_ROOT / OMV_ROOT
+  2) if cwd is under <project>/.omv/... (e.g. checkouts), use <project>
+  3) nearest ancestor containing .omv/
+  4) current working directory
+
 Run 'omv help <topic>' for focused help or 'omv help --all' for all public commands.`);
 }
 
@@ -85,7 +95,13 @@ Default platform: claude-code (backward compatible).`);
 
 Initialize a private workspace, detect local project metadata, and create the first campaign.
 Options: --id, --target, --version, --source, --ecosystem, --mode, --goal,
---budget, --local-lab, --force, --no-interactive, --json.`);
+--budget, --local-lab, --force, --no-interactive, --json.
+
+Enums:
+  --mode   whitebox | graybox | local-lab | passive | mixed
+  --goal   course-report | cve | vuldb | internal-report | research-notes
+  --budget quick | standard | deep
+When --target/--version/--source are set explicitly, prefer those over ambient project detection.`);
       return;
     case "uninstall":
       console.log(`Usage: omv uninstall [--scope user|project] [--platform codex|claude-code] [--json]
@@ -123,7 +139,7 @@ Use omv dashboard for deterministic plain output.`);
       console.log(`Usage: omv review <id> [--strict] [--json]
 
 Review Evidence.v1 plus available ThreatMap.v1 and Verification.v1 sidecars and
-return one verdict: ready, needs-repro, needs-audit, needs-verification, or
+return one verdict: ready, needs-repro (missing observed_result only), needs-audit, needs-verification, or
 blocked. With --strict, readiness requires a passing, non-stale Verification.v1
 sidecar.`);
       return;

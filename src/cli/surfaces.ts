@@ -6,7 +6,7 @@ import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { showCampaign, type Campaign } from "./campaign.js";
-import { campaignSurfacesPath, packageRoot } from "./paths.js";
+import { campaignSurfacesPath, packageRoot, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
 export const SURFACE_CARD_STATUSES = ["proposed", "selected", "skipped"] as const;
@@ -156,7 +156,7 @@ export function proposeCardsForCampaign(
 
 export async function proposeSurfaces(
   id: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { force?: boolean; now?: () => Date } = {},
 ): Promise<ProposeSurfacesResult> {
   const detail = await showCampaign(id, projectRoot);
@@ -192,7 +192,7 @@ export async function proposeSurfaces(
 
 export async function showSurfaces(
   id: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<ShowSurfacesResult> {
   const detail = await showCampaign(id, projectRoot);
   const path = campaignSurfacesPath(detail.campaign.id, projectRoot);
@@ -219,7 +219,7 @@ export async function showSurfaces(
 export async function selectSurfaces(
   id: string,
   cardIds: string[],
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { now?: () => Date } = {},
 ): Promise<SelectSurfacesResult> {
   const detail = await showCampaign(id, projectRoot);

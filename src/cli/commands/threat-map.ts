@@ -1,6 +1,7 @@
 import { validateThreatMap, writeThreatMap, type ThreatMapValidation, type ThreatMapWriteResult } from "../threatmap.js";
 import { firstPositionalAfter, wantsJson } from "./shared.js";
 import { command as cmd, kv, outcomeBadge, panel, warn, error as tuiError } from "../tui.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1] ?? "init";
@@ -13,7 +14,7 @@ export async function run(args: string[]): Promise<void> {
         console.error("Missing finding id.");
         process.exit(1);
       }
-      const result = await writeThreatMap(id, process.cwd(), { force: args.includes("--force") });
+      const result = await writeThreatMap(id, resolveProjectRoot(), { force: args.includes("--force") });
       if (json) {
         console.log(JSON.stringify(result, null, 2));
         return;

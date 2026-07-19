@@ -10,6 +10,7 @@ import {
   sourceRefPath,
   threatMapPath,
   verificationPath,
+  resolveProjectRoot,
 } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
@@ -75,7 +76,7 @@ const ROLES = new Set<ReportProvenanceRole>([
 
 export async function createReportProvenance(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: CreateReportProvenanceOptions = {},
 ): Promise<ReportProvenanceResult> {
   const id = normalizeId(target);
@@ -144,7 +145,7 @@ export async function createReportProvenance(
 
 export async function validateReportProvenance(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<ReportProvenanceValidation> {
   const id = normalizeId(target);
   const path = reportProvenancePath(id, projectRoot);
@@ -191,7 +192,7 @@ export function parseReportProvenanceJson(
   return validateManifestObject(value, source);
 }
 
-export async function listReportFiles(id: string, projectRoot = process.cwd()): Promise<string[]> {
+export async function listReportFiles(id: string, projectRoot = resolveProjectRoot()): Promise<string[]> {
   const normalized = normalizeId(id);
   const dir = findingReportsDir(normalized, projectRoot);
   if (!existsSync(dir)) return [];

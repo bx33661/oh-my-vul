@@ -1,6 +1,7 @@
 import { reviewFinding } from "../review.js";
 import { printFindingReview } from "../render.js";
 import { firstPositionalAfter, wantsJson } from "./shared.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const id = firstPositionalAfter(args, "review");
@@ -10,7 +11,7 @@ export async function run(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const result = await reviewFinding(id, process.cwd(), { strict: args.includes("--strict") });
+  const result = await reviewFinding(id, resolveProjectRoot(), { strict: args.includes("--strict") });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     if (result.verdict !== "ready") {

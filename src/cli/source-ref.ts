@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { sha256File } from "./install-manifest.js";
-import { findingsDir, sourceRefPath, sourcesDir } from "./paths.js";
+import { findingsDir, sourceRefPath, sourcesDir, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
 export type SourceRefKind = "repository" | "registry" | "archive" | "file" | "advisory" | "other";
@@ -66,7 +66,7 @@ const SOURCE_KEYS = new Set(["kind", "locator", "revision", "path", "sha256"]);
 
 export async function initSourceRef(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: SourceRefInitOptions = {},
 ): Promise<SourceRefInitResult> {
   const id = normalizeSourceId(target);
@@ -117,7 +117,7 @@ export async function initSourceRef(
 
 export async function validateSourceRef(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<SourceRefValidation> {
   const id = normalizeSourceId(target);
   const path = sourceRefPath(id, projectRoot);
@@ -150,7 +150,7 @@ export async function validateSourceRef(
 
 export async function showSourceRef(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<SourceRefDetail> {
   return validateSourceRef(target, projectRoot);
 }

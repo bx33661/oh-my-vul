@@ -18,7 +18,13 @@ if (tests.length === 0) {
   console.error("No compiled Node tests found. Run npm run build first.");
   process.exit(1);
 }
-const result = spawnSync(process.execPath, ["--test", ...tests], { stdio: "inherit", windowsHide: true });
+const testEnv = { ...process.env, NO_COLOR: "1" };
+delete testEnv.FORCE_COLOR;
+const result = spawnSync(process.execPath, ["--test", ...tests], {
+  stdio: "inherit",
+  windowsHide: true,
+  env: testEnv,
+});
 if (result.error) {
   console.error(result.error.message);
   process.exit(1);

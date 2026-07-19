@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "fs/promises";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
 export interface DedupQueryPlan {
@@ -52,7 +53,7 @@ export async function updateDedup(
     notes: input.notes,
   };
   await writeFile(targetPath, stringifyYaml(parsed), "utf-8");
-  await appendWorkspaceActivity({ action: "dedup.update", id, path: targetPath }, input.projectRoot ?? process.cwd());
+  await appendWorkspaceActivity({ action: "dedup.update", id, path: targetPath }, input.projectRoot ?? resolveProjectRoot());
   return { ...plan, updated: true };
 }
 

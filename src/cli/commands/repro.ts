@@ -1,6 +1,7 @@
 import { initReproArtifacts } from "../findings.js";
 import { printReproInitResult } from "../render.js";
 import { firstPositionalAfter, wantsJson } from "./shared.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const id = firstPositionalAfter(args, "init");
@@ -10,7 +11,7 @@ export async function run(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const result = await initReproArtifacts(id, process.cwd(), { force: args.includes("--force") });
+  const result = await initReproArtifacts(id, resolveProjectRoot(), { force: args.includes("--force") });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;

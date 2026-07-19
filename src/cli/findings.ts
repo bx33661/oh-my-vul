@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { mkdir, readFile, readdir, rename, stat, writeFile } from "fs/promises";
 import { basename, isAbsolute, join, relative } from "path";
 import { parse as parseYaml, parseDocument, stringify as stringifyYaml } from "yaml";
-import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, reportProvenancePath, threatMapPath, verificationPath } from "./paths.js";
+import { archivedFindingsDir, findingReportsDir, findingReproDir, findingsDir, packageRoot, reportProvenancePath, threatMapPath, verificationPath, resolveProjectRoot } from "./paths.js";
 import { readSubmissions, type SubmissionRecord } from "./submissions.js";
 import { readThreatMap, validateThreatMap, writeThreatMap, type FindingThreatMap, type ThreatMapValidation, type ThreatMapWriteResult } from "./threatmap.js";
 import { validateVerification, verificationPasses, type VerificationValidation } from "./verification.js";
@@ -271,7 +271,7 @@ interface SubmissionDeduction {
   nextAction: string;
 }
 
-export async function listFindings(projectRoot = process.cwd()): Promise<FindingSummary[]> {
+export async function listFindings(projectRoot = resolveProjectRoot()): Promise<FindingSummary[]> {
   const dir = findingsDir(projectRoot);
   const files = await listFindingFiles(dir);
   const summaries: FindingSummary[] = [];
@@ -284,7 +284,7 @@ export async function listFindings(projectRoot = process.cwd()): Promise<Finding
   return summaries.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-export async function listFindingWorkflow(projectRoot = process.cwd()): Promise<FindingWorkflowSummary[]> {
+export async function listFindingWorkflow(projectRoot = resolveProjectRoot()): Promise<FindingWorkflowSummary[]> {
   const findings = await listFindings(projectRoot);
   const summaries = await Promise.all(
     findings.map(async (finding) => {
@@ -310,7 +310,7 @@ export async function listFindingWorkflow(projectRoot = process.cwd()): Promise<
 
 export async function showFinding(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { archived?: boolean } = {},
 ): Promise<FindingDetail> {
   const archived = options.archived ?? false;
@@ -343,7 +343,7 @@ export async function showFinding(
   };
 }
 
-export async function validateFinding(target: string, projectRoot = process.cwd()): Promise<FindingValidation> {
+export async function validateFinding(target: string, projectRoot = resolveProjectRoot()): Promise<FindingValidation> {
   const path = resolveFindingPath(target, projectRoot);
   const text = await readFile(path, "utf-8");
   const parseResult = parseEvidenceYaml(text);
@@ -453,7 +453,7 @@ function validateEvidenceData(
   validateUnknownAccounting(parsed, status, errors, warnings);
 }
 
-export async function validateFindings(projectRoot = process.cwd()): Promise<FindingValidation[]> {
+export async function validateFindings(projectRoot = resolveProjectRoot()): Promise<FindingValidation[]> {
   const dir = findingsDir(projectRoot);
   const files = await listFindingFiles(dir);
   return Promise.all(files.map((file) => validateFinding(join(dir, file), projectRoot)));
@@ -461,7 +461,7 @@ export async function validateFindings(projectRoot = process.cwd()): Promise<Fin
 
 export async function initReproArtifacts(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { force?: boolean } = {},
 ): Promise<ReproInitResult> {
   const id = normalizeFindingId(target);
@@ -507,7 +507,7 @@ export async function initReproArtifacts(
 
 export async function doctorFinding(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { strictVerification?: boolean } = {},
 ): Promise<FindingDoctorResult> {
   const path = resolveFindingPath(target, projectRoot);
@@ -639,7 +639,7 @@ export async function doctorFinding(
   };
 }
 
-export async function checkReportArtifacts(id: string, projectRoot = process.cwd()): Promise<ReportArtifactsResult> {
+export async function checkReportArtifacts(id: string, projectRoot = resolveProjectRoot()): Promise<ReportArtifactsResult> {
   const normalizedId = normalizeFindingId(id);
   const findingPath = resolveFindingPath(normalizedId, projectRoot);
   if (!existsSync(findingPath)) {
@@ -732,7 +732,7 @@ export async function createFindingTemplate(
   }
 
   const normalizedId = normalizeFindingId(id);
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   const dir = await ensureFindingsDir(projectRoot);
   const path = join(dir, `${normalizedId}.yaml`);
 
@@ -759,7 +759,7 @@ export async function createFindingTemplate(
 export async function promoteFinding(
   target: string,
   status: EvidenceStatus,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<FindingValidation> {
   if (!VALID_STATUSES.has(status)) {
     throw new Error("status must be candidate, confirmed, or blocked");
@@ -799,7 +799,7 @@ export async function promoteFinding(
 export async function archiveFinding(
   target: string,
   reason: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { force?: boolean; strict?: boolean } = {},
 ): Promise<FindingArchiveResult> {
   const trimmedReason = reason.trim();
@@ -843,7 +843,7 @@ export async function archiveFinding(
   return { id, from, to, status, archiveReason: trimmedReason, archivedAt, warnings, reportArtifactPaths, submissionRecords };
 }
 
-export async function listArchivedFindings(projectRoot = process.cwd()): Promise<ArchivedFindingSummary[]> {
+export async function listArchivedFindings(projectRoot = resolveProjectRoot()): Promise<ArchivedFindingSummary[]> {
   await ensureWorkspaceDirs(projectRoot);
   const index = existsSync(join(projectRoot, ".omv", "index.json"))
     ? await readWorkspaceIndex(projectRoot)
@@ -868,7 +868,7 @@ export async function listArchivedFindings(projectRoot = process.cwd()): Promise
 
 export async function restoreFinding(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { force?: boolean } = {},
 ): Promise<FindingRestoreResult> {
   await ensureWorkspaceDirs(projectRoot);
@@ -889,7 +889,7 @@ export async function restoreFinding(
   return { id, from, to, status };
 }
 
-export async function ensureFindingsDir(projectRoot = process.cwd()): Promise<string> {
+export async function ensureFindingsDir(projectRoot = resolveProjectRoot()): Promise<string> {
   await ensureWorkspaceDirs(projectRoot);
   const dir = findingsDir(projectRoot);
   await mkdir(dir, { recursive: true });
@@ -1271,8 +1271,14 @@ function requireTraceableGuard(data: Record<string, unknown>, errors: string[]):
   }
 }
 
+/**
+ * Accept common file:line forms used in evidence notes:
+ * - path/file.go:88
+ * - path/file.go:88:12   (column)
+ * - path/file.go:88-93   (inclusive line range)
+ */
 function hasFileLineReference(value: string): boolean {
-  return /(?:^|\s)[^\s:]+\.[A-Za-z0-9]+:\d+(?::\d+)?(?:\s|$)/.test(value);
+  return /(?:^|\s)[^\s:]+\.[A-Za-z0-9]+:\d+(?:-\d+|:\d+)?(?:\s|$)/.test(value);
 }
 
 function validateUnknownAccounting(
@@ -1419,7 +1425,7 @@ function projectRootFromFindingPath(path: string): string {
   const marker = `${relative("/", findingsDir("/"))}/`;
   const normalized = path.replaceAll("\\", "/");
   const index = normalized.lastIndexOf(marker);
-  return index === -1 ? process.cwd() : normalized.slice(0, index || 1);
+  return index === -1 ? resolveProjectRoot() : normalized.slice(0, index || 1);
 }
 
 function extension(path: string): string {

@@ -2,6 +2,7 @@ import { checkReportArtifacts } from "../findings.js";
 import { createReportProvenance } from "../report-provenance.js";
 import { printReportArtifacts, printReportProvenanceResult } from "../render.js";
 import { firstPositionalAfter, wantsJson } from "./shared.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1] ?? "artifacts";
@@ -18,7 +19,7 @@ export async function run(args: string[]): Promise<void> {
   }
 
   if (subcommand === "provenance") {
-    const result = await createReportProvenance(id, process.cwd(), { force: args.includes("--force") });
+    const result = await createReportProvenance(id, resolveProjectRoot(), { force: args.includes("--force") });
     if (json) console.log(JSON.stringify(result, null, 2));
     else printReportProvenanceResult(result);
     return;

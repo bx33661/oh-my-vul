@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { link, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, rmdir, unlink, writeFile } from "fs/promises";
 import { basename, join } from "path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import { campaignPath, campaignRunbookPath, campaignsDir, workspaceActivityLogPath } from "./paths.js";
+import { campaignPath, campaignRunbookPath, campaignsDir, workspaceActivityLogPath, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
 export const CAMPAIGN_MODES = ["whitebox", "graybox", "local-lab", "passive", "mixed"] as const;
@@ -374,7 +374,7 @@ export async function initCampaign(
   options: InitCampaignOptions = {},
 ): Promise<InitCampaignResult> {
   const campaign = buildCampaign(input, options.now);
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   const force = options.force ?? false;
   await ensureRealCampaignDirectory(projectRoot);
   const result = await withCampaignLock(
@@ -395,17 +395,19 @@ export async function initCampaign(
   }
 }
 
-export async function listCampaigns(projectRoot = process.cwd()): Promise<CampaignSummary[]> {
+export async function listCampaigns(projectRoot = resolveProjectRoot()): Promise<CampaignSummary[]> {
   const dir = campaignsDir(projectRoot);
   if (!existsSync(dir)) {
     return [];
   }
 
+  // Only Campaign.v1 sources: <id>.yaml / <id>.yml.
+  // Sidecars such as <id>.surfaces.yaml share the campaigns directory and must not be listed.
   const files = (await readdir(dir, { withFileTypes: true }))
-    .filter((dirent) => dirent.isFile() && /\.ya?ml$/.test(dirent.name))
+    .filter((dirent) => dirent.isFile() && isCampaignSourceFileName(dirent.name))
     .map((dirent) => dirent.name);
   const summaries: CampaignSummary[] = [];
-  const ids = [...new Set(files.map((file) => file.replace(/\.ya?ml$/, "")))];
+  const ids = [...new Set(files.map((file) => file.replace(/\.ya?ml$/i, "")))];
   for (const id of ids) {
     const path = resolveCampaignSource(id, projectRoot);
     if (!path) {
@@ -425,9 +427,17 @@ export async function listCampaigns(projectRoot = process.cwd()): Promise<Campai
   return summaries.sort((left, right) => left.id.localeCompare(right.id));
 }
 
+/** True for Campaign.v1 filenames; false for sidecars (e.g. *.surfaces.yaml) and other artifacts. */
+export function isCampaignSourceFileName(name: string): boolean {
+  if (/\.surfaces\.ya?ml$/i.test(name)) {
+    return false;
+  }
+  return /\.ya?ml$/i.test(name);
+}
+
 export async function showCampaign(
   id: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<ShowCampaignResult> {
   const normalizedId = normalizeCampaignId(id);
   const yamlPath = resolveCampaignSource(normalizedId, projectRoot);

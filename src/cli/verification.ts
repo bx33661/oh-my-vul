@@ -3,7 +3,7 @@ import { mkdir, readFile, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { parse as parseYaml } from "yaml";
 import { sha256File } from "./install-manifest.js";
-import { findingsDir, verificationPath, verificationsDir } from "./paths.js";
+import { findingsDir, verificationPath, verificationsDir, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
 export type VerificationDecisionStatus = "pass" | "fail" | "needs-human-review";
@@ -41,7 +41,7 @@ const VALID_CONFIDENCE = new Set(["high", "medium", "low", "unknown", ""]);
 
 export async function initVerification(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { force?: boolean } = {},
 ): Promise<VerificationInitResult> {
   const id = normalizeFindingId(target);
@@ -64,7 +64,7 @@ export async function initVerification(
   return { id, path, findingPath, findingSha256, written: true, skipped: false };
 }
 
-export async function showVerification(id: string, projectRoot = process.cwd()): Promise<VerificationDetail> {
+export async function showVerification(id: string, projectRoot = resolveProjectRoot()): Promise<VerificationDetail> {
   const normalizedId = normalizeFindingId(id);
   const path = verificationPath(normalizedId, projectRoot);
   const findingPath = resolveFindingPath(normalizedId, projectRoot);
@@ -80,7 +80,7 @@ export async function showVerification(id: string, projectRoot = process.cwd()):
 
 export async function validateVerification(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { requireExisting?: boolean } = {},
 ): Promise<VerificationValidation> {
   const id = normalizeFindingId(target);
@@ -145,12 +145,16 @@ async function validateParsedVerification(
     if (reviews.length === 0) {
       errors.push("reviews must include at least one review when decision.status is pass");
     }
+    // Only blocking disagreements (reviews that disagree) or required_changes block pass.
+    // Informational notes under agrees:true may still list nuance in disagreements without failing.
     if (disagreements > 0 || requiredChanges > 0) {
-      errors.push("decision.status cannot be pass while disagreements or required_changes remain");
+      errors.push(
+        "decision.status cannot be pass while disagreeing reviews or required_changes remain",
+      );
     }
   }
   if (status === "fail" && disagreements === 0) {
-    warnings.push("decision.status is fail but no disagreements are recorded");
+    warnings.push("decision.status is fail but no disagreeing reviews are recorded");
   }
 
   let stale = false;
@@ -216,11 +220,14 @@ function validateReview(
     errors.push(`${prefix}.reviewed_at must be an ISO date in YYYY-MM-DD format`);
   }
 
-  const disagreements = getList(value, "disagreements").length;
+  const listedDisagreements = getList(value, "disagreements").length;
   const requiredChanges = getList(value, "required_changes").length;
-  if (value.agrees === false && disagreements === 0) {
+  if (value.agrees === false && listedDisagreements === 0) {
     warnings.push(`${prefix}.agrees is false but disagreements is empty`);
   }
+  // Count disagreements only when the review actually disagrees. agrees:true may
+  // still record nuance notes without blocking decision.status pass.
+  const disagreements = value.agrees === false ? listedDisagreements : 0;
   return { disagreements, requiredChanges };
 }
 

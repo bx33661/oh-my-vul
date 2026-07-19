@@ -10,7 +10,7 @@ import {
   type EvidenceResearcherGoal,
   type FindingTemplateResult,
 } from "./findings.js";
-import { campaignSurfacesPath, findingsDir } from "./paths.js";
+import { campaignSurfacesPath, findingsDir, resolveProjectRoot } from "./paths.js";
 import { readSurfaceList, selectedSeedTargets, type AttackSurfaceCard } from "./surfaces.js";
 
 export interface CampaignSeedSkipped {
@@ -51,7 +51,7 @@ export interface SeedCampaignDependencies {
 
 export async function seedCampaign(
   id: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   dependencies: SeedCampaignDependencies = {},
 ): Promise<CampaignSeedResult> {
   const detail = await showCampaign(id, projectRoot);

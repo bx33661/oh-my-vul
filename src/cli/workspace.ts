@@ -18,6 +18,7 @@ import {
   verificationsDir,
   workspaceActivityLogPath,
   workspaceIndexPath,
+  resolveProjectRoot,
 } from "./paths.js";
 
 export interface WorkspaceFindingIndexEntry {
@@ -96,7 +97,7 @@ export interface InitWorkspaceOptions {
 const OMV_GITIGNORE_ENTRY = ".omv/";
 
 export async function initWorkspace(
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: InitWorkspaceOptions = {},
 ): Promise<WorkspaceStatus> {
   await ensureWorkspaceDirs(projectRoot);
@@ -142,7 +143,7 @@ async function initGitignoreAdvice(projectRoot: string, autoAdd: boolean): Promi
   return warnings;
 }
 
-export async function workspaceStatus(projectRoot = process.cwd()): Promise<WorkspaceStatus> {
+export async function workspaceStatus(projectRoot = resolveProjectRoot()): Promise<WorkspaceStatus> {
   await ensureWorkspaceDirs(projectRoot);
   const staleIndex = await isWorkspaceIndexStale(projectRoot);
   if (staleIndex || !existsSync(workspaceIndexPath(projectRoot))) {
@@ -167,7 +168,7 @@ export async function workspaceStatus(projectRoot = process.cwd()): Promise<Work
   };
 }
 
-export async function ensureWorkspaceDirs(projectRoot = process.cwd()): Promise<void> {
+export async function ensureWorkspaceDirs(projectRoot = resolveProjectRoot()): Promise<void> {
   await mkdir(findingsDir(projectRoot), { recursive: true });
   await mkdir(campaignsDir(projectRoot), { recursive: true });
   await mkdir(sourcesDir(projectRoot), { recursive: true });
@@ -181,7 +182,7 @@ export async function ensureWorkspaceDirs(projectRoot = process.cwd()): Promise<
   await mkdir(archiveMetadataDir(projectRoot), { recursive: true });
 }
 
-export async function rebuildWorkspaceIndex(projectRoot = process.cwd()): Promise<WorkspaceIndex> {
+export async function rebuildWorkspaceIndex(projectRoot = resolveProjectRoot()): Promise<WorkspaceIndex> {
   await ensureWorkspaceDirs(projectRoot);
   const generatedAt = new Date().toISOString();
   const existing = existsSync(workspaceIndexPath(projectRoot)) ? await readWorkspaceIndex(projectRoot) : emptyIndex();
@@ -193,7 +194,7 @@ export async function rebuildWorkspaceIndex(projectRoot = process.cwd()): Promis
   return index;
 }
 
-export async function readWorkspaceIndex(projectRoot = process.cwd()): Promise<WorkspaceIndex> {
+export async function readWorkspaceIndex(projectRoot = resolveProjectRoot()): Promise<WorkspaceIndex> {
   if (!existsSync(workspaceIndexPath(projectRoot))) {
     return emptyIndex();
   }
@@ -208,7 +209,7 @@ export async function readWorkspaceIndex(projectRoot = process.cwd()): Promise<W
 export async function touchWorkspaceFinding(
   id: string,
   status: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { archived?: boolean; archiveReason?: string; archivedAt?: string } = {},
 ): Promise<void> {
   await ensureWorkspaceDirs(projectRoot);
@@ -233,19 +234,19 @@ export async function touchWorkspaceFinding(
   await writeWorkspaceIndex(projectRoot, { version: 1, generatedAt: now, findings: next.sort(compareEntries) });
 }
 
-export async function removeWorkspaceFinding(id: string, archived: boolean, projectRoot = process.cwd()): Promise<void> {
+export async function removeWorkspaceFinding(id: string, archived: boolean, projectRoot = resolveProjectRoot()): Promise<void> {
   const index = await readWorkspaceIndex(projectRoot);
   const now = new Date().toISOString();
   const findings = index.findings.filter((entry) => entryKey(entry.id, entry.archived) !== entryKey(id, archived));
   await writeWorkspaceIndex(projectRoot, { version: 1, generatedAt: now, findings });
 }
 
-export async function writeArchiveMetadata(metadata: ArchiveMetadata, projectRoot = process.cwd()): Promise<void> {
+export async function writeArchiveMetadata(metadata: ArchiveMetadata, projectRoot = resolveProjectRoot()): Promise<void> {
   await ensureWorkspaceDirs(projectRoot);
   await writeFile(archiveMetadataPath(metadata.id, projectRoot), `${JSON.stringify(metadata, null, 2)}\n`, "utf-8");
 }
 
-export async function readArchiveMetadata(id: string, projectRoot = process.cwd()): Promise<ArchiveMetadata | undefined> {
+export async function readArchiveMetadata(id: string, projectRoot = resolveProjectRoot()): Promise<ArchiveMetadata | undefined> {
   const path = archiveMetadataPath(id, projectRoot);
   if (!existsSync(path)) {
     return undefined;
@@ -264,7 +265,7 @@ export async function readArchiveMetadata(id: string, projectRoot = process.cwd(
 
 export async function appendWorkspaceActivity(
   entry: Omit<WorkspaceActivityEntry, "timestamp">,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<WorkspaceActivityEntry> {
   await ensureWorkspaceDirs(projectRoot);
   const activity = { timestamp: new Date().toISOString(), ...entry };
@@ -272,7 +273,7 @@ export async function appendWorkspaceActivity(
   return activity;
 }
 
-export async function readWorkspaceActivity(projectRoot = process.cwd()): Promise<WorkspaceActivityEntry[]> {
+export async function readWorkspaceActivity(projectRoot = resolveProjectRoot()): Promise<WorkspaceActivityEntry[]> {
   const path = workspaceActivityLogPath(projectRoot);
   if (!existsSync(path)) {
     return [];

@@ -20,6 +20,7 @@ import {
 } from "../render.js";
 import { findingsUsage } from "../usage.js";
 import { firstPositionalAfter, parseStatus, parseReason, wantsJson } from "./shared.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1] ?? "list";
@@ -65,7 +66,7 @@ async function runFindingsShow(args: string[], json: boolean): Promise<void> {
     console.error("Missing finding id.");
     process.exit(1);
   }
-  const result = await showFinding(target, process.cwd(), { archived: args.includes("--archived") });
+  const result = await showFinding(target, resolveProjectRoot(), { archived: args.includes("--archived") });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -183,7 +184,7 @@ async function runFindingsArchive(args: string[], json: boolean): Promise<void> 
     process.exit(1);
   }
 
-  const result = await archiveFinding(target, reason, process.cwd(), { force, strict });
+  const result = await archiveFinding(target, reason, resolveProjectRoot(), { force, strict });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
@@ -198,7 +199,7 @@ async function runFindingsRestore(args: string[], json: boolean): Promise<void> 
     console.error("Missing finding id.");
     process.exit(1);
   }
-  const result = await restoreFinding(target, process.cwd(), { force });
+  const result = await restoreFinding(target, resolveProjectRoot(), { force });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;

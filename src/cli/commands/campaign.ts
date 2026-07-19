@@ -24,6 +24,7 @@ import {
 import { proposeSurfaces, selectSurfaces, showSurfaces } from "../surfaces.js";
 import { campaignUsage } from "../usage.js";
 import { firstPositionalAfter, parseOption, wantsJson } from "./shared.js";
+import { resolveProjectRoot } from "../paths.js";
 
 type CampaignSubcommand = "init" | "list" | "show" | "seed" | "surfaces" | "help";
 type SurfacesSubcommand = "propose" | "show" | "select" | "help";
@@ -74,7 +75,7 @@ async function runSurfaces(args: string[], json: boolean): Promise<void> {
     case "propose": {
       const id = firstPositionalAfter(args, "propose");
       if (!id) throw new Error("Campaign surfaces propose requires an id");
-      const result = await proposeSurfaces(id, process.cwd(), { force: args.includes("--force") });
+      const result = await proposeSurfaces(id, resolveProjectRoot(), { force: args.includes("--force") });
       if (json) console.log(JSON.stringify(result, null, 2));
       else printSurfacesProposeResult(result);
       return;

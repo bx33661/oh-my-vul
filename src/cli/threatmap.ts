@@ -5,7 +5,7 @@ import { existsSync } from "fs";
 import { mkdir, readFile, stat, writeFile } from "fs/promises";
 import { join } from "path";
 import { parse as parseYaml } from "yaml";
-import { findingsDir, threatMapPath, threatMapsDir } from "./paths.js";
+import { findingsDir, threatMapPath, threatMapsDir, resolveProjectRoot } from "./paths.js";
 import { appendWorkspaceActivity } from "./workspace.js";
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ export interface ThreatMapValidation {
 
 export async function writeThreatMap(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { force?: boolean } = {},
 ): Promise<ThreatMapWriteResult> {
   const id = normalizeFindingId(target);
@@ -73,7 +73,7 @@ export async function readThreatMap(id: string, projectRoot: string): Promise<Fi
 
 export async function validateThreatMap(
   target: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
   options: { requireExisting?: boolean; evidence?: Record<string, unknown> } = {},
 ): Promise<ThreatMapValidation> {
   const id = normalizeFindingId(target);

@@ -997,3 +997,71 @@ test("end-to-end finding flow validates, promotes, checks artifacts, and archive
     await rm(projectRoot, { recursive: true, force: true });
   }
 });
+
+
+test("confirmed findings accept file:line ranges in evidence traces", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-fileline-"));
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    const body = BASE_FINDING
+      .replace("status: candidate", "status: confirmed")
+      .replace(
+        "source: lib/index.js:12 options.filename",
+        "source: lib/index.js:12-18 options.filename enters sanitize",
+      )
+      .replace(
+        "sink: lib/index.js:44 fs.readFileSync",
+        "sink: lib/index.js:44-50 fs.readFileSync",
+      )
+      .replace(
+        "guard: missing path normalization",
+        "guard: lib/index.js:30-36 incomplete prefix check after normalize",
+      );
+    await writeFile(join(dir, "ranged.yaml"), body, "utf-8");
+    const result = await validateFinding("ranged", projectRoot);
+    assert.equal(result.ok, true, result.errors.join("\n"));
+    assert.equal(result.status, "confirmed");
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("Verification.v1 pass allows nuance notes when agrees is true", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-verif-nuance-"));
+  try {
+    const dir = await ensureFindingsDir(projectRoot);
+    await writeFile(join(dir, "confirmed.yaml"), BASE_FINDING.replace("status: candidate", "status: confirmed"), "utf-8");
+    const init = await initVerification("confirmed", projectRoot);
+    await writeFile(
+      verificationPath("confirmed", projectRoot),
+      `schema_version: "1"
+finding_id: "confirmed"
+finding_sha256: "${init.findingSha256}"
+reviews:
+  - reviewer: verifier
+    target: evidence.guard
+    agrees: true
+    disagreements:
+      - "impact requires sibling path pre-positioning"
+    required_changes: []
+    confidence: high
+    reviewed_at: "2026-04-29"
+decision:
+  status: pass
+  reason: agrees with nuance notes only
+  required_for_confirmed: true
+provenance:
+  generated_at: "2026-04-29"
+  tool: omv
+  tool_version: test
+`,
+      "utf-8",
+    );
+    const validation = await validateVerification("confirmed", projectRoot);
+    assert.equal(validation.ok, true, validation.errors.join("\n"));
+    assert.equal(validation.status, "pass");
+    assert.equal(validation.disagreements, 0);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});

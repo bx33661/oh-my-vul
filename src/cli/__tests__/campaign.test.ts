@@ -33,6 +33,7 @@ import {
   workspaceActivityLogPath,
   workspaceIndexPath,
 } from "../paths.js";
+import { proposeSurfaces } from "../surfaces.js";
 import { initWorkspace, readWorkspaceActivity } from "../workspace.js";
 
 const FIXED_ISO = "2026-07-10T00:00:00.000Z";
@@ -1102,6 +1103,29 @@ test("Campaign list and show leave workspace index bytes unchanged", async () =>
     await showCampaign("demo", projectRoot);
 
     assert.deepEqual(await readFile(workspaceIndexPath(projectRoot)), before);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("Campaign list ignores attack-surface sidecars next to Campaign.v1 files", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "omv-campaign-"));
+
+  try {
+    const campaign = await initCampaign(
+      { id: "demo", target: "Acme", ecosystem: "npm", vulnerabilities: ["ssrf"] },
+      { projectRoot, now: fixedNow },
+    );
+    await proposeSurfaces(campaign.campaign.id, projectRoot);
+    const surfacesPath = join(campaignsDir(projectRoot), `${campaign.campaign.id}.surfaces.yaml`);
+    assert.equal(existsSync(surfacesPath), true);
+
+    const listed = await listCampaigns(projectRoot);
+    assert.deepEqual(
+      listed.map((item) => item.id),
+      [campaign.campaign.id],
+    );
+    assert.equal(listed[0]?.target, "Acme");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

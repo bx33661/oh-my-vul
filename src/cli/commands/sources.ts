@@ -1,6 +1,7 @@
 import { initSourceRef, showSourceRef, validateSourceRef } from "../source-ref.js";
 import { printSourceRefDetail, printSourceRefInitResult } from "../render.js";
 import { firstPositionalAfter, wantsJson } from "./shared.js";
+import { resolveProjectRoot } from "../paths.js";
 
 export async function run(args: string[]): Promise<void> {
   const subcommand = args[1];
@@ -12,7 +13,7 @@ export async function run(args: string[]): Promise<void> {
   const json = wantsJson(args);
 
   if (subcommand === "init") {
-    const result = await initSourceRef(id, process.cwd(), { force: args.includes("--force") });
+    const result = await initSourceRef(id, resolveProjectRoot(), { force: args.includes("--force") });
     if (json) console.log(JSON.stringify(result, null, 2));
     else printSourceRefInitResult(result);
     return;

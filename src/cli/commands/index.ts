@@ -58,7 +58,18 @@ const REGISTRY: Record<string, (args: string[]) => Promise<void>> = {
 export async function run(): Promise<void> {
   const rawArgs = process.argv.slice(2);
   const noTuiFlag = rawArgs.includes("--no-tui");
-  const args = rawArgs.filter((argument) => argument !== "--no-tui");
+  const withoutNoTui = rawArgs.filter((argument) => argument !== "--no-tui");
+  const rootExtraction = extractProjectRootOption(withoutNoTui);
+  if (rootExtraction.error) {
+    console.error(rootExtraction.error);
+    console.error("\nRun 'omv help' to see the main commands.");
+    process.exit(1);
+  }
+  if (rootExtraction.root) {
+    // Prefer explicit CLI root over ambient env for this process.
+    process.env.OMV_PROJECT_ROOT = rootExtraction.root;
+  }
+  const args = rootExtraction.args;
   const command = args[0];
   const presenterEnvironment = {
     stdinIsTTY: Boolean(process.stdin.isTTY),
@@ -119,4 +130,36 @@ async function runPlainEntry(): Promise<void> {
   } else {
     printWelcome();
   }
+}
+
+/** Strip global `--root <path>` / `--root=<path>` before command validation. */
+export function extractProjectRootOption(args: string[]): {
+  args: string[];
+  root?: string;
+  error?: string;
+} {
+  const next: string[] = [];
+  let root: string | undefined;
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === "--root") {
+      const value = args[i + 1];
+      if (!value || value.startsWith("-")) {
+        return { args, error: "--root requires a directory path" };
+      }
+      root = value;
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--root=")) {
+      const value = arg.slice("--root=".length);
+      if (!value) {
+        return { args, error: "--root requires a directory path" };
+      }
+      root = value;
+      continue;
+    }
+    next.push(arg);
+  }
+  return { args: next, root };
 }

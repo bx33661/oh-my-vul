@@ -6,7 +6,7 @@ import {
   type FindingDetail,
   type FindingWorkflowSummary,
 } from "../findings.js";
-import { omvStateDir } from "../paths.js";
+import { omvStateDir, resolveProjectRoot } from "../paths.js";
 import { detectProjectContext, type ProjectContext } from "../start.js";
 import {
   readWorkspaceActivity,
@@ -32,7 +32,7 @@ export function retainInteractiveActivity(activity: WorkspaceActivityEntry[]): W
 }
 
 export async function loadInteractiveWorkspace(
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<InteractiveWorkspaceModel> {
   const detectedProject = await detectProjectContext(projectRoot);
   if (!existsSync(omvStateDir(projectRoot))) {
@@ -74,7 +74,7 @@ export async function loadInteractiveWorkspace(
 
 export function loadInteractiveFinding(
   id: string,
-  projectRoot = process.cwd(),
+  projectRoot = resolveProjectRoot(),
 ): Promise<FindingDetail> {
   return showFinding(id, projectRoot);
 }

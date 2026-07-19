@@ -12,6 +12,7 @@ import {
   type InitCampaignResult,
 } from "./campaign.js";
 import { initWorkspace, type WorkspaceStatus } from "./workspace.js";
+import { resolveProjectRoot } from "./paths.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -56,7 +57,7 @@ const MANIFEST_ECOSYSTEMS: Array<[string, CampaignEcosystem]> = [
   ["DESCRIPTION", "r"],
 ];
 
-export async function detectProjectContext(projectRoot = process.cwd()): Promise<ProjectContext> {
+export async function detectProjectContext(projectRoot = resolveProjectRoot()): Promise<ProjectContext> {
   const root = resolve(projectRoot);
   const context: ProjectContext = {
     root,
@@ -118,7 +119,7 @@ export async function startResearch(
   input: CampaignInput,
   options: StartResearchOptions,
 ): Promise<StartResearchResult> {
-  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+  const projectRoot = resolve(options.projectRoot ?? resolveProjectRoot());
   const project = await detectProjectContext(projectRoot);
   const workspace = await initWorkspace(projectRoot, { gitignore: true });
   const resolvedInput = await resolveCampaignInput({

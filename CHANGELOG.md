@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fixed research workspace resolution so commands run from under `.omv/` (for example `.omv/checkouts/<pkg>`) reuse the owning project instead of creating a nested empty `.omv`. Supports `OMV_PROJECT_ROOT` / `OMV_ROOT` and global `--root <path>`.
+- Fixed `omv dashboard` / `omv campaign list` treating AttackSurfaceList sidecars (`*.surfaces.yaml`) as Campaign.v1 files, which produced hard validation errors after `surfaces propose`.
+- Confirmed evidence `file:line` checks now accept inclusive ranges (`path/file.go:12-18`) as well as column forms.
+- Verification `decision.status: pass` no longer fails when a review sets `agrees: true` but still lists nuance notes under `disagreements`.
+- `omv review` routes to `/omv-repro` only for missing `observed_result`, not merely for `plausible` exploitability.
+- Added `ssrf-filter` attack-surface pack for HTTP client SSRF filters and private-IP agents.
+- Documented allowed `--mode`, `--goal`, and `--budget` enums in `omv help start`, plus project-root resolution in top-level help.
+
 ## v1.0.0 - 2026-07-11
 
 - Added Windows as a validated platform with Python 3 runtime discovery, shell-independent Node test execution, cross-platform Skill packaging and LOC estimation, and an Ubuntu/Windows CI matrix. Claude Code remains the default platform when `--platform` is omitted.
