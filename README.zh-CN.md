@@ -14,6 +14,8 @@
 
 </div>
 
+![oh-my-vul 交互式证据工作台](https://raw.githubusercontent.com/bx33661/oh-my-vul/main/docs/images/oh-my-vul-dashboard.png)
+
 ---
 
 `oh-my-vul` 把开源漏洞研究整理成一套可重复、可复核的流程：

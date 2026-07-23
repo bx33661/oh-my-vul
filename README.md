@@ -14,6 +14,8 @@ Plan the research, trace the evidence, reproduce locally, and turn confirmed fin
 
 </div>
 
+![oh-my-vul interactive evidence workspace](https://raw.githubusercontent.com/bx33661/oh-my-vul/main/docs/images/oh-my-vul-dashboard.png)
+
 ---
 
 `oh-my-vul` combines agent skills with a local CLI to make open-source vulnerability research repeatable in Pi, Codex, and Claude Code:
