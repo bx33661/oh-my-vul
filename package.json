@@ -1,10 +1,15 @@
 {
   "name": "oh-my-vul",
-  "version": "1.0.0",
-  "description": "Evidence-first vulnerability research skills for Codex and Claude Code",
+  "version": "1.1.0",
+  "description": "Evidence-first vulnerability research skills and CLI for Pi, Codex, and Claude Code",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -72,6 +77,9 @@
     "registry.yaml"
   ],
   "keywords": [
+    "pi-package",
+    "pi",
+    "pi-skill",
     "claude-code",
     "codex",
     "security",
@@ -83,10 +91,10 @@
   "author": "bx33661",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bx33661/oh-my-vul.git",
-    "homepage": "https://github.com/bx33661/oh-my-vul#readme",
-    "bugs": "https://github.com/bx33661/oh-my-vul/issues"
+    "url": "git+https://github.com/bx33661/oh-my-vul.git"
   },
+  "homepage": "https://github.com/bx33661/oh-my-vul#readme",
+  "bugs": "https://github.com/bx33661/oh-my-vul/issues",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.6.2",

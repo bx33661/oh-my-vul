@@ -179,6 +179,14 @@ def main() -> None:
     if not isinstance(exports, dict) or set(exports) != {".", "./package.json"}:
         fail("package exports must contain only the root API and package.json")
 
+    keywords = package_json.get("keywords")
+    if not isinstance(keywords, list) or "pi-package" not in keywords:
+        fail("package keywords must include pi-package for Pi gallery discovery")
+
+    pi_manifest = package_json.get("pi")
+    if not isinstance(pi_manifest, dict) or pi_manifest.get("skills") != ["./skills"]:
+        fail("package pi.skills must declare the canonical ./skills directory")
+
     package = npm_pack()
     files = package.get("files", [])
     if not isinstance(files, list):
@@ -188,6 +196,16 @@ def main() -> None:
     missing = sorted(REQUIRED_FILES - paths)
     if missing:
         fail(f"missing required npm files: {', '.join(missing)}")
+
+    pi_skill_entries = {
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in (REPO_ROOT / "skills").glob("*/SKILL.md")
+    }
+    missing_pi_skills = sorted(pi_skill_entries - paths)
+    if missing_pi_skills:
+        fail(f"missing Pi skill entries: {', '.join(missing_pi_skills)}")
+    if len(pi_skill_entries) != 10:
+        fail(f"expected 10 canonical Pi skills, found {len(pi_skill_entries)}")
 
     missing_patterns = sorted(expected_pattern_pack_files() - paths)
     if missing_patterns:
@@ -226,6 +244,7 @@ def main() -> None:
                 "version": package.get("version"),
                 "filename": package.get("filename"),
                 "files": len(paths),
+                "piSkills": len(pi_skill_entries),
                 "size": package.get("size"),
                 "unpackedSize": package.get("unpackedSize"),
             },

@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { projectRootIfInsideOmvState, resolveProjectRoot } from "../paths.js";
 import { extractProjectRootOption } from "../commands/index.js";
+import { setup } from "../setup.js";
+import { doctor } from "../doctor.js";
 
 test("projectRootIfInsideOmvState maps checkouts back to the owner project", () => {
   const root = "/tmp/research-root";
@@ -98,4 +100,38 @@ test("extractProjectRootOption strips --root forms", () => {
     root: "/tmp/ws",
   });
   assert.equal(extractProjectRootOption(["--root"]).error, "--root requires a directory path");
+});
+
+test("project-scoped setup and doctor honor the resolved project root", async () => {
+  const project = await mkdtemp(join(tmpdir(), "omv-root-platform-"));
+  const previousProjectRoot = process.env.OMV_PROJECT_ROOT;
+  const previousRoot = process.env.OMV_ROOT;
+  process.env.OMV_PROJECT_ROOT = project;
+  delete process.env.OMV_ROOT;
+  try {
+    const setupResult = await setup({
+      dryRun: true,
+      scope: "project",
+      platform: "codex",
+    });
+    assert.equal(setupResult.destination, join(project, ".agents", "skills"));
+
+    const doctorResult = await doctor({
+      scope: "project",
+      platform: "codex",
+    });
+    assert.equal(doctorResult.skillsDir, join(project, ".agents", "skills"));
+  } finally {
+    if (previousProjectRoot === undefined) {
+      delete process.env.OMV_PROJECT_ROOT;
+    } else {
+      process.env.OMV_PROJECT_ROOT = previousProjectRoot;
+    }
+    if (previousRoot === undefined) {
+      delete process.env.OMV_ROOT;
+    } else {
+      process.env.OMV_ROOT = previousRoot;
+    }
+    await rm(project, { recursive: true, force: true });
+  }
 });

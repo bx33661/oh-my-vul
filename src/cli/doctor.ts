@@ -12,6 +12,7 @@ import {
   projectClaudeHome,
   projectCodexSkillsDir,
   projectSkillsDir,
+  resolveProjectRoot,
   setupScopePath,
 } from "./paths.js";
 import {
@@ -51,7 +52,7 @@ export interface DoctorOptions {
 
 export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult> {
   const checks: Check[] = [];
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   const scope = options.scope ?? (await resolveDoctorScope(projectRoot));
   const platform = options.platform
     ?? (scope === "project" ? await resolveDoctorPlatform(projectRoot) : "claude-code");

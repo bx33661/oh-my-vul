@@ -1,11 +1,13 @@
 ---
 name: omv
-description: oh-my-vul local-first vulnerability research project manager. Shows workspace status, next actions, installed omv-* skills, registry info, and delegates .omv findings lifecycle commands. Use when the user types /omv, asks what to do next, or manages local findings.
+description: oh-my-vul local-first vulnerability research project manager for Pi, Codex, and Claude Code. Shows workspace status, next actions, installed omv-* skills, registry info, and delegates .omv findings lifecycle commands. Use when the user invokes /skill:omv, $omv, or /omv; asks what to do next; or manages local findings.
 ---
 
 # omv
 
-oh-my-vul local-first vulnerability research project manager for Codex and Claude Code.
+oh-my-vul local-first vulnerability research project manager for Pi, Codex, and Claude Code.
+
+Invocation depends on the active platform: Pi uses `/skill:omv [args]`, Codex uses `$omv [args]`, and Claude Code uses `/omv [args]`. The command table below uses `/omv` as shorthand for the active platform's project-manager invocation.
 
 **Process first:** For any vulnerability research session (find / audit / report / “what next”), apply `using-omv` discipline — evidence before claims, CLI gates before “confirmed” or “ready to submit”, prefer campaign + attack-surface cards before bulk hypotheses. Do not invent parallel workflows outside `.omv/` + `omv` CLI.
 
@@ -50,16 +52,16 @@ oh-my-vul local-first vulnerability research project manager for Codex and Claud
 /omv help                   — show this help text
 ```
 
-The first word after `/omv` is treated as the subcommand. Unknown subcommands show the help text.
+The first word after the platform-specific project-manager invocation is treated as the subcommand. Unknown subcommands show the help text.
 
 ## Skills in This Collection
 
 | Skill | Invocation | Purpose |
 |---|---|---|
-| omv-find | `/omv-find` | Find and rank open-source packages worth auditing |
-| omv-audit | `/omv-audit` | Deep-audit a candidate finding, prove or disprove the vulnerability |
-| omv-repro | `/omv-repro` | Guide local reproduction, fill evidence.observed_result |
-| omv-report | `/omv-report` | Generate VulDB/CVE/GHSA/OSV advisory reports |
+| omv-find | `/skill:omv-find` on Pi; `$omv-find` on Codex; `/omv-find` on Claude Code | Find and rank open-source packages worth auditing |
+| omv-audit | `/skill:omv-audit` on Pi; `$omv-audit` on Codex; `/omv-audit` on Claude Code | Deep-audit a candidate finding, prove or disprove the vulnerability |
+| omv-repro | `/skill:omv-repro` on Pi; `$omv-repro` on Codex; `/omv-repro` on Claude Code | Guide local reproduction, fill evidence.observed_result |
+| omv-report | `/skill:omv-report` on Pi; `$omv-report` on Codex; `/omv-report` on Claude Code | Generate VulDB/CVE/GHSA/OSV advisory reports |
 
 ## Registry
 
@@ -96,7 +98,7 @@ Use `omv help`, `omv help review`, `omv help findings`, `omv help repro`, or `om
 - `/omv restore <id>` -> `omv findings restore <id>`
 - `/omv findings ...` -> `omv findings ...`
 
-**If `omv` is not found on PATH**, output: "`omv` is not installed. Run `npm install --global oh-my-vul`, then `omv setup --platform codex` in Codex or `omv setup --platform claude-code` in Claude Code."
+**If `omv` is not found on PATH**, output: "`omv` is not installed. Run `npm install --global oh-my-vul`. Pi users already have the Skills and should not run `omv setup`; Codex and Claude Code users should then run `omv setup --platform codex|claude-code` for their platform."
 
 ### Subcommand reference
 

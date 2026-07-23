@@ -2,7 +2,7 @@
 
 # oh-my-vul
 
-**面向 Codex 与 Claude Code 的证据优先漏洞研究工作台。**
+**面向 Pi、Codex 与 Claude Code 的证据优先漏洞研究工作台。**
 
 从研究范围到报告草稿，每个结论都能回到本地证据。
 
@@ -26,7 +26,26 @@
 
 ## 快速开始
 
-**环境要求：** [Codex](https://developers.openai.com/codex/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Node.js 22 或更高版本，以及供内置 Skill 辅助脚本使用的 Python 3。确定性报告渲染器还使用自身固定版本的 PyYAML 依赖。支持 Windows、Linux 和 macOS；Windows 建议使用新版 Windows Terminal 或 PowerShell 运行 Ink 工作台。
+**环境要求：** [Pi](https://pi.dev/)、[Codex](https://developers.openai.com/codex/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Node.js 22 或更高版本，以及供内置 Skill 辅助脚本使用的 Python 3。确定性报告渲染器还使用自身固定版本的 PyYAML 依赖。支持 Windows、Linux 和 macOS；Windows 建议使用新版 Windows Terminal 或 PowerShell 运行 Ink 工作台。
+
+### Pi
+
+直接把 package 安装到 Pi：
+
+```sh
+pi install npm:oh-my-vul
+```
+
+Pi 会发现内置的全部 10 个 Skills。使用 `/skill:omv` 打开项目管理入口，也可以直接调用 `/skill:omv-find`、`/skill:omv-audit` 等专用 Skill。若要使用完整的本地 `.omv/` 工作区、确定性校验和 Ink 工作台，还需要安装配套 CLI：
+
+```sh
+npm install --global oh-my-vul@latest
+omv start
+```
+
+Pi 会自行管理 Skills，因此 Pi 用户不需要运行 `omv setup`。如果只想在当前项目启用，可使用 `pi install npm:oh-my-vul -l`。
+
+### Codex 与 Claude Code
 
 全局安装 CLI，并把 Skills 装入 Codex：
 
@@ -55,7 +74,7 @@ omv start --vuln xss,auth --no-interactive
 $omv
 ```
 
-Claude Code 用户调用 `/omv`。Skill 会自动启用证据与审查门槛，并显示正在处理的 finding 和下一步建议。在交互式终端中直接运行 `omv`，会打开 Ink 研究工作台。
+Pi 用户调用 `/skill:omv`；Claude Code 用户调用 `/omv`。Skill 会自动启用证据与审查门槛，并显示正在处理的 finding 和下一步建议。在交互式终端中直接运行 `omv`，会打开 Ink 研究工作台。
 
 ## 交互式工作台
 

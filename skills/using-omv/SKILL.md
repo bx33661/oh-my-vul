@@ -8,7 +8,19 @@ description: |
 
 High-quality growth rule for this project: **deepen discipline, do not inflate skill count.**
 
-This skill is the session bootstrap. Domain work still lives in `/omv-find`, `/omv-audit`, `/omv-repro`, `/omv-report`, etc. You use those skills **inside** the process below — you do not invent parallel workflows.
+This skill is the session bootstrap. Domain work still lives in the `omv-find`, `omv-audit`, `omv-repro`, and `omv-report` skills. You use those skills **inside** the process below — you do not invent parallel workflows.
+
+## Platform Invocation
+
+Use the invocation form provided by the active agent:
+
+| Platform | Project manager | Focused skill example |
+|---|---|---|
+| Pi | `/skill:omv` | `/skill:omv-audit <id>` |
+| Codex | `$omv` | `$omv-audit <id>` |
+| Claude Code | `/omv` | `/omv-audit <id>` |
+
+In the workflow below, `/omv-*` is shorthand for the matching focused skill on the active platform.
 
 ## Iron Laws
 
@@ -134,4 +146,4 @@ omv findings validate <id>
 omv review <id> --strict
 ```
 
-If `omv` is missing: install it with `npm install --global oh-my-vul`, then run `omv setup --platform codex` in Codex or `omv setup --platform claude-code` in Claude Code and re-check with the matching `omv doctor --platform ...` command.
+If `omv` is missing: install it with `npm install --global oh-my-vul`. Pi already manages the Skills installed by `pi install npm:oh-my-vul`, so Pi users should continue with `omv version` or `omv start` and must not run `omv setup`. In Codex or Claude Code, run the matching `omv setup --platform codex|claude-code` command and re-check with `omv doctor --platform ...`.

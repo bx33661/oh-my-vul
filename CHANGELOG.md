@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## v1.1.0 - 2026-07-23
+
+- Added first-class Pi package support with native `pi.skills` discovery, documented `/skill:omv-*` invocation, and bilingual install guidance.
 - Fixed research workspace resolution so commands run from under `.omv/` (for example `.omv/checkouts/<pkg>`) reuse the owning project instead of creating a nested empty `.omv`. Supports `OMV_PROJECT_ROOT` / `OMV_ROOT` and global `--root <path>`.
 - Fixed `omv dashboard` / `omv campaign list` treating AttackSurfaceList sidecars (`*.surfaces.yaml`) as Campaign.v1 files, which produced hard validation errors after `surfaces propose`.
 - Confirmed evidence `file:line` checks now accept inclusive ranges (`path/file.go:12-18`) as well as column forms.

@@ -1,6 +1,7 @@
 import { render, type RenderOptions } from "ink";
 import { InteractiveApp, type InteractiveAppServices } from "./app.js";
 import { loadInteractiveFinding, loadInteractiveWorkspace } from "./model.js";
+import { resolveProjectRoot } from "../paths.js";
 import { startResearch } from "../start.js";
 
 export interface InteractiveLaunchOptions {
@@ -30,7 +31,7 @@ export function interactiveRenderOptions(options: InteractiveLaunchOptions = {})
 }
 
 export async function launchInteractiveWorkspace(options: InteractiveLaunchOptions = {}): Promise<void> {
-  const projectRoot = options.projectRoot ?? process.cwd();
+  const projectRoot = options.projectRoot ?? resolveProjectRoot();
   const initialModel = await loadInteractiveWorkspace(projectRoot);
   const services: InteractiveAppServices = {
     reload: () => loadInteractiveWorkspace(projectRoot),

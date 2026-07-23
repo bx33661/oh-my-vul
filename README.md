@@ -2,7 +2,7 @@
 
 # oh-my-vul
 
-**Evidence-first vulnerability research for Codex and Claude Code.**
+**Evidence-first vulnerability research for Pi, Codex, and Claude Code.**
 
 Plan the research, trace the evidence, reproduce locally, and turn confirmed findings into review-ready reports.
 
@@ -16,7 +16,7 @@ Plan the research, trace the evidence, reproduce locally, and turn confirmed fin
 
 ---
 
-`oh-my-vul` combines agent skills with a local CLI to make open-source vulnerability research repeatable in Codex and Claude Code:
+`oh-my-vul` combines agent skills with a local CLI to make open-source vulnerability research repeatable in Pi, Codex, and Claude Code:
 
 - **Start with a clear scope.** Campaigns and attack-surface cards turn a broad target into focused research questions.
 - **Keep claims tied to evidence.** Findings record the tested version, source, sink, guards, reproduction, and remaining unknowns.
@@ -26,7 +26,26 @@ Research state stays in a private `.omv/` workspace. The project is designed for
 
 ## Quick Start
 
-**Requirements:** [Codex](https://developers.openai.com/codex/) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Node.js 22 or later, and Python 3 for bundled Skill helpers. The deterministic report renderer additionally uses its pinned PyYAML dependency. Windows, Linux, and macOS are supported; on Windows, use a modern Windows Terminal or PowerShell for the Ink workspace.
+**Requirements:** [Pi](https://pi.dev/), [Codex](https://developers.openai.com/codex/), or [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Node.js 22 or later, and Python 3 for bundled Skill helpers. The deterministic report renderer additionally uses its pinned PyYAML dependency. Windows, Linux, and macOS are supported; on Windows, use a modern Windows Terminal or PowerShell for the Ink workspace.
+
+### Pi
+
+Install the package directly into Pi:
+
+```sh
+pi install npm:oh-my-vul
+```
+
+Pi discovers all 10 bundled Skills. Invoke the project manager with `/skill:omv`, or call a focused Skill such as `/skill:omv-find` or `/skill:omv-audit`. For the complete local `.omv/` workspace, deterministic validation, and Ink dashboard, install the matching CLI as well:
+
+```sh
+npm install --global oh-my-vul@latest
+omv start
+```
+
+Pi manages the Skills itself, so Pi users should not run `omv setup`. Use `pi install npm:oh-my-vul -l` instead when the package should be enabled only for the current project.
+
+### Codex and Claude Code
 
 Install the CLI and add the skills to Codex:
 
@@ -55,7 +74,7 @@ Open that project in Codex, then invoke the Skill (or choose it from `/skills`):
 $omv
 ```
 
-Claude Code users invoke `/omv`. The Skill applies the evidence and review gates, shows the active queue, and recommends the next action. From an interactive terminal, bare `omv` opens the Ink research workspace.
+Pi users invoke `/skill:omv`; Claude Code users invoke `/omv`. The Skill applies the evidence and review gates, shows the active queue, and recommends the next action. From an interactive terminal, bare `omv` opens the Ink research workspace.
 
 ## Interactive Workspace
 

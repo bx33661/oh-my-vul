@@ -10,6 +10,7 @@ import {
   projectAgentsDir,
   projectCodexSkillsDir,
   projectSkillsDir,
+  resolveProjectRoot,
   setupScopePath,
 } from "./paths.js";
 import { getInstallableSkills, readCatalog } from "./catalog.js";
@@ -66,7 +67,7 @@ export interface UninstallResult {
 }
 
 export async function uninstall(options: UninstallOptions = {}): Promise<UninstallResult> {
-  const { scope = "user", platform = "claude-code", projectRoot = process.cwd() } = options;
+  const { scope = "user", platform = "claude-code", projectRoot = resolveProjectRoot() } = options;
   const skillsDir = resolveSkillsDir(scope, platform, projectRoot);
   const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
   const result: UninstallResult = {
@@ -147,7 +148,7 @@ export async function uninstall(options: UninstallOptions = {}): Promise<Uninsta
 }
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
-  const { force = false, dryRun = false, scope = "user", platform = "claude-code", projectRoot = process.cwd() } = options;
+  const { force = false, dryRun = false, scope = "user", platform = "claude-code", projectRoot = resolveProjectRoot() } = options;
   const destDir = resolveSkillsDir(scope, platform, projectRoot);
   const agentsDir = scope === "project" ? projectAgentsDir(projectRoot) : claudeAgentsDir();
   const result: SetupResult = {
